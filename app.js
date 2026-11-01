@@ -685,11 +685,6 @@ function renderExpenseList(periodExpenses) {
 }
 
 function updateUsageTrackerUI() {
-  const stats = state.usageStats || loadCachedUsageStats();
-  const localHasTx = state.expenses.length > 0 ? 1 : 0;
-  const activeUsers = Math.max(localHasTx, Number(stats.activeUsers) || 0);
-  const visitors = Math.max(1, Number(stats.uniqueUsers) || 1);
-  const entriesLogged = Math.max(state.expenses.length, Number(stats.totalTxLogged) || 0);
   const myName = (state.settings.userName || '').trim();
 
   // Show or hide the 1-line welcome name prompt bar
@@ -704,43 +699,7 @@ function updateUsageTrackerUI() {
   }
 
   if (els.usageStatsLabel) {
-    const shownCount = activeUsers > 0 ? activeUsers : visitors;
-    const countPart = `${shownCount.toLocaleString('en-IN')} ${shownCount === 1 ? 'user' : 'users'}`;
-    els.usageStatsLabel.textContent = myName ? `${myName} • ${countPart}` : countPart;
-  }
-  if (els.modalActiveUsers) {
-    els.modalActiveUsers.textContent = activeUsers.toLocaleString('en-IN');
-  }
-  if (els.modalUniqueUsers) {
-    els.modalUniqueUsers.textContent = visitors.toLocaleString('en-IN');
-  }
-  if (els.modalTotalSessions) {
-    els.modalTotalSessions.textContent = entriesLogged.toLocaleString('en-IN');
-  }
-  if (els.modalAnonId) {
-    const idStr = getOrCreateAnonDeviceId();
-    els.modalAnonId.textContent = myName ? `${myName} (${idStr})` : idStr;
-  }
-  if (els.modalUserNames) {
-    const names = Array.isArray(stats.userNames) ? stats.userNames.filter(Boolean) : [];
-    if (myName && !names.includes(myName)) {
-      names.unshift(myName);
-    }
-    if (names.length > 0) {
-      els.modalUserNames.hidden = false;
-      els.modalUserNames.textContent = `👥 Named users: ${names.join(', ')}`;
-    } else {
-      els.modalUserNames.hidden = true;
-    }
-  }
-  if (els.usageTrackerBadge) {
-    if (stats.source === 'sheet') {
-      els.usageTrackerBadge.textContent = 'Google Sheet Telemetry';
-      els.usageTrackerBadge.dataset.source = 'live';
-    } else {
-      els.usageTrackerBadge.textContent = 'Local Device';
-      els.usageTrackerBadge.dataset.source = 'local';
-    }
+    els.usageStatsLabel.textContent = myName || 'My Name';
   }
 }
 

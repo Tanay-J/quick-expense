@@ -20,9 +20,9 @@
       </div>
 
       <div class="header-actions">
-        <button type="button" id="usage-stats-btn" class="usage-pill" title="Live anonymous usage stats across deployed visitors" aria-label="View App Usage &amp; Cloud Sync">
-          <span aria-hidden="true">👥</span>
-          <span id="usage-stats-label">1 user</span>
+        <button type="button" id="usage-stats-btn" class="usage-pill" title="Profile &amp; Settings" aria-label="Edit your name and settings">
+          <span aria-hidden="true">👤</span>
+          <span id="usage-stats-label">My Name</span>
         </button>
         <button type="button" id="sync-status-btn" class="sync-pill" aria-label="Configure Google Sheets Cloud Sync">
           <span id="sync-dot" class="sync-dot" data-state="local" aria-hidden="true"></span>
@@ -53,7 +53,7 @@
           type="text"
           id="quick-name-input"
           name="userName"
-          placeholder="e.g. Tanay, Rahul..."
+          placeholder="My Name"
           maxlength="40"
           autocomplete="given-name"
         >
@@ -229,53 +229,27 @@
   <dialog id="sync-dialog" class="app-dialog" closedby="any" aria-labelledby="sync-dialog-title">
     <div class="dialog-content">
       <div class="dialog-header">
-        <h1 id="sync-dialog-title" class="dialog-title">Cloud Sync, Usage Tracker &amp; Settings</h1>
+        <h1 id="sync-dialog-title" class="dialog-title">Profile, Cloud Sync &amp; Settings</h1>
         <form method="dialog">
           <button type="submit" class="icon-btn" aria-label="Close dialog">✕</button>
         </form>
       </div>
 
-      <!-- Built-In Anonymous Usage Tracker Box -->
-      <section class="usage-tracker-card" aria-label="Live App Usage Statistics">
-        <div class="usage-tracker-header">
-          <strong class="usage-tracker-title">👥 Live App Usage Tracker</strong>
-          <span id="usage-tracker-badge" class="usage-source-badge">Local Device</span>
-        </div>
-        <div class="usage-metrics-row">
-          <div class="usage-metric">
-            <span class="usage-metric-lbl">Active Users (Logged ≥1)</span>
-            <strong id="modal-active-users" class="usage-metric-val">1</strong>
-          </div>
-          <div class="usage-metric">
-            <span class="usage-metric-lbl">Total Visitors</span>
-            <strong id="modal-unique-users" class="usage-metric-val">1</strong>
-          </div>
-          <div class="usage-metric">
-            <span class="usage-metric-lbl">Entries Logged</span>
-            <strong id="modal-total-sessions" class="usage-metric-val">0</strong>
-          </div>
-        </div>
-        <p class="field-hint">
-          Distinguishes <strong>Active Users</strong> (people who actually saved ≥1 expense/income) from casual visitors. Device ID: <code id="modal-anon-id" class="usage-anon-code">usr_...</code>
-        </p>
-        <p id="modal-user-names" class="field-hint" hidden></p>
-      </section>
-
       <form id="settings-form" class="dialog-form" action="#" method="POST">
         <div class="form-row-2">
           <div class="form-group">
-            <label for="user-name-input">Your Name (Shown in UsageStats)</label>
+            <label for="user-name-input">Your Name</label>
             <input
               type="text"
               id="user-name-input"
               name="userName"
-              placeholder="e.g. Tanay, Rahul..."
+              placeholder="My Name"
               maxlength="40"
               autocomplete="given-name"
             >
           </div>
           <div class="form-group">
-            <label for="webhook-url-input">Personal Google Sheet Sync URL (Optional)</label>
+            <label for="webhook-url-input">Google Sheet Sync URL (Optional)</label>
             <input
               type="url"
               id="webhook-url-input"
