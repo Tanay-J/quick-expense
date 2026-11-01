@@ -33,6 +33,19 @@ export const INCOME_CATEGORIES = [
 
 export const CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
 
+export const PAYMENT_METHODS = [
+  { id: 'upi', name: 'UPI', shortName: 'UPI', icon: '📱', hue: '198' },
+  { id: 'credit_card', name: 'Credit Card', shortName: 'Credit Card', icon: '💳', hue: '268' },
+  { id: 'cash', name: 'Cash', shortName: 'Cash', icon: '💵', hue: '145' },
+  { id: 'cashback_wallet', name: 'Cashback / Wallet', shortName: 'Cashback', icon: '🎁', hue: '325' },
+  { id: 'debit_card', name: 'Debit Card', shortName: 'Debit Card', icon: '🏧', hue: '36' },
+  { id: 'bank', name: 'Bank Transfer', shortName: 'Bank', icon: '🏦', hue: '215' }
+];
+
+export function getPaymentMethodById(id) {
+  return PAYMENT_METHODS.find((m) => m.id === id) || PAYMENT_METHODS[0];
+}
+
 export function isIncomeCategory(categoryId) {
   return INCOME_CATEGORIES.some((c) => c.id === categoryId);
 }
@@ -292,7 +305,7 @@ export function detectExplicitType(segment, defaultType = 'expense') {
   return null;
 }
 
-function matchDictionary(lower, words, dict) {
+function matchDictionaryExact(lower, words, dict) {
   for (const [catId, keywords] of Object.entries(dict)) {
     for (const kw of keywords) {
       if (kw.includes(' ')) {
@@ -302,9 +315,13 @@ function matchDictionary(lower, words, dict) {
       }
     }
   }
+  return null;
+}
+
+function matchDictionaryPrefix(words, dict) {
   for (const [catId, keywords] of Object.entries(dict)) {
     for (const kw of keywords) {
-      if (kw.length >= 4 && words.some((w) => w.length >= 3 && (kw.startsWith(w) || w.startsWith(kw)))) {
+      if (!kw.includes(' ') && kw.length >= 4 && words.some((w) => w.length >= 3 && (kw.startsWith(w) || w.startsWith(kw)))) {
         return catId;
       }
     }
@@ -338,32 +355,147 @@ export function inferCategory(text, forcedType = null) {
 
   // 2. If forcedType is 'income', search income dictionary only
   if (forcedType === 'income') {
-    return matchDictionary(lower, words, DEFAULT_INCOME_KEYWORDS) || 'other_income';
+    return (
+      matchDictionaryExact(lower, words, DEFAULT_INCOME_KEYWORDS) ||
+      matchDictionaryPrefix(words, DEFAULT_INCOME_KEYWORDS) ||
+      'other_income'
+    );
   }
 
   // 3. If forcedType is 'expense', search expense dictionary only
   if (forcedType === 'expense') {
-    return matchDictionary(lower, words, DEFAULT_KEYWORDS) || 'other';
+    return (
+      matchDictionaryExact(lower, words, DEFAULT_KEYWORDS) ||
+      matchDictionaryPrefix(words, DEFAULT_KEYWORDS) ||
+      'other'
+    );
   }
 
-  // 4. Auto-detect: check unambiguous income keywords (salary, refund, cashback, freelance, etc.) first
-  const incomeCat = matchDictionary(lower, words, DEFAULT_INCOME_KEYWORDS);
-  if (incomeCat) return incomeCat;
+  // 4. Auto-detect exact matches first: unambiguous income keywords, then expense keywords
+  const exactIncome = matchDictionaryExact(lower, words, DEFAULT_INCOME_KEYWORDS);
+  if (exactIncome) return exactIncome;
 
-  // 5. Check expense keywords
-  const expenseCat = matchDictionary(lower, words, DEFAULT_KEYWORDS);
-  if (expenseCat) return expenseCat;
+  const exactExpense = matchDictionaryExact(lower, words, DEFAULT_KEYWORDS);
+  if (exactExpense) return exactExpense;
+
+  // 5. Fallback to single-word prefix matches
+  const prefixExpense = matchDictionaryPrefix(words, DEFAULT_KEYWORDS);
+  if (prefixExpense) return prefixExpense;
+
+  const prefixIncome = matchDictionaryPrefix(words, DEFAULT_INCOME_KEYWORDS);
+  if (prefixIncome) return prefixIncome;
 
   return 'other';
 }
 
 /**
+ * Extract payment method (UPI, Credit Card, Cash, Cashback/Wallet, Debit Card, Bank)
+ * and return { paymentMethod, explicitPayment, forcesExpense, cleanedText }
+ */
+export function extractPaymentMethod(text, defaultPayment = 'upi') {
+  let working = text || '';
+
+  // 1. Explicit "from/via/using cashback" or wallet phrases -> expense paid using Cashback/Wallet
+  const cashbackPayRegex = /\b(?:(?:from|via|by|using|with|through|thru)\s+(?:cashback|cb|wallet|amazon\s+pay|apay|paytm\s+wallet|reward\s*points?|points|voucher|gift\s*card|pluxee|sodexo)|(?:cashback\s+wallet|cb\s+wallet|amazon\s+pay\s+balance|apay\s+balance|paytm\s+wallet|mobikwik|freecharge|pluxee|sodexo|reward\s+points?))\b/i;
+  if (cashbackPayRegex.test(working)) {
+    working = working.replace(cashbackPayRegex, ' ');
+    return {
+      paymentMethod: 'cashback_wallet',
+      explicitPayment: true,
+      forcesExpense: true,
+      cleanedText: working
+    };
+  }
+
+  // 2. Standalone "wallet" token -> Cashback / Wallet
+  const walletRegex = /\b(?:(?:via|by|on|from|using|with|in)\s+)?wallet\b/i;
+  if (walletRegex.test(working)) {
+    working = working.replace(walletRegex, ' ');
+    return {
+      paymentMethod: 'cashback_wallet',
+      explicitPayment: true,
+      forcesExpense: false,
+      cleanedText: working
+    };
+  }
+
+  // 3. Credit Card (cc, credit card, amex, infinia, regalia, etc.)
+  const ccRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:credit\s+card|cc|amex|infinia|regalia|millennia|icici\s+cc|hdfc\s+cc|sbi\s+cc|axis\s+cc)\b/i;
+  if (ccRegex.test(working)) {
+    working = working.replace(ccRegex, ' ');
+    return {
+      paymentMethod: 'credit_card',
+      explicitPayment: true,
+      forcesExpense: false,
+      cleanedText: working
+    };
+  }
+
+  // 4. Debit Card (dc, debit card, atm card)
+  const dcRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:debit\s+card|dc|atm\s+card)\b/i;
+  if (dcRegex.test(working)) {
+    working = working.replace(dcRegex, ' ');
+    return {
+      paymentMethod: 'debit_card',
+      explicitPayment: true,
+      forcesExpense: false,
+      cleanedText: working
+    };
+  }
+
+  // 5. Cash
+  const cashRegex = /\b(?:(?:via|by|in|from|using|with)\s+)?cash\b/i;
+  if (cashRegex.test(working)) {
+    working = working.replace(cashRegex, ' ');
+    return {
+      paymentMethod: 'cash',
+      explicitPayment: true,
+      forcesExpense: false,
+      cleanedText: working
+    };
+  }
+
+  // 6. Bank Transfer (neft, imps, rtgs, netbanking, bank transfer, cheque)
+  const bankRegex = /\b(?:(?:via|by|from|using|with)\s+)?(?:netbanking|net\s+banking|bank\s+transfer|neft|imps|rtgs|cheque|auto\s*debit|nach)\b/i;
+  if (bankRegex.test(working)) {
+    working = working.replace(bankRegex, ' ');
+    return {
+      paymentMethod: 'bank',
+      explicitPayment: true,
+      forcesExpense: false,
+      cleanedText: working
+    };
+  }
+
+  // 7. UPI (upi, gpay, google pay, phonepe, paytm, bhim, cred upi, supermoney, famapp)
+  const upiRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:upi|gpay|google\s+pay|phonepe|paytm|bhim|cred\s+upi|supermoney|famapp)\b/i;
+  if (upiRegex.test(working)) {
+    working = working.replace(upiRegex, ' ');
+    return {
+      paymentMethod: 'upi',
+      explicitPayment: true,
+      forcesExpense: false,
+      cleanedText: working
+    };
+  }
+
+  return {
+    paymentMethod: defaultPayment || 'upi',
+    explicitPayment: false,
+    forcesExpense: false,
+    cleanedText: working
+  };
+}
+
+/**
  * Parse a single expense or income segment like:
  * - "200 fuel bike"
+ * - "1500 shoes myntra cc"
+ * - "250 coffee from cashback"
  * - "+50000 salary"
  * - "received 450 cashback yesterday"
  */
-export function parseSingleExpense(segment, now = new Date(), defaultType = 'expense') {
+export function parseSingleExpense(segment, now = new Date(), defaultType = 'expense', defaultPayment = 'upi') {
   if (!segment || !segment.trim()) return null;
 
   const explicitType = detectExplicitType(segment, defaultType);
@@ -371,8 +503,16 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
   // Extract date first so numbers in dates ("2 days ago", "15 oct") aren't confused with amounts
   const { dateStr, cleanedText: dateCleanedText, dateLabel } = extractDate(segment, now);
 
+  // Extract payment method before category inference so "from cashback" or "cc" are stripped cleanly
+  const {
+    paymentMethod: extractedPayment,
+    explicitPayment,
+    forcesExpense,
+    cleanedText: paymentCleanedText
+  } = extractPaymentMethod(dateCleanedText, defaultPayment);
+
   // Evaluate simple inline addition expressions like "120+80 lunch" or "100 + 50 snacks"
-  const mathCleanedText = dateCleanedText.replace(
+  const mathCleanedText = paymentCleanedText.replace(
     /\b(\d+(?:\.\d{1,2})?(?:\s*\+\s*\d+(?:\.\d{1,2})?)+)\b/g,
     (expr) => {
       const sum = expr
@@ -408,18 +548,27 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
   const after = cleanedText.slice(matchIndex + fullMatch.length);
   let note = `${before} ${after}`
     .replace(/^[+-]\s*/, '')
-    .replace(/\b(spent|paid|received|credited|earned|got|for|on|from|rs\.?|inr|rupees)\b/gi, ' ')
+    .replace(/\b(spent|paid|received|credited|earned|got|for|on|from|via|by|using|with|rs\.?|inr|rupees)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
-  const forcedType = explicitType || (defaultType === 'income' ? 'income' : null);
-  const categoryId = inferCategory(note || segment, forcedType);
-  const resolvedType = isIncomeCategory(categoryId) ? 'income' : (explicitType || defaultType || 'expense');
+  const effectiveExplicitType = forcesExpense && explicitType !== 'income' ? 'expense' : explicitType;
+  const forcedType = effectiveExplicitType || (defaultType === 'income' ? 'income' : null);
+  const categoryId = inferCategory(note || paymentCleanedText, forcedType);
+  const resolvedType = isIncomeCategory(categoryId)
+    ? 'income'
+    : (effectiveExplicitType || defaultType || 'expense');
   const finalCategoryId =
     resolvedType === 'income' && !isIncomeCategory(categoryId)
-      ? inferCategory(note || segment, 'income')
+      ? inferCategory(note || paymentCleanedText, 'income')
       : categoryId;
   const categoryObj = getCategoryById(finalCategoryId);
+
+  // Default income payment mode to 'bank' if salary/investments and no explicit payment was specified
+  const finalPaymentMethod =
+    !explicitPayment && resolvedType === 'income' && (finalCategoryId === 'salary' || finalCategoryId === 'investments')
+      ? 'bank'
+      : extractedPayment;
 
   if (!note) {
     note = categoryObj.name;
@@ -432,6 +581,7 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
     amount,
     note,
     category: finalCategoryId,
+    paymentMethod: finalPaymentMethod,
     date: dateStr,
     dateLabel,
     raw: segment.trim()
@@ -442,7 +592,7 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
  * Parse a full user message that may contain 1 or multiple expenses/incomes
  * e.g. "200 fuel bike, 150 coffee" or "+50000 salary, 200 fuel"
  */
-export function parseExpenseMessage(input, now = new Date(), defaultType = 'expense') {
+export function parseExpenseMessage(input, now = new Date(), defaultType = 'expense', defaultPayment = 'upi') {
   if (!input || !input.trim()) return [];
 
   // Split by newlines or commas ONLY when comma is NOT inside a number like 1,200
@@ -453,7 +603,7 @@ export function parseExpenseMessage(input, now = new Date(), defaultType = 'expe
 
   const parsed = [];
   for (const seg of segments) {
-    const item = parseSingleExpense(seg, now, defaultType);
+    const item = parseSingleExpense(seg, now, defaultType, defaultPayment);
     if (item) {
       parsed.push(item);
     }
@@ -464,9 +614,9 @@ export function parseExpenseMessage(input, now = new Date(), defaultType = 'expe
 /**
  * Parse a message into interactive draft items for the live "Going to be saved" preview.
  * Even if an amount hasn't been typed yet (e.g. "dinner yesterday" or "salary"), returns the inferred
- * type, category, cleaned note, and resolved date so the user can see & edit all fields inline.
+ * type, category, paymentMethod, cleaned note, and resolved date so the user can see & edit all fields inline.
  */
-export function parseDraftMessage(input, now = new Date(), defaultType = 'expense') {
+export function parseDraftMessage(input, now = new Date(), defaultType = 'expense', defaultPayment = 'upi') {
   if (!input || !input.trim()) return [];
 
   const segments = input
@@ -476,28 +626,43 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
 
   const drafts = [];
   for (const seg of segments) {
-    const full = parseSingleExpense(seg, now, defaultType);
+    const full = parseSingleExpense(seg, now, defaultType, defaultPayment);
     if (full) {
       drafts.push({ ...full, missingAmount: false });
       continue;
     }
 
     const explicitType = detectExplicitType(seg, defaultType);
-    const { dateStr, cleanedText, dateLabel } = extractDate(seg, now);
-    let note = cleanedText
+    const { dateStr, cleanedText: dateCleanedText, dateLabel } = extractDate(seg, now);
+    const {
+      paymentMethod: extractedPayment,
+      explicitPayment,
+      forcesExpense,
+      cleanedText: paymentCleanedText
+    } = extractPaymentMethod(dateCleanedText, defaultPayment);
+
+    let note = paymentCleanedText
       .replace(/^[+-]\s*/, '')
-      .replace(/\b(spent|paid|received|credited|earned|got|for|on|from|rs\.?|inr|rupees)\b/gi, ' ')
+      .replace(/\b(spent|paid|received|credited|earned|got|for|on|from|via|by|using|with|rs\.?|inr|rupees)\b/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
-    const forcedType = explicitType || (defaultType === 'income' ? 'income' : null);
-    const categoryId = inferCategory(note || seg, forcedType);
-    const resolvedType = isIncomeCategory(categoryId) ? 'income' : (explicitType || defaultType || 'expense');
+    const effectiveExplicitType = forcesExpense && explicitType !== 'income' ? 'expense' : explicitType;
+    const forcedType = effectiveExplicitType || (defaultType === 'income' ? 'income' : null);
+    const categoryId = inferCategory(note || paymentCleanedText, forcedType);
+    const resolvedType = isIncomeCategory(categoryId)
+      ? 'income'
+      : (effectiveExplicitType || defaultType || 'expense');
     const finalCategoryId =
       resolvedType === 'income' && !isIncomeCategory(categoryId)
-        ? inferCategory(note || seg, 'income')
+        ? inferCategory(note || paymentCleanedText, 'income')
         : categoryId;
     const categoryObj = getCategoryById(finalCategoryId);
+
+    const finalPaymentMethod =
+      !explicitPayment && resolvedType === 'income' && (finalCategoryId === 'salary' || finalCategoryId === 'investments')
+        ? 'bank'
+        : extractedPayment;
 
     if (!note) {
       note = categoryObj.name;
@@ -510,6 +675,7 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
       amount: null,
       note,
       category: finalCategoryId,
+      paymentMethod: finalPaymentMethod,
       date: dateStr,
       dateLabel,
       raw: seg,

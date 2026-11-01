@@ -3,26 +3,32 @@ import {
   getCategoriesByType,
   getCategoryById,
   getLearnedKeywords,
+  getPaymentMethodById,
   inferCategory,
   isIncomeCategory,
   learnFromNote,
   mergeLearnedKeywords,
-  parseDraftMessage,
+   parseDraftMessage,
   parseExpenseMessage,
+  PAYMENT_METHODS,
   toLocalISODate
 } from './parser.js';
 
 import {
   exportToCSV,
+  getOrCreateAnonDeviceId,
   GOOGLE_APPS_SCRIPT_CODE,
+  loadCachedUsageStats,
   loadExpenses,
   loadSettings,
   loadTombstones,
   normalizeEntryType,
+  normalizePaymentMethod,
   saveExpenses,
   saveSettings,
   saveTombstones,
-  syncWithGoogleSheets
+  syncWithGoogleSheets,
+  trackAppUsage
 } from './sync.js';
 
 // Application State
@@ -33,17 +39,21 @@ const state = {
   selectedYear: new Date().getFullYear(),
   selectedMonth: new Date().getMonth(), // 0-11
   selectedCategory: null,
-  catBreakdownType: 'expense', // 'expense' | 'income'
+  selectedPaymentMethod: null,
+  catBreakdownType: 'expense', // 'expense' | 'payment' | 'income'
   feedFilterType: 'all', // 'all' | 'expense' | 'income'
   composerType: 'expense', // 'expense' | 'income'
   searchQuery: '',
   syncState: 'local', // 'local' | 'synced' | 'syncing' | 'error'
+  usageStats: loadCachedUsageStats(),
   draftItems: [], // Interactive parsed items staged for saving
   lastSavedIds: new Set()
 };
 
 // DOM Elements
 const els = {
+  usageStatsBtn: document.getElementById('usage-stats-btn'),
+  usageStatsLabel: document.getElementById('usage-stats-label'),
   syncStatusBtn: document.getElementById('sync-status-btn'),
   syncDot: document.getElementById('sync-dot'),
   syncLabel: document.getElementById('sync-label'),
@@ -87,10 +97,15 @@ const els = {
   toastRegion: document.getElementById('toast-region'),
   // Dialogs
   syncDialog: document.getElementById('sync-dialog'),
+  usageTrackerBadge: document.getElementById('usage-tracker-badge'),
+  modalUniqueUsers: document.getElementById('modal-unique-users'),
+  modalTotalSessions: document.getElementById('modal-total-sessions'),
+  modalAnonId: document.getElementById('modal-anon-id'),
   settingsForm: document.getElementById('settings-form'),
   webhookUrlInput: document.getElementById('webhook-url-input'),
   currencyInput: document.getElementById('currency-input'),
   budgetInput: document.getElementById('budget-input'),
+  defaultPaymentInput: document.getElementById('default-payment-input'),
   forceSyncBtn: document.getElementById('force-sync-btn'),
   copyGasBtn: document.getElementById('copy-gas-btn'),
   gasCodeBlock: document.getElementById('gas-code-block'),
@@ -103,6 +118,7 @@ const els = {
   editAmount: document.getElementById('edit-amount'),
   editNote: document.getElementById('edit-note'),
   editCategory: document.getElementById('edit-category'),
+  editPayment: document.getElementById('edit-payment'),
   editDate: document.getElementById('edit-date'),
   deleteExpenseBtn: document.getElementById('delete-expense-btn')
 };
@@ -314,6 +330,90 @@ function renderCategories(periodExpenses) {
     chip.classList.toggle('active', chip.dataset.catType === state.catBreakdownType);
   });
 
+  els.catStackedBar.replaceChildren();
+  els.catList.replaceChildren();
+  els.clearCatFilterBtn.hidden = !(state.selectedCategory || state.selectedPaymentMethod);
+
+  // Payment Mode breakdown mode (Expenses grouped by UPI, Credit Card, Cash, Cashback/Wallet, etc.)
+  if (state.catBreakdownType === 'payment') {
+    const expenseItems = periodExpenses.filter((item) => normalizeEntryType(item) !== 'income');
+    const total = expenseItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const byPay = {};
+    for (const e of expenseItems) {
+      const pId = normalizePaymentMethod(e);
+      byPay[pId] = (byPay[pId] || 0) + Number(e.amount || 0);
+    }
+
+    const sortedPay = PAYMENT_METHODS.map((pm) => ({
+      ...pm,
+      amount: byPay[pm.id] || 0,
+      pct: total > 0 ? ((byPay[pm.id] || 0) / total) * 100 : 0
+    }))
+      .filter((pm) => pm.amount > 0)
+      .sort((a, b) => b.amount - a.amount);
+
+    if (sortedPay.length === 0) {
+      const emptyLi = document.createElement('li');
+      emptyLi.className = 'field-hint';
+      emptyLi.textContent =
+        'Payment mode breakdown will appear once you log an expense (e.g. "200 fuel upi", "1500 shoes cc", "250 coffee from cashback").';
+      els.catList.appendChild(emptyLi);
+      return;
+    }
+
+    for (const pm of sortedPay) {
+      const seg = document.createElement('div');
+      seg.className = 'stacked-segment';
+      seg.style.width = `${Math.max(2, pm.pct)}%`;
+      seg.style.setProperty('--cat-hue', pm.hue);
+      els.catStackedBar.appendChild(seg);
+
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cat-row-btn';
+      if (state.selectedPaymentMethod === pm.id) {
+        btn.classList.add('active');
+      }
+
+      const left = document.createElement('span');
+      left.className = 'cat-left';
+
+      const dot = document.createElement('span');
+      dot.className = 'cat-dot';
+      dot.style.setProperty('--cat-hue', pm.hue);
+      dot.setAttribute('aria-hidden', 'true');
+
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = `${pm.icon} ${pm.name}`;
+
+      left.append(dot, nameSpan);
+
+      const right = document.createElement('span');
+      right.className = 'cat-right';
+
+      const amtStrong = document.createElement('strong');
+      amtStrong.textContent = formatCurrency(pm.amount);
+
+      const pctSpan = document.createElement('span');
+      pctSpan.className = 'cat-pct';
+      pctSpan.textContent = `${Math.round(pm.pct)}%`;
+
+      right.append(amtStrong, pctSpan);
+      btn.append(left, right);
+
+      btn.addEventListener('click', () => {
+        state.selectedPaymentMethod = state.selectedPaymentMethod === pm.id ? null : pm.id;
+        state.selectedCategory = null;
+        renderAll();
+      });
+
+      li.appendChild(btn);
+      els.catList.appendChild(li);
+    }
+    return;
+  }
+
   const matchingItems = periodExpenses.filter(
     (item) => normalizeEntryType(item) === state.catBreakdownType
   );
@@ -322,10 +422,6 @@ function renderCategories(periodExpenses) {
   for (const e of matchingItems) {
     byCat[e.category] = (byCat[e.category] || 0) + Number(e.amount || 0);
   }
-
-  els.catStackedBar.replaceChildren();
-  els.catList.replaceChildren();
-  els.clearCatFilterBtn.hidden = !state.selectedCategory;
 
   const pool = getCategoriesByType(state.catBreakdownType);
   const sorted = pool
@@ -396,6 +492,7 @@ function renderCategories(periodExpenses) {
 
     btn.addEventListener('click', () => {
       state.selectedCategory = state.selectedCategory === cat.id ? null : cat.id;
+      state.selectedPaymentMethod = null;
       renderAll();
     });
 
@@ -493,15 +590,22 @@ function renderExpenseList(periodExpenses) {
     filtered = filtered.filter((e) => e.category === state.selectedCategory);
   }
 
+  if (state.selectedPaymentMethod) {
+    filtered = filtered.filter((e) => normalizePaymentMethod(e) === state.selectedPaymentMethod);
+  }
+
   if (state.searchQuery.trim()) {
     const q = state.searchQuery.toLowerCase().trim();
     filtered = filtered.filter((e) => {
       const catName = getCategoryById(e.category).name.toLowerCase();
+      const payObj = getPaymentMethodById(normalizePaymentMethod(e));
+      const payName = `${payObj.name} ${payObj.shortName}`.toLowerCase();
       const typeLabel = normalizeEntryType(e);
       return (
         (e.note && e.note.toLowerCase().includes(q)) ||
         (e.raw && e.raw.toLowerCase().includes(q)) ||
         catName.includes(q) ||
+        payName.includes(q) ||
         typeLabel.includes(q) ||
         String(e.amount).includes(q)
       );
@@ -520,6 +624,7 @@ function renderExpenseList(periodExpenses) {
   for (const item of filtered) {
     const isIncome = normalizeEntryType(item) === 'income';
     const cat = getCategoryById(item.category);
+    const payObj = getPaymentMethodById(normalizePaymentMethod(item));
     const li = document.createElement('li');
     li.className = `expense-item ${isIncome ? 'is-income' : ''}`;
     if (state.lastSavedIds.has(item.id)) {
@@ -547,7 +652,7 @@ function renderExpenseList(periodExpenses) {
     metaP.className = 'expense-meta';
     const syncIndicator = item.synced ? '☁️' : '📱';
     const typeTag = isIncome ? 'Income • ' : '';
-    metaP.textContent = `${typeTag}${cat.name} • ${formatReadableDate(item.date)} • ${syncIndicator}`;
+    metaP.textContent = `${typeTag}${cat.name} • ${payObj.icon} ${payObj.shortName} • ${formatReadableDate(item.date)} • ${syncIndicator}`;
 
     details.append(noteP, metaP);
     main.append(catBadge, details);
@@ -569,6 +674,37 @@ function renderExpenseList(periodExpenses) {
     right.append(amtSpan, editBtn);
     li.append(main, right);
     els.expenseList.appendChild(li);
+  }
+}
+
+function updateUsageTrackerUI() {
+  const stats = state.usageStats || loadCachedUsageStats();
+  const users = Math.max(1, Number(stats.uniqueUsers) || 1);
+  const sessions = Math.max(1, Number(stats.totalSessions) || 1);
+
+  if (els.usageStatsLabel) {
+    els.usageStatsLabel.textContent = `${users.toLocaleString('en-IN')} ${users === 1 ? 'user' : 'users'}`;
+  }
+  if (els.modalUniqueUsers) {
+    els.modalUniqueUsers.textContent = users.toLocaleString('en-IN');
+  }
+  if (els.modalTotalSessions) {
+    els.modalTotalSessions.textContent = sessions.toLocaleString('en-IN');
+  }
+  if (els.modalAnonId) {
+    els.modalAnonId.textContent = getOrCreateAnonDeviceId();
+  }
+  if (els.usageTrackerBadge) {
+    if (stats.source === 'sheet') {
+      els.usageTrackerBadge.textContent = 'Google Sheet Telemetry';
+      els.usageTrackerBadge.dataset.source = 'live';
+    } else if (stats.source === 'counterapi') {
+      els.usageTrackerBadge.textContent = 'Live Counter';
+      els.usageTrackerBadge.dataset.source = 'live';
+    } else {
+      els.usageTrackerBadge.textContent = 'Local Device';
+      els.usageTrackerBadge.dataset.source = 'local';
+    }
   }
 }
 
@@ -605,6 +741,7 @@ function renderAll() {
   renderTrendChart(periodExpenses);
   renderExpenseList(periodExpenses);
   updateSyncStatusUI();
+  updateUsageTrackerUI();
 }
 
 function updateSendBtnLabel() {
@@ -644,7 +781,7 @@ function updateComposerTypeUI() {
   );
   els.expenseInput.placeholder = isIncome
     ? 'Drop income: e.g. 50000 salary, 1200 freelance yesterday...'
-    : 'Drop expense or +income: e.g. 200 fuel, +50k salary, 150 coffee...';
+    : 'Drop expense or +income: e.g. 200 fuel upi, 1500 shoes cc, 250 coffee from cashback...';
 }
 
 function formatPreviewTitleText(draftItems) {
@@ -673,7 +810,8 @@ function formatPreviewTitleText(draftItems) {
 // Sync draftItems when user types in #expense-input, preserving manual field overrides
 function updateLivePreview({ resetOverrides = false } = {}) {
   const raw = els.expenseInput.value;
-  const parsedDrafts = parseDraftMessage(raw, new Date(), state.composerType);
+  const defaultPayment = state.settings.defaultPayment || 'upi';
+  const parsedDrafts = parseDraftMessage(raw, new Date(), state.composerType, defaultPayment);
 
   if (parsedDrafts.length === 0) {
     state.draftItems = [];
@@ -690,6 +828,7 @@ function updateLivePreview({ resetOverrides = false } = {}) {
     const mergedAmount = overrides.amount ? prev.amount : item.amount;
     const mergedType = overrides.type ? prev.type : item.type;
     let mergedCategory = overrides.category ? prev.category : item.category;
+    const mergedPayment = overrides.paymentMethod ? prev.paymentMethod : item.paymentMethod;
     // Ensure category matches mergedType if type was overridden
     if (mergedType === 'income' && !isIncomeCategory(mergedCategory)) {
       mergedCategory = inferCategory(overrides.note ? prev.note : item.note, 'income');
@@ -702,6 +841,7 @@ function updateLivePreview({ resetOverrides = false } = {}) {
       amount: mergedAmount,
       missingAmount: !(Number(mergedAmount) > 0),
       category: mergedCategory,
+      paymentMethod: mergedPayment || defaultPayment,
       note: overrides.note ? prev.note : item.note,
       date: overrides.date ? prev.date : item.date,
       dateLabel: overrides.date ? formatReadableDate(prev.date) : item.dateLabel,
@@ -853,7 +993,32 @@ function renderParsePreviewDOM() {
     });
     catGroup.appendChild(catSelect);
 
-    // 3. Description / Note input
+    // 3. Payment Method dropdown (UPI, Credit Card, Cash, From Cashback/Wallet, etc.)
+    const payGroup = document.createElement('label');
+    payGroup.className = 'preview-field preview-field-payment';
+    payGroup.title = 'Change payment mode (UPI, Credit Card, Cash, Cashback/Wallet)';
+
+    const paySelect = document.createElement('select');
+    paySelect.className = 'preview-inline-select';
+    paySelect.setAttribute('aria-label', `Payment mode for item ${idx + 1}`);
+    for (const pm of PAYMENT_METHODS) {
+      const opt = document.createElement('option');
+      opt.value = pm.id;
+      opt.textContent = `${pm.icon} ${pm.shortName}`;
+      if (pm.id === (draft.paymentMethod || state.settings.defaultPayment || 'upi')) {
+        opt.selected = true;
+      }
+      paySelect.appendChild(opt);
+    }
+    paySelect.addEventListener('change', () => {
+      draft.paymentMethod = paySelect.value;
+      draft.overrides = draft.overrides || {};
+      draft.overrides.paymentMethod = true;
+      resetBtn.hidden = false;
+    });
+    payGroup.appendChild(paySelect);
+
+    // 4. Description / Note input
     const noteGroup = document.createElement('label');
     noteGroup.className = 'preview-field preview-field-note';
     noteGroup.title = 'Edit description / note before saving';
@@ -873,7 +1038,7 @@ function renderParsePreviewDOM() {
     attachImeSafeEnterSubmit(noteInput);
     noteGroup.appendChild(noteInput);
 
-    // 4. Date picker
+    // 5. Date picker
     const dateGroup = document.createElement('label');
     dateGroup.className = 'preview-field preview-field-date';
     dateGroup.title = 'Change transaction date';
@@ -900,9 +1065,9 @@ function renderParsePreviewDOM() {
     attachImeSafeEnterSubmit(dateInput);
     dateGroup.append(dateBadge, dateInput);
 
-    row.append(typeBtn, amtGroup, catGroup, noteGroup, dateGroup);
+    row.append(typeBtn, amtGroup, catGroup, payGroup, noteGroup, dateGroup);
 
-    // 5. Remove button when multiple items are staged
+    // 6. Remove button when multiple items are staged
     if (state.draftItems.length > 1) {
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
@@ -953,7 +1118,7 @@ function addExpenseFromMessage(messageText) {
   }
 
   if (state.draftItems.length === 0) {
-    showToast('Type an expense or income, e.g. "200 fuel bike" or "+50000 salary"');
+    showToast('Type an expense or income, e.g. "200 fuel upi" or "+50000 salary"');
     return;
   }
 
@@ -987,6 +1152,7 @@ function addExpenseFromMessage(messageText) {
       date: item.date || toLocalISODate(new Date()),
       amount: Number(item.amount),
       category: item.category || (entryType === 'income' ? 'other_income' : 'other'),
+      paymentMethod: item.paymentMethod || state.settings.defaultPayment || 'upi',
       note: cleanedNote,
       raw: item.raw || messageText.trim(),
       updatedAt: nowTs + idx,
@@ -1021,6 +1187,7 @@ function addExpenseFromMessage(messageText) {
         date: entry.date,
         amount: entry.amount,
         category: entry.category,
+        paymentMethod: entry.paymentMethod,
         note: entry.note,
         updatedAt: Date.now()
       });
@@ -1046,9 +1213,10 @@ function addExpenseFromMessage(messageText) {
   if (newEntries.length === 1) {
     const e = newEntries[0];
     const cat = getCategoryById(e.category);
+    const pay = getPaymentMethodById(e.paymentMethod);
     const amtText = e.type === 'income' ? `+${formatCurrency(e.amount)}` : formatCurrency(e.amount);
     showToast(
-      `✅ Saved ${amtText} • ${cat.icon} ${e.note} (${formatReadableDate(e.date)})`,
+      `✅ Saved ${amtText} • ${cat.icon} ${e.note} • ${pay.icon} ${pay.shortName} (${formatReadableDate(e.date)})`,
       [
         {
           label: '✎ Edit',
@@ -1074,6 +1242,10 @@ function addExpenseFromMessage(messageText) {
   }
 
   triggerBackgroundSync(false);
+  trackAppUsage({ onLaunch: false }).then((stats) => {
+    state.usageStats = stats;
+    updateUsageTrackerUI();
+  });
 }
 
 function populateCategorySelect(type = 'expense') {
@@ -1087,6 +1259,27 @@ function populateCategorySelect(type = 'expense') {
   }
 }
 
+function populatePaymentSelects() {
+  if (els.editPayment) {
+    els.editPayment.replaceChildren();
+    for (const pm of PAYMENT_METHODS) {
+      const opt = document.createElement('option');
+      opt.value = pm.id;
+      opt.textContent = `${pm.icon} ${pm.name}`;
+      els.editPayment.appendChild(opt);
+    }
+  }
+  if (els.defaultPaymentInput) {
+    els.defaultPaymentInput.replaceChildren();
+    for (const pm of PAYMENT_METHODS) {
+      const opt = document.createElement('option');
+      opt.value = pm.id;
+      opt.textContent = `${pm.icon} ${pm.shortName}`;
+      els.defaultPaymentInput.appendChild(opt);
+    }
+  }
+}
+
 function openEditModal(expense) {
   const entryType = normalizeEntryType(expense);
   els.editId.value = expense.id;
@@ -1097,8 +1290,22 @@ function openEditModal(expense) {
   els.editAmount.value = String(expense.amount);
   els.editNote.value = expense.note;
   els.editCategory.value = expense.category;
+  if (els.editPayment) {
+    els.editPayment.value = normalizePaymentMethod(expense);
+  }
   els.editDate.value = expense.date;
   els.editDialog.showModal();
+}
+
+function openSyncAndSettingsModal() {
+  els.webhookUrlInput.value = state.settings.webhookUrl || '';
+  els.currencyInput.value = state.settings.currency || '₹';
+  els.budgetInput.value = state.settings.monthlyBudget ? String(state.settings.monthlyBudget) : '';
+  if (els.defaultPaymentInput) {
+    els.defaultPaymentInput.value = state.settings.defaultPayment || 'upi';
+  }
+  updateUsageTrackerUI();
+  els.syncDialog.showModal();
 }
 
 function setupEventListeners() {
@@ -1177,11 +1384,12 @@ function setupEventListeners() {
     });
   });
 
-  // Category panel type toggle (Expenses vs Income)
+  // Category panel type toggle (Expenses vs Payment Mode vs Income)
   els.catTypeChips.forEach((chip) => {
     chip.addEventListener('click', () => {
       state.catBreakdownType = chip.dataset.catType;
       state.selectedCategory = null;
+      state.selectedPaymentMethod = null;
       renderAll();
     });
   });
@@ -1196,6 +1404,7 @@ function setupEventListeners() {
 
   els.clearCatFilterBtn.addEventListener('click', () => {
     state.selectedCategory = null;
+    state.selectedPaymentMethod = null;
     renderAll();
   });
 
@@ -1216,26 +1425,29 @@ function setupEventListeners() {
     showToast('Downloaded CSV file');
   });
 
-  // Cloud Sync Dialog
-  els.syncStatusBtn.addEventListener('click', () => {
-    els.webhookUrlInput.value = state.settings.webhookUrl || '';
-    els.currencyInput.value = state.settings.currency || '₹';
-    els.budgetInput.value = state.settings.monthlyBudget ? String(state.settings.monthlyBudget) : '';
-    els.syncDialog.showModal();
-  });
+  // Cloud Sync & Usage Stats Dialog
+  els.syncStatusBtn.addEventListener('click', openSyncAndSettingsModal);
+  if (els.usageStatsBtn) {
+    els.usageStatsBtn.addEventListener('click', openSyncAndSettingsModal);
+  }
 
   els.settingsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     state.settings = saveSettings({
       webhookUrl: els.webhookUrlInput.value.trim(),
       currency: els.currencyInput.value.trim() || '₹',
-      monthlyBudget: Number(els.budgetInput.value.replace(/,/g, '')) || 0
+      monthlyBudget: Number(els.budgetInput.value.replace(/,/g, '')) || 0,
+      defaultPayment: els.defaultPaymentInput ? els.defaultPaymentInput.value : 'upi'
     });
     els.syncDialog.close();
     renderAll();
     if (state.settings.webhookUrl) {
       showToast('Syncing with Google Sheets...');
       await triggerBackgroundSync(true);
+      trackAppUsage({ onLaunch: false }).then((stats) => {
+        state.usageStats = stats;
+        updateUsageTrackerUI();
+      });
     } else {
       showToast('Settings saved');
     }
@@ -1276,7 +1488,8 @@ function setupEventListeners() {
       learnedKeywords: getLearnedKeywords(),
       settings: {
         currency: state.settings.currency || '₹',
-        monthlyBudget: state.settings.monthlyBudget || 0
+        monthlyBudget: state.settings.monthlyBudget || 0,
+        defaultPayment: state.settings.defaultPayment || 'upi'
       }
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1306,14 +1519,20 @@ function setupEventListeners() {
         if (parsed.settings) {
           state.settings = saveSettings({
             currency: parsed.settings.currency || state.settings.currency || '₹',
-            monthlyBudget: Number(parsed.settings.monthlyBudget) || state.settings.monthlyBudget || 0
+            monthlyBudget: Number(parsed.settings.monthlyBudget) || state.settings.monthlyBudget || 0,
+            defaultPayment: parsed.settings.defaultPayment || state.settings.defaultPayment || 'upi'
           });
         }
       }
       const byId = new Map(state.expenses.map((item) => [item.id, item]));
       for (const item of list) {
         if (item && item.id && item.amount) {
-          byId.set(item.id, { ...item, type: normalizeEntryType(item), synced: false });
+          byId.set(item.id, {
+            ...item,
+            type: normalizeEntryType(item),
+            paymentMethod: normalizePaymentMethod(item),
+            synced: false
+          });
         }
       }
       state.expenses = Array.from(byId.values()).sort((a, b) => b.date.localeCompare(a.date));
@@ -1351,6 +1570,9 @@ function setupEventListeners() {
     const newType = els.editType ? els.editType.value : normalizeEntryType(state.expenses[idx]);
     const newNote = els.editNote.value.trim();
     const newCategory = els.editCategory.value;
+    const newPayment = els.editPayment
+      ? els.editPayment.value
+      : normalizePaymentMethod(state.expenses[idx]);
     const newDate = els.editDate.value;
 
     // Self-learning: remember note keywords for this category!
@@ -1362,6 +1584,7 @@ function setupEventListeners() {
       amount: newAmount,
       note: newNote,
       category: newCategory,
+      paymentMethod: newPayment,
       date: newDate,
       updatedAt: Date.now(),
       synced: false
@@ -1370,7 +1593,7 @@ function setupEventListeners() {
     saveExpenses(state.expenses);
     els.editDialog.close();
     renderAll();
-    showToast('Updated & learned category preference');
+    showToast('Updated & learned preference');
     triggerBackgroundSync(false);
   });
 
@@ -1389,6 +1612,7 @@ function setupEventListeners() {
       date: target.date,
       amount: target.amount,
       category: target.category,
+      paymentMethod: normalizePaymentMethod(target),
       note: target.note,
       updatedAt: Date.now()
     });
@@ -1403,12 +1627,17 @@ function setupEventListeners() {
   // Auto-sync when device comes back online
   window.addEventListener('online', () => {
     triggerBackgroundSync(false);
+    trackAppUsage({ onLaunch: false }).then((stats) => {
+      state.usageStats = stats;
+      updateUsageTrackerUI();
+    });
   });
 }
 
 // Initialize App
 function init() {
   populateCategorySelect('expense');
+  populatePaymentSelects();
   updateComposerTypeUI();
   els.gasCodeBlock.textContent = GOOGLE_APPS_SCRIPT_CODE;
   setupEventListeners();
@@ -1421,6 +1650,12 @@ function init() {
   if (state.settings.webhookUrl) {
     triggerBackgroundSync(false);
   }
+
+  // Record anonymous launch & fetch active user count
+  trackAppUsage({ onLaunch: true }).then((stats) => {
+    state.usageStats = stats;
+    updateUsageTrackerUI();
+  });
 }
 
 init();

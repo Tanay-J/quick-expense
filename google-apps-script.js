@@ -17,7 +17,9 @@
  */
 
 const SHEET_NAME = 'Expenses';
-const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted', 'type'];
+const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted', 'type', 'paymentMethod'];
+const STATS_SHEET_NAME = 'UsageStats';
+const STATS_HEADERS = ['deviceId', 'firstSeen', 'lastSeen', 'sessions', 'txCount', 'platform', 'timezone'];
 
 function getOrCreateSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -31,6 +33,82 @@ function getOrCreateSheet() {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold').setBackground('#f3f4f6');
   }
   return sheet;
+}
+
+function getOrCreateStatsSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(STATS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(STATS_SHEET_NAME);
+    sheet.appendRow(STATS_HEADERS);
+    sheet.getRange(1, 1, 1, STATS_HEADERS.length).setFontWeight('bold').setBackground('#ecfdf5');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function recordTelemetry(telemetry) {
+  if (!telemetry || !telemetry.deviceId) return null;
+  const sheet = getOrCreateStatsSheet();
+  const lastRow = sheet.getLastRow();
+  const nowIso = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  let foundRow = -1;
+  let existingSessions = 0;
+
+  if (lastRow > 1) {
+    const rows = sheet.getRange(2, 1, lastRow - 1, STATS_HEADERS.length).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i][0]) === String(telemetry.deviceId)) {
+        foundRow = i + 2;
+        existingSessions = Number(rows[i][3]) || 0;
+        break;
+      }
+    }
+  }
+
+  const nextSessions = telemetry.isNewSession ? existingSessions + 1 : Math.max(1, existingSessions);
+  if (foundRow !== -1) {
+    const firstSeen = sheet.getRange(foundRow, 2).getValue() || nowIso;
+    sheet.getRange(foundRow, 1, 1, STATS_HEADERS.length).setValues([[
+      String(telemetry.deviceId),
+      firstSeen,
+      nowIso,
+      nextSessions,
+      Number(telemetry.txCount) || 0,
+      String(telemetry.platform || ''),
+      String(telemetry.timezone || '')
+    ]]);
+  } else {
+    sheet.appendRow([
+      String(telemetry.deviceId),
+      nowIso,
+      nowIso,
+      1,
+      Number(telemetry.txCount) || 0,
+      String(telemetry.platform || ''),
+      String(telemetry.timezone || '')
+    ]);
+  }
+  return getUsageSummary();
+}
+
+function getUsageSummary() {
+  const sheet = getOrCreateStatsSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) {
+    return { uniqueUsers: 0, totalSessions: 0, totalTxLogged: 0 };
+  }
+  const rows = sheet.getRange(2, 1, lastRow - 1, STATS_HEADERS.length).getValues();
+  let uniqueUsers = 0;
+  let totalSessions = 0;
+  let totalTxLogged = 0;
+  for (let i = 0; i < rows.length; i++) {
+    if (!rows[i][0]) continue;
+    uniqueUsers++;
+    totalSessions += Number(rows[i][3]) || 1;
+    totalTxLogged += Number(rows[i][4]) || 0;
+  }
+  return { uniqueUsers, totalSessions, totalTxLogged };
 }
 
 function readAllRows(sheet) {
@@ -61,7 +139,8 @@ function readAllRows(sheet) {
       raw: String(row[5] || ''),
       updatedAt: Number(row[6]) || 0,
       deleted: row[7] === true || row[7] === 'true',
-      type: String(row[8] || '')
+      type: String(row[8] || ''),
+      paymentMethod: String(row[9] || 'upi')
     });
   }
   return items;
@@ -71,8 +150,9 @@ function doGet(e) {
   try {
     const sheet = getOrCreateSheet();
     const items = readAllRows(sheet).filter((item) => !item.deleted);
+    const usageSummary = getUsageSummary();
     return ContentService.createTextOutput(
-      JSON.stringify({ ok: true, items, serverTime: Date.now() })
+      JSON.stringify({ ok: true, items, usageSummary, serverTime: Date.now() })
     ).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(
@@ -86,6 +166,14 @@ function doPost(e) {
   lock.tryLock(10000);
   try {
     const payload = JSON.parse(e.postData.contents || '{}');
+    if (payload.telemetry) {
+      recordTelemetry(payload.telemetry);
+    }
+    if (payload.action === 'telemetry_only') {
+      return ContentService.createTextOutput(
+        JSON.stringify({ ok: true, usageSummary: getUsageSummary(), serverTime: Date.now() })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
     const incoming = Array.isArray(payload.items) ? payload.items : [];
     const sheet = getOrCreateSheet();
     const existing = readAllRows(sheet);
@@ -106,7 +194,8 @@ function doPost(e) {
         String(item.raw || ''),
         Number(item.updatedAt) || Date.now(),
         Boolean(item.deleted),
-        String(item.type || 'expense')
+        String(item.type || 'expense'),
+        String(item.paymentMethod || 'upi')
       ];
 
       if (current) {
@@ -120,7 +209,7 @@ function doPost(e) {
 
     const updatedItems = readAllRows(sheet).filter((item) => !item.deleted);
     return ContentService.createTextOutput(
-      JSON.stringify({ ok: true, items: updatedItems, serverTime: Date.now() })
+      JSON.stringify({ ok: true, items: updatedItems, usageSummary: getUsageSummary(), serverTime: Date.now() })
     ).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(

@@ -2,17 +2,17 @@
 
 **Project Path:** `/Users/tanayjoshi/Projects/quick-expense`  
 **Last Updated:** November 1, 2026  
-**Version:** v1.2 (Git repo initialized on `main`)  
-**Architecture:** Local-First Progressive Web App (PWA) + 2-Way Google Sheets Cloud Sync (100% Free Forever)
+**Version:** v1.3 (Git repo on `main`)  
+**Architecture:** Local-First Progressive Web App (PWA) + 2-Way Google Sheets Cloud Sync + Zero-Cost Active Users Telemetry (100% Free Forever)
 
 ---
 
 ## 1. Project Overview & Goals
-- **Core Idea:** Log daily expenses and income with zero friction by dropping a single chat-like message (e.g., `"200 fuel bike"`, `"+50000 salary"`, `"received 450 cashback"`, or `"150 coffee, +2500 splitwise, 1,200 groceries"`).
+- **Core Idea:** Log daily expenses, payment modes (`UPI`, `Credit Card`, `Cash`, `From Cashback / Wallet`, `Debit Card`, `Bank Transfer`), and income with zero friction by dropping a single chat-like message (e.g., `"200 fuel bike upi"`, `"1500 shoes myntra cc"`, `"250 coffee from cashback"`, `"+50000 salary"`).
 - **Zero Cost Forever ($0/month):**
   - Uses a fast (`<1ms`), offline deterministic + self-learning natural language parser (`parser.js`) instead of paid LLM API calls.
   - Uses `localStorage` + Service Worker (`sw.js`) for instant 0ms startup and offline logging.
-  - Uses a personal **Google Sheet** + free **Google Apps Script Web App** (`google-apps-script.js`) as a 2-way cloud database and multi-device backup/restore layer.
+  - Uses a personal **Google Sheet** + free **Google Apps Script Web App** (`google-apps-script.js`) as a 2-way cloud database and multi-device backup/restore layer, plus a zero-config **Active Users & Sessions Tracker** (`UsageStats` sheet tab + public CounterAPI fallback).
 
 ---
 

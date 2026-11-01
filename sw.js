@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dropspend-v3';
+const CACHE_NAME = 'dropspend-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -30,7 +30,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
-  if (request.url.includes('script.google.com') || request.url.includes('googleusercontent.com')) {
+  if (
+    request.url.includes('script.google.com') ||
+    request.url.includes('googleusercontent.com') ||
+    request.url.includes('counterapi.dev')
+  ) {
     return;
   }
 

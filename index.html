@@ -20,6 +20,10 @@
       </div>
 
       <div class="header-actions">
+        <button type="button" id="usage-stats-btn" class="usage-pill" title="Live anonymous usage stats across deployed visitors" aria-label="View App Usage &amp; Cloud Sync">
+          <span aria-hidden="true">👥</span>
+          <span id="usage-stats-label">1 user</span>
+        </button>
         <button type="button" id="sync-status-btn" class="sync-pill" aria-label="Configure Google Sheets Cloud Sync">
           <span id="sync-dot" class="sync-dot" data-state="local" aria-hidden="true"></span>
           <span id="sync-label">Backup: Local</span>
@@ -92,11 +96,12 @@
     <div class="analytics-grid">
       <section class="panel" aria-labelledby="cat-heading">
         <div class="panel-header">
-          <h2 id="cat-heading" class="panel-title">By Category</h2>
+          <h2 id="cat-heading" class="panel-title">Breakdown</h2>
           <div class="panel-header-actions">
-            <div class="mini-modes" role="group" aria-label="Category breakdown type">
+            <div class="mini-modes" role="group" aria-label="Breakdown mode">
               <button type="button" class="mini-chip active" data-cat-type="expense">Expenses</button>
               <button type="button" class="mini-chip" data-cat-type="income">Income</button>
+              <button type="button" class="mini-chip" data-cat-type="payment">Payment Mode</button>
             </div>
             <button type="button" id="clear-cat-filter-btn" class="text-btn" hidden>Clear filter</button>
           </div>
@@ -147,10 +152,10 @@
         <p class="empty-title">No transactions here yet</p>
         <p class="empty-hint">Try dropping a message below or tap a quick demo chip:</p>
         <div class="sample-chips">
-          <button type="button" class="sample-chip" data-sample="200 fuel bike">“200 fuel bike”</button>
+          <button type="button" class="sample-chip" data-sample="200 fuel bike upi">“200 fuel bike upi”</button>
+          <button type="button" class="sample-chip" data-sample="1500 shoes myntra cc">“1500 shoes myntra cc”</button>
+          <button type="button" class="sample-chip" data-sample="250 coffee from cashback">“250 coffee from cashback”</button>
           <button type="button" class="sample-chip" data-sample="+50000 salary">“+50000 salary”</button>
-          <button type="button" class="sample-chip" data-sample="received 450 cashback">“received 450 cashback”</button>
-          <button type="button" class="sample-chip" data-sample="150 coffee, 80 auto, 640 groceries">“150 coffee, 80 auto, 640 groceries”</button>
         </div>
       </div>
     </section>
@@ -203,15 +208,36 @@
   <dialog id="sync-dialog" class="app-dialog" closedby="any" aria-labelledby="sync-dialog-title">
     <div class="dialog-content">
       <div class="dialog-header">
-        <h1 id="sync-dialog-title" class="dialog-title">Google Sheets Cloud Backup &amp; Settings</h1>
+        <h1 id="sync-dialog-title" class="dialog-title">Cloud Sync, Usage Tracker &amp; Settings</h1>
         <form method="dialog">
           <button type="submit" class="icon-btn" aria-label="Close dialog">✕</button>
         </form>
       </div>
 
-      <p class="dialog-lead">
-        Keep your expenses <strong>100% free forever</strong> in your own Google Drive. Even if your phone is lost or cleared, 1 click restores everything.
-      </p>
+      <!-- Built-In Anonymous Usage Tracker Box -->
+      <section class="usage-tracker-card" aria-label="Live App Usage Statistics">
+        <div class="usage-tracker-header">
+          <strong class="usage-tracker-title">👥 Live App Usage Tracker</strong>
+          <span id="usage-tracker-badge" class="usage-source-badge">Auto Counter Active</span>
+        </div>
+        <div class="usage-metrics-row">
+          <div class="usage-metric">
+            <span class="usage-metric-label">Unique Users</span>
+            <strong id="modal-unique-users" class="usage-metric-val">1</strong>
+          </div>
+          <div class="usage-metric">
+            <span class="usage-metric-label">Total Sessions</span>
+            <strong id="modal-total-sessions" class="usage-metric-val">1</strong>
+          </div>
+          <div class="usage-metric">
+            <span class="usage-metric-label">Your Device ID</span>
+            <code id="modal-anon-id" class="usage-anon-code">usr_...</code>
+          </div>
+        </div>
+        <p class="field-hint">
+          Tracks unique browsers &amp; sessions automatically on your deployed domain (100% privacy-safe — never sends private expense amounts). Also logs to a <code>UsageStats</code> tab in your Google Sheet!
+        </p>
+      </section>
 
       <form id="settings-form" class="dialog-form" action="#" method="POST">
         <div class="form-group">
@@ -226,16 +252,20 @@
             spellcheck="false"
             aria-describedby="webhook-help"
           >
-          <span id="webhook-help" class="field-hint">Paste your deployed Apps Script URL for automatic 2-way sync.</span>
+          <span id="webhook-help" class="field-hint">Paste your deployed Apps Script URL for automatic 2-way sync &amp; Google Sheet usage analytics.</span>
         </div>
 
-        <div class="form-row-2">
+        <div class="form-row-3">
           <div class="form-group">
-            <label for="currency-input">Currency Symbol</label>
+            <label for="currency-input">Currency</label>
             <input type="text" id="currency-input" name="currency" value="₹" maxlength="4">
           </div>
           <div class="form-group">
-            <label for="budget-input">Monthly Budget (Optional)</label>
+            <label for="default-payment-input">Default Payment</label>
+            <select id="default-payment-input" name="defaultPayment"></select>
+          </div>
+          <div class="form-group">
+            <label for="budget-input">Monthly Budget</label>
             <input type="text" id="budget-input" name="monthlyBudget" inputmode="numeric" placeholder="e.g. 25000">
           </div>
         </div>
@@ -312,9 +342,16 @@
           <input type="text" id="edit-note" name="note" required>
         </div>
 
-        <div class="form-group">
-          <label for="edit-category">Category (Changing this teaches DropSpend for next time!)</label>
-          <select id="edit-category" name="category"></select>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="edit-category">Category (Teaches DropSpend!)</label>
+            <select id="edit-category" name="category"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-payment">Payment Mode</label>
+            <select id="edit-payment" name="paymentMethod"></select>
+          </div>
         </div>
 
         <div class="form-group">

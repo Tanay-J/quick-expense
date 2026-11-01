@@ -26,14 +26,21 @@ Traditional expense trackers require too many taps (open app → tap `+` → typ
 Instead of paying for an LLM API on every message, `parser.js` uses a deterministic + self-learning natural language parser that runs in `<1ms` completely offline:
 
 ### Supported Input Patterns
-- **Simple expense messages**: `"200 fuel bike"` → `{ type: "expense", amount: 200, category: "transport", note: "Fuel bike", date: "Today" }`
+- **Simple expense messages**: `"200 fuel bike"` → `{ type: "expense", amount: 200, category: "transport", paymentMethod: "upi", note: "Fuel bike", date: "Today" }`
+- **Payment Mode / Way of Expense (auto-detected from message text or editable inline)**:
+  - **UPI (`📱 UPI`)**: `"200 fuel bike upi"`, `"150 coffee gpay"`, `"phonepe"`, `"paytm"`
+  - **Credit Card (`💳 Credit Card`)**: `"1500 shoes myntra cc"`, `"credit card"`, `"amex"`
+  - **Cash (`💵 Cash`)**: `"80 auto cash"`
+  - **From Cashback / Wallet (`🎁 Cashback / Wallet`)**: `"250 coffee from cashback"`, `"300 movie via wallet"`, `"paid using reward points"` (smartly distinguishes *spending from cashback* vs *receiving cashback as income*)
+  - **Debit Card (`🏧 Debit Card`)**: `"500 groceries dc"`, `"debit card"`
+  - **Bank Transfer (`🏦 Bank Transfer`)**: `"15000 rent neft"`, `"imps"`, `"rtgs"`
 - **Income messages (auto-detected via `+` prefix, verbs, or keywords)**:
   - `"+50000 salary"` or `"salary 85k yesterday"` → `{ type: "income", amount: 50000, category: "salary" }`
   - `"received 450 cashback"` or `"1200 refund amazon"` → `{ type: "income", category: "refunds" }`
   - `"15k freelance"`, `"dividend 1,250 15 oct"`, `"+2500 splitwise"`
 - **Amount anywhere & shorthand**: `"fuel bike 200"`, `"₹250.50 coffee"`, `"1.5k shoes myntra"` (`₹1,500`), `"1,200 groceries"`, inline math `"120+80 lunch"` (`₹200`)
 - **Batch logging (comma or newline separated, including mixed expense + income)**:
-  - `"150 coffee, +2500 splitwise, 1,200 groceries"` → Logs 2 expenses and 1 income at once.
+  - `"150 coffee upi, +2500 splitwise, 1,200 groceries cc"` → Logs 2 expenses and 1 income at once with their respective payment modes.
 - **Relative & explicit dates**:
   - `"yesterday"` / `"last night"` / `"kal"` → Yesterday
   - `"day before yesterday"` / `"parso"` → 2 days ago
@@ -41,9 +48,17 @@ Instead of paying for an LLM API on every message, `parser.js` uses a determinis
   - `"last friday"` → Previous Friday
   - `"15 oct"` / `"oct 15"` / `"1st oct"` → Explicit date
 
-### Self-Learning Category Engine
-- Comes preloaded with **9 Expense Categories** (`Food & Dining`, `Groceries`, `Transport & Fuel`, `Bills & Utilities`, `Shopping`, `Health & Fitness`, `Entertainment`, `Personal & Home`, `Other Expense`) and **6 Income Categories** (`Salary & Paycheck`, `Freelance & Business`, `Investments & Returns`, `Refunds & Cashback`, `Gifts & Splitwise`, `Other Income`).
+### Self-Learning Category Engine & Payment Breakdown
+- Comes preloaded with **9 Expense Categories** (`Food & Dining`, `Groceries`, `Transport & Fuel`, `Bills & Utilities`, `Shopping`, `Health & Fitness`, `Entertainment`, `Personal & Home`, `Other Expense`), **6 Income Categories** (`Salary & Paycheck`, `Freelance & Business`, `Investments & Returns`, `Refunds & Cashback`, `Gifts & Splitwise`, `Other Income`), and **6 Payment Modes** (`UPI`, `Credit Card`, `Cash`, `Cashback / Wallet`, `Debit Card`, `Bank Transfer`).
 - **Auto-learning**: Whenever you edit an entry or change its category in the live preview, `learnFromNote()` saves the keywords in that note (`localStorage` key `qe_learned_keywords_v1`) so future messages containing those words are categorized automatically.
+
+---
+
+## 3. Zero-Cost Active Users & Usage Tracker (For Deployment)
+
+When you deploy DropSpend publicly (e.g., on GitHub Pages, Cloudflare Pages, or Vercel), it includes a **100% free, privacy-first Active Users & Sessions Tracker**:
+1. **Zero-Config Public Counter (`CounterAPI`)**: Automatically counts unique devices (`unique_users`, incremented once per browser/device via `localStorage` flag) and app launches (`total_sessions`, incremented once per browser session) keyed to your deployment hostname—displaying a live **`👥 X users`** pill in the top header and a detailed telemetry card inside the Cloud & Settings modal.
+2. **Google Sheets `UsageStats` Tab (`google-apps-script.js`)**: When a Google Apps Script Web App URL is connected (or if you set `DEFAULT_TELEMETRY_WEBHOOK_URL` in `sync.js` before deploying), every device anonymously logs its `deviceId`, `firstSeen`, `lastSeen`, `sessions`, `txCount`, `platform`, and `timezone` to a dedicated **`UsageStats`** tab in your Google Sheet—**without ever sending private transaction amounts or notes**.
 
 ---
 
