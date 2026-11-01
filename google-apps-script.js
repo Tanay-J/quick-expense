@@ -20,9 +20,21 @@ const SHEET_NAME = 'Expenses';
 const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted', 'type', 'paymentMethod'];
 const STATS_SHEET_NAME = 'UsageStats';
 const STATS_HEADERS = ['deviceId', 'firstSeen', 'lastSeen', 'sessions', 'txCount', 'activeDays', 'platform', 'timezone'];
+// Optional: If you create this script at https://script.google.com instead of Extensions -> Apps Script,
+// paste your Google Sheet ID (from the Sheet URL: docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit) below:
+const OPTIONAL_SPREADSHEET_ID = '';
+
+function getSpreadsheet() {
+  const active = SpreadsheetApp.getActiveSpreadsheet();
+  if (active) return active;
+  if (OPTIONAL_SPREADSHEET_ID) {
+    return SpreadsheetApp.openById(OPTIONAL_SPREADSHEET_ID);
+  }
+  throw new Error('No active spreadsheet found. Either open via Extensions -> Apps Script in your Sheet, or set OPTIONAL_SPREADSHEET_ID.');
+}
 
 function getOrCreateSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
@@ -36,7 +48,7 @@ function getOrCreateSheet() {
 }
 
 function getOrCreateStatsSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   let sheet = ss.getSheetByName(STATS_SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(STATS_SHEET_NAME);
