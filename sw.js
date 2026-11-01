@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dropspend-v4';
+const CACHE_NAME = 'dropspend-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -38,18 +38,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network-first with offline cache fallback so new git pushes appear immediately when online
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const fetchPromise = fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return networkResponse;
-        })
-        .catch(() => cached);
-      return cached || fetchPromise;
-    })
+    fetch(request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(request))
   );
 });
