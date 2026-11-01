@@ -11,10 +11,10 @@
  */
 
 export const EXPENSE_CATEGORIES = [
-  { id: 'food', name: 'Food & Dining', icon: '🍽️', hue: '24', type: 'expense' },
+  { id: 'food', name: 'Food & Dining', icon: '🍔', hue: '24', type: 'expense' },
   { id: 'groceries', name: 'Groceries', icon: '🛒', hue: '142', type: 'expense' },
   { id: 'transport', name: 'Transport & Fuel', icon: '⛽', hue: '210', type: 'expense' },
-  { id: 'bills', name: 'Bills & Utilities', icon: '⚡', hue: '45', type: 'expense' },
+  { id: 'bills', name: 'Bills & Utilities', icon: '💡', hue: '45', type: 'expense' },
   { id: 'shopping', name: 'Shopping', icon: '🛍️', hue: '280', type: 'expense' },
   { id: 'health', name: 'Health & Fitness', icon: '💊', hue: '340', type: 'expense' },
   { id: 'entertainment', name: 'Entertainment', icon: '🎬', hue: '190', type: 'expense' },
@@ -34,7 +34,7 @@ export const INCOME_CATEGORIES = [
 export const CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
 
 export const PAYMENT_METHODS = [
-  { id: 'upi', name: 'UPI', shortName: 'UPI', icon: '📱', hue: '198' },
+  { id: 'upi', name: 'UPI', shortName: 'UPI', icon: '⚡', hue: '198' },
   { id: 'credit_card', name: 'Credit Card', shortName: 'Credit Card', icon: '💳', hue: '268' },
   { id: 'cash', name: 'Cash', shortName: 'Cash', icon: '💵', hue: '145' },
   { id: 'cashback_wallet', name: 'Cashback / Wallet', shortName: 'Cashback', icon: '🎁', hue: '325' },

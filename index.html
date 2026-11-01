@@ -8,7 +8,22 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="stylesheet" href="./styles.css">
 </head>
-<body>
+<body data-design="tabs" data-view="log">
+  <!-- Live Design Option Switcher (hidden by default; append ?switcher=1 to URL to compare layouts) -->
+  <nav id="design-switcher-bar" class="design-switcher" aria-label="Landing Page Design Options" hidden>
+    <div class="design-switcher-inner">
+      <span class="design-switcher-label">Layout Option:</span>
+      <div class="design-switcher-pills" role="group" aria-label="Choose landing page design">
+        <button type="button" class="design-pill" data-design="spotlight">1. Spotlight Hero</button>
+        <button type="button" class="design-pill active" data-design="tabs">2. Two-Tab Zen</button>
+        <button type="button" class="design-pill" data-design="chat">3. Chat Messenger</button>
+        <button type="button" class="design-pill" data-design="pocket">4. Pocket Card</button>
+        <button type="button" class="design-pill" data-design="classic">Classic</button>
+      </div>
+      <span id="design-switcher-hint" class="design-switcher-hint">Two clean tabs: ⚡ Quick Log vs 📊 Insights &amp; History</span>
+    </div>
+  </nav>
+
   <header class="app-header">
     <div class="header-inner">
       <div class="brand-group">
@@ -17,6 +32,16 @@
           <h1 class="app-title">DropSpend</h1>
           <p class="app-subtitle">Type like a message. Saved &amp; synced.</p>
         </div>
+      </div>
+
+      <!-- Two-Tab Zen Navigation (Visible in Option 2, or when toggling Insights in Options 1 & 3) -->
+      <div id="view-tabs" class="view-tabs" role="tablist" aria-label="App View">
+        <button type="button" role="tab" id="tab-log-btn" class="view-tab active" data-view="log" aria-selected="true">
+          <span aria-hidden="true">⚡</span> Quick Log
+        </button>
+        <button type="button" role="tab" id="tab-insights-btn" class="view-tab" data-view="insights" aria-selected="false">
+          <span aria-hidden="true">📊</span> Insights
+        </button>
       </div>
 
       <div class="header-actions">
@@ -41,90 +66,177 @@
   </header>
 
   <main class="app-main">
-    <!-- Period Navigation Bar -->
-    <section class="period-bar" aria-label="Time Period Filter">
-      <div class="month-selector">
-        <button type="button" id="prev-month-btn" class="nav-btn" aria-label="Previous month">‹</button>
-        <span id="current-period-label" class="period-label">October 2026</span>
-        <button type="button" id="next-month-btn" class="nav-btn" aria-label="Next month">›</button>
+    <!-- Minimalist Summary Strip / Pocket Card (Used in Options 1, 2, 3, 4) -->
+    <section id="minimal-summary-bar" class="minimal-summary-bar" aria-label="Quick Spending Summary">
+      <div class="mini-stat-group">
+        <div class="mini-stat-primary">
+          <span id="mini-period-title" class="mini-stat-label">This Month</span>
+          <strong id="mini-month-spent" class="mini-stat-value">₹0</strong>
+        </div>
+        <div class="mini-stat-divider" aria-hidden="true"></div>
+        <div class="mini-stat-secondary">
+          <span class="mini-stat-label">Today</span>
+          <strong id="mini-today-spent" class="mini-stat-subvalue">₹0</strong>
+        </div>
+        <div class="mini-stat-divider mini-net-divider" aria-hidden="true"></div>
+        <div class="mini-stat-secondary mini-net-item">
+          <span class="mini-stat-label">Net Cashflow</span>
+          <strong id="mini-month-net" class="mini-stat-subvalue">₹0</strong>
+        </div>
       </div>
-      <div class="period-modes" role="group" aria-label="Period range">
-        <button type="button" class="mode-chip active" data-mode="month">Month</button>
-        <button type="button" class="mode-chip" data-mode="7d">Last 7D</button>
-        <button type="button" class="mode-chip" data-mode="all">All Time</button>
+
+      <div class="mini-summary-actions">
+        <button type="button" id="toggle-insights-btn" class="insights-toggle-btn" aria-expanded="false">
+          <span id="toggle-insights-icon" aria-hidden="true">📊</span>
+          <span id="toggle-insights-label">Insights &amp; Breakdown</span>
+        </button>
       </div>
     </section>
 
-    <!-- KPI Summary Cards -->
-    <section class="kpi-section" aria-labelledby="kpi-heading">
-      <h2 id="kpi-heading" class="visually-hidden">Cashflow &amp; Spending Overview</h2>
-      <div class="kpi-grid">
-        <article class="kpi-card kpi-primary">
-          <span class="kpi-title">Total Spent</span>
-          <strong id="kpi-total" class="kpi-value">₹0</strong>
-          <div id="budget-progress-wrap" class="budget-wrap" hidden>
-            <div class="budget-meta">
-              <span id="budget-status-text">0% of budget</span>
-            </div>
-            <progress id="budget-progress" class="budget-bar" value="0" max="100"></progress>
-          </div>
-          <span id="kpi-sub-count" class="kpi-sub">0 expenses • ₹0/day</span>
-        </article>
+    <!-- Quick-Add Expense & Income Composer (Hero at top in Options 1, 2, 4; Sticky bottom dock in Option 3 & Classic) -->
+    <aside class="composer-dock" aria-label="Quick Transaction Input">
+      <div class="composer-inner">
+        <div class="spotlight-hero-header">
+          <h2 class="spotlight-hero-title">What did you spend on?</h2>
+          <span class="spotlight-hero-hint">Just type amount &amp; item — press Enter to save</span>
+        </div>
 
-        <article class="kpi-card kpi-income-card">
-          <span class="kpi-title">Total Income</span>
-          <strong id="kpi-income" class="kpi-value kpi-value-income">+₹0</strong>
-          <span id="kpi-income-sub" class="kpi-sub">0 income entries</span>
-        </article>
+        <!-- Interactive Parse Output & Quick-Edit Bar -->
+        <div id="parse-preview" class="parse-preview" role="region" aria-label="Parsed transaction preview" aria-live="polite" hidden></div>
 
-        <article class="kpi-card">
-          <span class="kpi-title">Net Cashflow</span>
-          <strong id="kpi-net" class="kpi-value">₹0</strong>
-          <span id="kpi-avg" class="kpi-sub" hidden>Daily avg: ₹0</span>
-          <span id="kpi-projected" class="kpi-sub">Month pace: ₹0</span>
-        </article>
+        <form id="expense-form" class="composer-form" action="#" method="POST">
+          <button
+            type="button"
+            id="composer-type-btn"
+            class="composer-type-btn"
+            data-type="expense"
+            title="Switch default entry mode between Expense (−) and Income (+). Tip: prefixing +5000 or typing 'salary' auto-detects Income!"
+            aria-label="Entry mode: Expense. Click to switch to Income."
+          >
+            <span id="composer-type-icon" aria-hidden="true">−</span>
+            <span id="composer-type-label" class="btn-text-desktop">Expense</span>
+          </button>
+          <label for="expense-input" class="visually-hidden">Drop an expense or income message (e.g., 200 fuel bike or +50000 salary)</label>
+          <input
+            type="text"
+            id="expense-input"
+            name="message"
+            class="composer-input"
+            placeholder="e.g. 200 fuel upi, 150 coffee"
+            enterkeyhint="send"
+            autocomplete="off"
+            autofocus
+            required
+          >
+          <button type="submit" id="send-expense-btn" class="send-btn" aria-label="Save transaction">
+            <span id="send-btn-text">Save</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
 
-        <article class="kpi-card">
-          <span class="kpi-title">Top Category</span>
-          <strong id="kpi-top-cat" class="kpi-value">—</strong>
-          <span id="kpi-top-cat-amt" class="kpi-sub">No data yet</span>
-        </article>
+        <!-- Quick 1-Tap Category / Mode Chips for ultra-fast entry -->
+        <div class="quick-fill-row" aria-label="Quick entry shortcuts">
+          <span class="quick-fill-label">Quick tap:</span>
+          <button type="button" class="quick-fill-chip" data-fill="fuel upi">⛽ Fuel</button>
+          <button type="button" class="quick-fill-chip" data-fill="coffee ">☕ Coffee</button>
+          <button type="button" class="quick-fill-chip" data-fill="lunch ">🍱 Lunch</button>
+          <button type="button" class="quick-fill-chip" data-fill="groceries ">🛒 Groceries</button>
+          <button type="button" class="quick-fill-chip" data-fill="uber ">🚕 Cab</button>
+          <button type="button" class="quick-fill-chip" data-fill="cc">💳 Card</button>
+        </div>
       </div>
-    </section>
+    </aside>
 
-    <!-- Two-Column Analytics Grid on Desktop / Stacked on Mobile -->
-    <div class="analytics-grid">
-      <section class="panel" aria-labelledby="cat-heading">
-        <div class="panel-header">
-          <h2 id="cat-heading" class="panel-title">Breakdown</h2>
-          <div class="panel-header-actions">
-            <div class="mini-modes" role="group" aria-label="Breakdown mode">
-              <button type="button" class="mini-chip active" data-cat-type="expense">Expenses</button>
-              <button type="button" class="mini-chip" data-cat-type="income">Income</button>
-              <button type="button" class="mini-chip" data-cat-type="payment">Payment Mode</button>
+    <!-- Insights & Analytics Container (Collapsible / Tab-controlled in minimal layouts) -->
+    <div id="insights-container" class="insights-container">
+      <!-- Period Navigation Bar -->
+      <section class="period-bar" aria-label="Time Period Filter">
+        <div class="month-selector">
+          <button type="button" id="prev-month-btn" class="nav-btn" aria-label="Previous month">‹</button>
+          <span id="current-period-label" class="period-label">October 2026</span>
+          <button type="button" id="next-month-btn" class="nav-btn" aria-label="Next month">›</button>
+        </div>
+        <div class="period-modes" role="group" aria-label="Period range">
+          <button type="button" class="mode-chip active" data-mode="month">Month</button>
+          <button type="button" class="mode-chip" data-mode="7d">Last 7D</button>
+          <button type="button" class="mode-chip" data-mode="all">All Time</button>
+        </div>
+      </section>
+
+      <!-- KPI Summary Cards -->
+      <section class="kpi-section" aria-labelledby="kpi-heading">
+        <h2 id="kpi-heading" class="visually-hidden">Cashflow &amp; Spending Overview</h2>
+        <div class="kpi-grid">
+          <article class="kpi-card kpi-primary">
+            <span class="kpi-title">Total Spent</span>
+            <strong id="kpi-total" class="kpi-value">₹0</strong>
+            <div id="budget-progress-wrap" class="budget-wrap" hidden>
+              <div class="budget-meta">
+                <span id="budget-status-text">0% of budget</span>
+              </div>
+              <progress id="budget-progress" class="budget-bar" value="0" max="100"></progress>
             </div>
-            <button type="button" id="clear-cat-filter-btn" class="text-btn" hidden>Clear filter</button>
-          </div>
+            <span id="kpi-sub-count" class="kpi-sub">0 expenses • ₹0/day</span>
+          </article>
+
+          <article class="kpi-card kpi-income-card">
+            <span class="kpi-title">Total Income</span>
+            <strong id="kpi-income" class="kpi-value kpi-value-income">+₹0</strong>
+            <span id="kpi-income-sub" class="kpi-sub">0 income entries</span>
+          </article>
+
+          <article class="kpi-card">
+            <span class="kpi-title">Net Cashflow</span>
+            <strong id="kpi-net" class="kpi-value">₹0</strong>
+            <span id="kpi-avg" class="kpi-sub" hidden>Daily avg: ₹0</span>
+            <span id="kpi-projected" class="kpi-sub">Month pace: ₹0</span>
+          </article>
+
+          <article class="kpi-card">
+            <span class="kpi-title">Top Category</span>
+            <strong id="kpi-top-cat" class="kpi-value">—</strong>
+            <span id="kpi-top-cat-amt" class="kpi-sub">No data yet</span>
+          </article>
         </div>
-        <div id="category-stacked-bar" class="stacked-bar" aria-hidden="true"></div>
-        <ul id="category-list" class="category-list"></ul>
       </section>
 
-      <section class="panel" aria-labelledby="trend-heading">
-        <div class="panel-header">
-          <h2 id="trend-heading" class="panel-title">Daily Activity</h2>
-          <span id="trend-subtitle" class="panel-subtitle">Last 14 days</span>
-        </div>
-        <div id="trend-chart" class="trend-chart" role="img" aria-label="Bar chart of daily spending and income"></div>
-      </section>
+      <!-- Two-Column Analytics Grid on Desktop / Stacked on Mobile -->
+      <div class="analytics-grid">
+        <section class="panel" aria-labelledby="cat-heading">
+          <div class="panel-header">
+            <h2 id="cat-heading" class="panel-title">Breakdown</h2>
+            <div class="panel-header-actions">
+              <div class="mini-modes" role="group" aria-label="Breakdown mode">
+                <button type="button" class="mini-chip active" data-cat-type="expense">Expenses</button>
+                <button type="button" class="mini-chip" data-cat-type="income">Income</button>
+                <button type="button" class="mini-chip" data-cat-type="payment">Payment Mode</button>
+              </div>
+              <button type="button" id="clear-cat-filter-btn" class="text-btn" hidden>Clear filter</button>
+            </div>
+          </div>
+          <div id="category-stacked-bar" class="stacked-bar" aria-hidden="true"></div>
+          <ul id="category-list" class="category-list"></ul>
+        </section>
+
+        <section class="panel" aria-labelledby="trend-heading">
+          <div class="panel-header">
+            <h2 id="trend-heading" class="panel-title">Daily Activity</h2>
+            <span id="trend-subtitle" class="panel-subtitle">Last 14 days</span>
+          </div>
+          <div id="trend-chart" class="trend-chart" role="img" aria-label="Bar chart of daily spending and income"></div>
+        </section>
+      </div>
     </div>
 
     <!-- Search & Recent Transactions Feed -->
     <section class="panel transactions-panel" aria-labelledby="feed-heading">
       <div class="feed-header">
         <div class="feed-title-group">
-          <h2 id="feed-heading" class="panel-title">Transactions</h2>
-          <div class="mini-modes" role="group" aria-label="Filter transactions by type">
+          <h2 id="feed-heading" class="panel-title">Recent Activity</h2>
+          <div class="mini-modes feed-filter-modes" role="group" aria-label="Filter transactions by type">
             <button type="button" class="mini-chip active" data-feed-type="all">All</button>
             <button type="button" class="mini-chip" data-feed-type="expense">Expenses</button>
             <button type="button" class="mini-chip" data-feed-type="income">Income</button>
@@ -148,9 +260,15 @@
 
       <ul id="expense-list" class="expense-list"></ul>
 
+      <div id="feed-footer" class="feed-footer" hidden>
+        <button type="button" id="show-all-feed-btn" class="secondary-btn feed-more-btn">
+          View all transactions &amp; insights →
+        </button>
+      </div>
+
       <div id="empty-state" class="empty-state" hidden>
         <p class="empty-title">No transactions here yet</p>
-        <p class="empty-hint">Try dropping a message below or tap a quick demo chip:</p>
+        <p class="empty-hint">Try dropping a message or tap a quick demo chip:</p>
         <div class="sample-chips">
           <button type="button" class="sample-chip" data-sample="200 fuel bike upi">“200 fuel bike upi”</button>
           <button type="button" class="sample-chip" data-sample="1500 shoes myntra cc">“1500 shoes myntra cc”</button>
@@ -160,46 +278,6 @@
       </div>
     </section>
   </main>
-
-  <!-- Sticky Chat-First Expense & Income Input Dock -->
-  <aside class="composer-dock" aria-label="Quick Transaction Input">
-    <div class="composer-inner">
-      <!-- Interactive Parse Output & Quick-Edit Bar -->
-      <div id="parse-preview" class="parse-preview" role="region" aria-label="Parsed transaction preview" aria-live="polite" hidden></div>
-
-      <form id="expense-form" class="composer-form" action="#" method="POST">
-        <button
-          type="button"
-          id="composer-type-btn"
-          class="composer-type-btn"
-          data-type="expense"
-          title="Switch default entry mode between Expense (−) and Income (+). Tip: prefixing +5000 or typing 'salary' auto-detects Income!"
-          aria-label="Entry mode: Expense. Click to switch to Income."
-        >
-          <span id="composer-type-icon" aria-hidden="true">−</span>
-          <span id="composer-type-label" class="btn-text-desktop">Expense</span>
-        </button>
-        <label for="expense-input" class="visually-hidden">Drop an expense or income message (e.g., 200 fuel bike or +50000 salary)</label>
-        <input
-          type="text"
-          id="expense-input"
-          name="message"
-          class="composer-input"
-          placeholder="Drop expense or +income: e.g. 200 fuel, +50k salary, 150 coffee..."
-          enterkeyhint="send"
-          autocomplete="off"
-          required
-        >
-        <button type="submit" id="send-expense-btn" class="send-btn" aria-label="Save transaction">
-          <span id="send-btn-text">Save</span>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-            <line x1="22" y1="2" x2="11" y2="13"></line>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-          </svg>
-        </button>
-      </form>
-    </div>
-  </aside>
 
   <!-- Toast Announcement -->
   <div id="toast-region" class="toast-region" aria-live="polite"></div>

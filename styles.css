@@ -42,6 +42,11 @@ body {
   padding-block-end: 7.5rem;
 }
 
+/* Ensure [hidden] is always respected regardless of class display rules */
+[hidden] {
+  display: none !important;
+}
+
 /* Canonical visually-hidden utility */
 .visually-hidden {
   position: absolute;
@@ -751,12 +756,28 @@ pre:focus-visible {
 }
 
 .expense-meta {
-  margin: 0;
-  font-size: 0.78rem;
+  margin: 0.15rem 0 0;
+  font-size: 0.76rem;
   color: var(--text-secondary);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
+}
+
+.expense-pay-pill {
+  background: rgba(148, 163, 184, 0.14);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  padding: 0.05rem 0.42rem;
+  border-radius: 0.32rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.expense-sync-tag {
+  font-size: 0.72rem;
 }
 
 .expense-right {
@@ -1034,21 +1055,26 @@ pre:focus-visible {
   color: var(--text-primary);
 }
 
+.preview-field-date {
+  position: relative;
+  cursor: pointer;
+  justify-content: center;
+}
+
 .preview-date-badge {
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: var(--accent);
-  background: var(--accent-soft);
-  padding: 0.12rem 0.42rem;
-  border-radius: 999px;
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .preview-inline-date {
-  width: auto;
-  max-width: 8.2rem;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
   cursor: pointer;
 }
 
@@ -1104,6 +1130,7 @@ pre:focus-visible {
 
 .composer-input {
   flex: 1;
+  min-width: 0;
   min-height: 50px;
   padding-inline: 1rem;
   border-radius: 999px;
@@ -1111,6 +1138,12 @@ pre:focus-visible {
   background: var(--bg-surface);
   color: var(--text-primary);
   font-size: 1rem;
+}
+
+.composer-input::placeholder {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
 }
 
 .composer-input:focus {
@@ -1436,21 +1469,63 @@ pre:focus-visible {
   pointer-events: none;
 }
 
+body[data-design="spotlight"] .toast-region,
+body[data-design="tabs"] .toast-region,
+body[data-design="pocket"] .toast-region {
+  bottom: 1.25rem;
+}
+
 .toast {
   pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(16, 185, 129, 0.55);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
+}
+
+.toast-body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.65rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--accent);
-  color: var(--text-primary);
-  padding: 0.65rem 0.95rem;
-  border-radius: var(--radius-md);
-  font-size: 0.85rem;
-  font-weight: 600;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55);
+  padding: 0.68rem 0.95rem 0.62rem;
+}
+
+.toast-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(15, 23, 42, 0.75);
+  overflow: hidden;
+}
+
+.toast-progress-bar {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  transform-origin: left center;
+  animation: toast-countdown var(--toast-duration, 3200ms) linear forwards;
+}
+
+.toast:hover .toast-progress-bar,
+.toast:focus-within .toast-progress-bar {
+  animation-play-state: paused;
+}
+
+@keyframes toast-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
 }
 
 .toast-actions {
@@ -1477,25 +1552,42 @@ pre:focus-visible {
 }
 
 @media (pointer: coarse) {
-  input,
-  select,
-  button {
-    min-height: 52px;
+  .form-group input,
+  .form-group select,
+  .primary-btn,
+  .secondary-btn,
+  .danger-btn {
+    min-height: 48px;
   }
   .preview-inline-input,
   .preview-inline-select,
-  .preview-inline-date,
   .preview-remove-btn {
-    min-height: 38px;
+    min-height: 36px;
   }
   .toast-action-btn {
-    min-height: 38px;
+    min-height: 36px;
   }
 }
 
 @media (max-width: 720px) {
   .preview-edit-row {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.4rem;
+  }
+  .preview-type-toggle {
+    grid-column: 1 / 2;
+  }
+  .preview-field-amount {
+    grid-column: 2 / 3;
+  }
+  .preview-field-date {
+    grid-column: 3 / 4;
+  }
+  .preview-field-category {
+    grid-column: 1 / 3;
+  }
+  .preview-field-payment {
+    grid-column: 3 / 4;
   }
   .preview-field-note {
     grid-column: 1 / -1;
@@ -1513,5 +1605,895 @@ pre:focus-visible {
   }
   .preview-edit-hint {
     display: none;
+  }
+}
+
+/* ==========================================================================
+   LIVE DESIGN SWITCHER & MINIMAL LANDING PAGE OPTIONS (1–4 + Classic)
+   ========================================================================== */
+
+.design-switcher {
+  background: #060a14;
+  border-block-end: 1px solid var(--border-strong);
+  padding: 0.45rem 1rem;
+  font-size: 0.78rem;
+  z-index: 35;
+}
+
+.design-switcher-inner {
+  max-width: var(--max-w);
+  margin-inline: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.design-switcher-label {
+  font-weight: 700;
+  color: #38bdf8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.72rem;
+}
+
+.design-switcher-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.design-pill {
+  min-height: 32px;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.design-pill:hover {
+  border-color: #38bdf8;
+  color: var(--text-primary);
+}
+
+.design-pill.active {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: #38bdf8;
+  color: #e0f2fe;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.22);
+}
+
+.design-switcher-hint {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-inline-start: auto;
+}
+
+/* Header View Tabs (Two-Tab Zen & Insights Switcher) */
+.view-tabs {
+  display: none;
+  background: var(--bg-base);
+  padding: 0.22rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  gap: 0.2rem;
+}
+
+.view-tab {
+  min-height: 36px;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.view-tab:hover {
+  color: var(--text-primary);
+}
+
+.view-tab.active {
+  background: var(--accent);
+  color: #042f2e;
+}
+
+/* Minimal Summary Strip / Pocket Card */
+.minimal-summary-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1.1rem;
+}
+
+.mini-stat-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mini-stat-primary,
+.mini-stat-secondary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.mini-stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.mini-stat-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.mini-stat-subvalue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.mini-stat-subvalue[data-sign="positive"] {
+  color: #34d399;
+}
+
+.mini-stat-subvalue[data-sign="negative"] {
+  color: #f87171;
+}
+
+.mini-stat-divider {
+  width: 1px;
+  height: 1.85rem;
+  background: var(--border-strong);
+}
+
+.insights-toggle-btn {
+  min-height: 38px;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.15s ease;
+}
+
+.insights-toggle-btn:hover,
+.insights-toggle-btn[aria-expanded="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: #34d399;
+}
+
+/* Spotlight Hero Header & Quick Fill Chips inside Composer */
+.spotlight-hero-header {
+  display: none;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-block-end: 0.25rem;
+}
+
+.spotlight-hero-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.spotlight-hero-hint {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.quick-fill-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.38rem;
+  padding-block-start: 0.15rem;
+}
+
+.quick-fill-label {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-inline-end: 0.15rem;
+}
+
+.quick-fill-chip {
+  min-height: 30px;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(30, 41, 59, 0.55);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-fill-chip:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+/* Insights Container (SPA View Caching with content-visibility) */
+.insights-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.insights-container.is-hidden {
+  content-visibility: hidden;
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  margin: 0;
+  padding: 0;
+}
+
+@supports not (content-visibility: hidden) {
+  .insights-container.is-hidden {
+    display: none;
+  }
+}
+
+.feed-footer {
+  margin-block-start: 0.85rem;
+  display: flex;
+  justify-content: center;
+}
+
+.feed-more-btn {
+  width: 100%;
+  font-size: 0.84rem;
+  min-height: 42px;
+  background: var(--bg-base);
+}
+
+.feed-more-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ==========================================================================
+   TOP-INPUT CARD MODE (Shared by Option 1: Spotlight, Option 2: Tabs, Option 4: Pocket)
+   ========================================================================== */
+body[data-design="spotlight"],
+body[data-design="tabs"],
+body[data-design="pocket"] {
+  padding-block-end: 2.5rem;
+}
+
+body[data-design="spotlight"] .composer-dock,
+body[data-design="tabs"] .composer-dock,
+body[data-design="pocket"] .composer-dock {
+  position: relative;
+  bottom: auto;
+  inset-inline: auto;
+  z-index: 10;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0.15rem 0;
+  box-shadow: none;
+}
+
+/* Unified Single-Pill Command Bar */
+body[data-design="spotlight"] .composer-form,
+body[data-design="tabs"] .composer-form,
+body[data-design="pocket"] .composer-form {
+  background: var(--bg-surface);
+  border: 1.5px solid rgba(16, 185, 129, 0.42);
+  border-radius: 1rem;
+  padding: 0.32rem;
+  gap: 0.35rem;
+  box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.55);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+body[data-design="spotlight"] .composer-form:focus-within,
+body[data-design="tabs"] .composer-form:focus-within,
+body[data-design="pocket"] .composer-form:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 12px 30px -8px rgba(16, 185, 129, 0.22), 0 0 0 3px rgba(16, 185, 129, 0.14);
+}
+
+body[data-design="spotlight"] .composer-type-btn,
+body[data-design="tabs"] .composer-type-btn,
+body[data-design="pocket"] .composer-type-btn {
+  min-height: 42px;
+  min-width: 42px;
+  padding-inline: 0.75rem;
+  border-radius: 0.72rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+}
+
+body[data-design="spotlight"] .composer-input,
+body[data-design="tabs"] .composer-input,
+body[data-design="pocket"] .composer-input {
+  min-height: 42px;
+  padding-inline: 0.6rem;
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+}
+
+body[data-design="spotlight"] .send-btn,
+body[data-design="tabs"] .send-btn,
+body[data-design="pocket"] .send-btn {
+  min-height: 42px;
+  padding-inline: 1rem;
+  border-radius: 0.72rem;
+}
+
+/* In Top-Input mode, place the input form above the live parse preview so preview expands downward */
+body[data-design="spotlight"] .composer-inner,
+body[data-design="tabs"] .composer-inner,
+body[data-design="pocket"] .composer-inner {
+  gap: 0.55rem;
+}
+
+body[data-design="spotlight"] .spotlight-hero-header,
+body[data-design="tabs"] .spotlight-hero-header,
+body[data-design="pocket"] .spotlight-hero-header {
+  display: none !important;
+}
+
+body[data-design="spotlight"] .composer-form,
+body[data-design="tabs"] .composer-form,
+body[data-design="pocket"] .composer-form {
+  order: 1;
+}
+
+body[data-design="spotlight"] .parse-preview,
+body[data-design="tabs"] .parse-preview,
+body[data-design="pocket"] .parse-preview {
+  order: 2;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+body[data-design="spotlight"] .quick-fill-row,
+body[data-design="tabs"] .quick-fill-row,
+body[data-design="pocket"] .quick-fill-row {
+  order: 3;
+}
+
+/* ==========================================================================
+   OPTION 1: SPOTLIGHT HERO (Hero Input First + Minimal Pill + Last 5 Entries)
+   ========================================================================== */
+body[data-design="spotlight"]:not([data-insights-open="true"]) .app-main {
+  max-width: 42rem;
+  padding-block-start: 1.35rem;
+}
+
+body[data-design="spotlight"] .app-subtitle,
+body[data-design="spotlight"]:not([data-insights-open="true"]) #export-csv-btn {
+  display: none;
+}
+
+body[data-design="spotlight"] .spotlight-hero-header {
+  display: flex;
+}
+
+body[data-design="spotlight"] .composer-dock {
+  order: 1;
+  padding: 1.35rem 1.4rem;
+}
+
+body[data-design="spotlight"] .composer-input {
+  min-height: 54px;
+  font-size: 1.06rem;
+  background: var(--bg-base);
+}
+
+body[data-design="spotlight"] .minimal-summary-bar {
+  order: 2;
+  padding: 0.65rem 1rem;
+  background: rgba(17, 24, 39, 0.7);
+}
+
+body[data-design="spotlight"] .mini-stat-value {
+  font-size: 1.15rem;
+}
+
+body[data-design="spotlight"] .insights-container {
+  order: 3;
+}
+
+body[data-design="spotlight"] .transactions-panel {
+  order: 4;
+}
+
+/* Hide search & feed filter chips on Spotlight landing until Insights/All is opened */
+body[data-design="spotlight"]:not([data-insights-open="true"]):not([data-show-all-feed="true"]) .feed-header .search-box,
+body[data-design="spotlight"]:not([data-insights-open="true"]):not([data-show-all-feed="true"]) .feed-filter-modes {
+  display: none;
+}
+
+/* ==========================================================================
+   OPTION 2: TWO-TAB ZEN (⚡ Quick Log Tab vs 📊 Insights Tab)
+   ========================================================================== */
+body[data-design="tabs"] .view-tabs {
+  display: inline-flex;
+}
+
+body[data-design="tabs"] .app-subtitle,
+body[data-design="tabs"][data-view="log"] #export-csv-btn,
+body[data-design="tabs"] #toggle-insights-btn {
+  display: none;
+}
+
+body[data-design="tabs"][data-view="log"] .app-main {
+  max-width: 42rem;
+}
+
+body[data-design="tabs"][data-view="log"] .composer-dock {
+  order: 1;
+}
+
+body[data-design="tabs"][data-view="log"] .spotlight-hero-header {
+  display: flex;
+}
+
+body[data-design="tabs"][data-view="log"] .minimal-summary-bar {
+  order: 2;
+}
+
+body[data-design="tabs"][data-view="log"] .transactions-panel {
+  order: 3;
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0;
+}
+
+body[data-design="tabs"][data-view="log"] .feed-header {
+  margin-block-end: 0.55rem;
+}
+
+body[data-design="tabs"][data-view="log"] #feed-heading {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+body[data-design="tabs"][data-view="log"] .expense-item {
+  background: var(--bg-surface);
+  border-color: var(--border-subtle);
+  border-radius: 0.85rem;
+  padding: 0.75rem 0.9rem;
+}
+
+body[data-design="tabs"][data-view="log"]:not([data-show-all-feed="true"]) .feed-header .search-box,
+body[data-design="tabs"][data-view="log"]:not([data-show-all-feed="true"]) .feed-filter-modes {
+  display: none;
+}
+
+/* On Insights Tab in Option 2, hide composer & minimal bar so it's a pure analytics view */
+body[data-design="tabs"][data-view="insights"] .minimal-summary-bar,
+body[data-design="tabs"][data-view="insights"] .composer-dock {
+  display: none;
+}
+
+/* ==========================================================================
+   OPTION 3: CHAT MESSENGER (WhatsApp-style Stream + Sticky Bottom Bar)
+   ========================================================================== */
+body[data-design="chat"]:not([data-insights-open="true"]) .app-main {
+  max-width: 42rem;
+}
+
+body[data-design="chat"] .app-subtitle,
+body[data-design="chat"]:not([data-insights-open="true"]) #export-csv-btn,
+body[data-design="chat"] .mini-net-divider,
+body[data-design="chat"] .mini-net-item {
+  display: none;
+}
+
+body[data-design="chat"] .minimal-summary-bar {
+  order: 1;
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  background: var(--bg-surface);
+}
+
+body[data-design="chat"] .mini-stat-value {
+  font-size: 1.05rem;
+}
+
+body[data-design="chat"] .insights-container {
+  order: 2;
+}
+
+body[data-design="chat"] .transactions-panel {
+  order: 3;
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0;
+}
+
+body[data-design="chat"] .expense-item {
+  background: var(--bg-surface);
+  border-radius: 1rem 1rem 1rem 0.3rem;
+  padding: 0.8rem 1rem;
+}
+
+body[data-design="chat"] .expense-item.is-income {
+  border-radius: 1rem 1rem 0.3rem 1rem;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+/* ==========================================================================
+   OPTION 4: POCKET CARD (Apple Wallet Hero Summary Card + Top Input + Drawer)
+   ========================================================================== */
+body[data-design="pocket"]:not([data-insights-open="true"]) .app-main {
+  max-width: 44rem;
+}
+
+body[data-design="pocket"] .app-subtitle,
+body[data-design="pocket"]:not([data-insights-open="true"]) #export-csv-btn {
+  display: none;
+}
+
+body[data-design="pocket"] .minimal-summary-bar {
+  order: 1;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.16), rgba(15, 23, 42, 0.96));
+  border-color: rgba(16, 185, 129, 0.38);
+  padding: 1.15rem 1.35rem;
+  box-shadow: 0 10px 28px -12px rgba(16, 185, 129, 0.25);
+}
+
+body[data-design="pocket"] .mini-stat-value {
+  font-size: 1.85rem;
+}
+
+body[data-design="pocket"] .insights-container {
+  order: 2;
+}
+
+body[data-design="pocket"] .composer-dock {
+  order: 3;
+  background: var(--bg-surface);
+  border-color: var(--border-strong);
+}
+
+body[data-design="pocket"] .transactions-panel {
+  order: 4;
+}
+
+/* ==========================================================================
+   OPTION 5: CLASSIC DASHBOARD (Original Layout)
+   ========================================================================== */
+body[data-design="classic"] .minimal-summary-bar,
+body[data-design="classic"] .view-tabs,
+body[data-design="classic"] .spotlight-hero-header,
+body[data-design="classic"] .quick-fill-row,
+body[data-design="classic"] .feed-footer {
+  display: none !important;
+}
+
+/* ==========================================================================
+   MOBILE-FIRST OPTIMIZATIONS (<= 640px)
+   ========================================================================== */
+@media (max-width: 640px) {
+  /* 1. Compact Header + Full-Width 2-Tab Segmented Bar */
+  .header-inner {
+    flex-wrap: wrap;
+    padding-block: 0.55rem;
+    padding-inline: 0.75rem;
+    gap: 0.45rem;
+  }
+
+  .brand-group {
+    order: 1;
+    gap: 0.5rem;
+  }
+
+  .brand-logo {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.1rem;
+    border-radius: 0.5rem;
+  }
+
+  .app-title {
+    font-size: 1.02rem;
+  }
+
+  .header-actions {
+    order: 2;
+    gap: 0.35rem;
+    margin-inline-start: auto;
+  }
+
+  .usage-pill,
+  .sync-pill {
+    min-height: 34px;
+    padding-inline: 0.6rem;
+    font-size: 0.74rem;
+    gap: 0.3rem;
+  }
+
+  #usage-stats-label {
+    max-width: 5.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .icon-btn {
+    min-height: 34px;
+    min-width: 34px;
+    padding-inline: 0.5rem;
+  }
+
+  body[data-design="tabs"] .view-tabs {
+    order: 3;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0.2rem;
+    border-radius: 0.65rem;
+  }
+
+  body[data-design="tabs"] .view-tab {
+    justify-content: center;
+    min-height: 36px;
+    font-size: 0.82rem;
+    border-radius: 0.5rem;
+  }
+
+  /* 2. Main container & Tight Hero Composer Card (fits cleanly above mobile keyboard) */
+  .app-main {
+    padding-inline: 0.75rem;
+    padding-block-start: 0.65rem;
+    gap: 0.65rem;
+  }
+
+  body[data-design="spotlight"] .composer-dock,
+  body[data-design="tabs"] .composer-dock,
+  body[data-design="pocket"] .composer-dock {
+    padding: 0.1rem 0;
+  }
+
+  body[data-design="spotlight"] .composer-inner,
+  body[data-design="tabs"] .composer-inner,
+  body[data-design="pocket"] .composer-inner {
+    gap: 0.5rem;
+  }
+
+  .composer-form {
+    gap: 0.3rem;
+  }
+
+  body[data-design="spotlight"] .composer-type-btn,
+  body[data-design="tabs"] .composer-type-btn,
+  body[data-design="pocket"] .composer-type-btn {
+    min-height: 40px;
+    min-width: 40px;
+    padding-inline: 0.6rem;
+    font-size: 1.15rem;
+    justify-content: center;
+  }
+
+  .composer-input,
+  body[data-design="spotlight"] .composer-input,
+  body[data-design="tabs"] .composer-input,
+  body[data-design="pocket"] .composer-input {
+    min-height: 40px;
+    padding-inline: 0.5rem;
+    font-size: 16px; /* Prevents iOS Safari auto-zoom on focus */
+  }
+
+  body[data-design="spotlight"] .send-btn,
+  body[data-design="tabs"] .send-btn,
+  body[data-design="pocket"] .send-btn {
+    min-height: 40px;
+    padding-inline: 0.85rem;
+    font-size: 0.86rem;
+    flex-shrink: 0;
+  }
+
+  /* 3. Horizontal Swipeable Quick-Tap Chip Ribbon */
+  .quick-fill-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 0.35rem;
+    padding-block: 0.1rem;
+    margin-inline: -0.15rem;
+    padding-inline: 0.15rem;
+  }
+
+  .quick-fill-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .quick-fill-label {
+    display: none;
+  }
+
+  .quick-fill-chip {
+    flex-shrink: 0;
+    min-height: 32px;
+    padding: 0.22rem 0.68rem;
+    font-size: 0.76rem;
+  }
+
+  /* 4. Crisp 3-Column Summary Strip on Mobile */
+  .minimal-summary-bar {
+    padding: 0.6rem 0.65rem;
+    border-radius: 0.85rem;
+  }
+
+  .mini-stat-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.25rem;
+    text-align: center;
+  }
+
+  .mini-stat-divider {
+    display: none;
+  }
+
+  .mini-stat-secondary {
+    border-inline-start: 1px solid var(--border-subtle);
+    padding-inline-start: 0.25rem;
+  }
+
+  .mini-stat-label {
+    font-size: 0.65rem;
+  }
+
+  .mini-stat-value,
+  body[data-design="spotlight"] .mini-stat-value,
+  body[data-design="pocket"] .mini-stat-value {
+    font-size: 1.05rem;
+  }
+
+  .mini-stat-subvalue {
+    font-size: 0.95rem;
+  }
+
+  .mini-summary-actions {
+    width: 100%;
+  }
+
+  .insights-toggle-btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 36px;
+  }
+
+  /* 5. Compact Transaction Rows & 2x2 KPI Grid on Mobile */
+  .panel {
+    padding: 0.85rem;
+    border-radius: 0.9rem;
+  }
+
+  .expense-item {
+    padding: 0.6rem 0.7rem;
+    gap: 0.55rem;
+    cursor: pointer;
+  }
+
+  .expense-cat-badge {
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 1.1rem;
+    border-radius: 0.55rem;
+  }
+
+  .expense-note {
+    font-size: 0.9rem;
+  }
+
+  .expense-meta {
+    font-size: 0.72rem;
+  }
+
+  .expense-amount {
+    font-size: 0.96rem;
+  }
+
+  .edit-row-btn {
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+
+  .kpi-card {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .kpi-value {
+    font-size: 1.3rem;
+  }
+
+  .kpi-sub {
+    font-size: 0.74rem;
+  }
+
+  /* 6. Top-Banner Toast on Mobile (never hidden behind the on-screen keyboard!) */
+  .toast-region,
+  body[data-design="spotlight"] .toast-region,
+  body[data-design="tabs"] .toast-region,
+  body[data-design="pocket"] .toast-region {
+    top: 0.6rem;
+    bottom: auto;
+    left: 0.6rem;
+    right: 0.6rem;
+  }
+
+  .toast-body {
+    padding: 0.55rem 0.75rem 0.5rem;
+    gap: 0.45rem;
+  }
+
+  .toast-msg {
+    font-size: 0.8rem;
+  }
+
+  /* 7. Bottom-Sheet Modals on Mobile */
+  .app-dialog {
+    margin: auto 0 0 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 90dvh;
+    border-radius: 1.15rem 1.15rem 0 0;
+    border-inline: none;
+    border-block-end: none;
   }
 }

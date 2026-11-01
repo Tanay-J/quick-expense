@@ -31,10 +31,36 @@ import {
   trackAppUsage
 } from './sync.js';
 
+const DESIGN_DESCRIPTIONS = {
+  spotlight: 'Hero input at top + minimal summary + last 5 entries',
+  tabs: 'Two clean tabs: ⚡ Quick Log vs 📊 Insights & History',
+  chat: 'WhatsApp-style personal chat feed + bottom message bar',
+  pocket: 'Apple Wallet summary card + top input + expandable insights',
+  classic: 'Original full dashboard layout'
+};
+
+function getInitialDesign() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('design');
+    if (fromUrl && DESIGN_DESCRIPTIONS[fromUrl]) {
+      localStorage.setItem('qe_ui_design_v1', fromUrl);
+      return fromUrl;
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return 'tabs';
+}
+
 // Application State
 const state = {
   expenses: loadExpenses(),
   settings: loadSettings(),
+  uiDesign: getInitialDesign(), // 'spotlight' | 'tabs' | 'chat' | 'pocket' | 'classic'
+  activeView: 'log', // 'log' | 'insights' (used in 'tabs' design)
+  insightsOpen: false, // used in 'spotlight', 'chat', 'pocket'
+  showAllFeed: false, // limits feed to 5 most recent items on minimal landing views
   periodMode: 'month', // 'month' | '7d' | 'all'
   selectedYear: new Date().getFullYear(),
   selectedMonth: new Date().getMonth(), // 0-11
@@ -52,6 +78,22 @@ const state = {
 
 // DOM Elements
 const els = {
+  designSwitcherBar: document.getElementById('design-switcher-bar'),
+  composerDock: document.querySelector('.composer-dock'),
+  designPills: document.querySelectorAll('.design-pill'),
+  designSwitcherHint: document.getElementById('design-switcher-hint'),
+  viewTabs: document.querySelectorAll('.view-tab'),
+  miniPeriodTitle: document.getElementById('mini-period-title'),
+  miniMonthSpent: document.getElementById('mini-month-spent'),
+  miniTodaySpent: document.getElementById('mini-today-spent'),
+  miniMonthNet: document.getElementById('mini-month-net'),
+  toggleInsightsBtn: document.getElementById('toggle-insights-btn'),
+  toggleInsightsLabel: document.getElementById('toggle-insights-label'),
+  insightsContainer: document.getElementById('insights-container'),
+  quickFillChips: document.querySelectorAll('.quick-fill-chip'),
+  feedHeading: document.getElementById('feed-heading'),
+  feedFooter: document.getElementById('feed-footer'),
+  showAllFeedBtn: document.getElementById('show-all-feed-btn'),
   nameGateDialog: document.getElementById('name-gate-dialog'),
   quickNameForm: document.getElementById('quick-name-form'),
   quickNameInput: document.getElementById('quick-name-input'),
@@ -154,13 +196,19 @@ function formatReadableDate(isoDate) {
 
 function showToast(text, actions = []) {
   els.toastRegion.replaceChildren();
+  const timeoutMs = actions.length > 0 ? 6500 : 3200;
+
   const toast = document.createElement('div');
   toast.className = 'toast';
+  toast.style.setProperty('--toast-duration', `${timeoutMs}ms`);
+
+  const bodyWrap = document.createElement('div');
+  bodyWrap.className = 'toast-body';
 
   const msgSpan = document.createElement('span');
   msgSpan.className = 'toast-msg';
   msgSpan.textContent = text;
-  toast.appendChild(msgSpan);
+  bodyWrap.appendChild(msgSpan);
 
   if (actions.length > 0) {
     const actWrap = document.createElement('div');
@@ -176,14 +224,33 @@ function showToast(text, actions = []) {
       });
       actWrap.appendChild(btn);
     }
-    toast.appendChild(actWrap);
+    bodyWrap.appendChild(actWrap);
   }
 
+  const progressTrack = document.createElement('div');
+  progressTrack.className = 'toast-progress-track';
+  progressTrack.setAttribute('aria-hidden', 'true');
+
+  const progressBar = document.createElement('div');
+  progressBar.className = 'toast-progress-bar';
+  progressTrack.appendChild(progressBar);
+
+  toast.append(bodyWrap, progressTrack);
   els.toastRegion.appendChild(toast);
-  const timeoutMs = actions.length > 0 ? 6500 : 3200;
-  setTimeout(() => {
+
+  // Dismiss automatically when countdown bar finishes (pauses on hover/focus!)
+  let fallbackTimer = setTimeout(() => {
     toast.remove();
-  }, timeoutMs);
+  }, timeoutMs + 300);
+
+  progressBar.addEventListener('animationend', () => {
+    clearTimeout(fallbackTimer);
+    toast.remove();
+  });
+
+  toast.addEventListener('pointerenter', () => {
+    clearTimeout(fallbackTimer);
+  });
 }
 
 function getPeriodExpenses() {
@@ -236,6 +303,39 @@ function renderKPIs(periodExpenses) {
   const netCashflow = totalIncome - totalSpent;
 
   els.kpiTotal.textContent = formatCurrency(totalSpent);
+
+  // Update Minimal Summary Bar (Options 1–4)
+  const todayIso = toLocalISODate(new Date());
+  const todaySpent = state.expenses
+    .filter((item) => item.date === todayIso && normalizeEntryType(item) !== 'income')
+    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+  if (els.miniPeriodTitle) {
+    els.miniPeriodTitle.textContent =
+      state.periodMode === '7d'
+        ? 'Last 7 Days'
+        : state.periodMode === 'all'
+          ? 'All Time Spent'
+          : 'This Month';
+  }
+  if (els.miniMonthSpent) {
+    els.miniMonthSpent.textContent = formatCurrency(totalSpent);
+  }
+  if (els.miniTodaySpent) {
+    els.miniTodaySpent.textContent = formatCurrency(todaySpent);
+  }
+  if (els.miniMonthNet) {
+    if (netCashflow > 0) {
+      els.miniMonthNet.textContent = `+${formatCurrency(netCashflow)}`;
+      els.miniMonthNet.dataset.sign = 'positive';
+    } else if (netCashflow < 0) {
+      els.miniMonthNet.textContent = `−${formatCurrency(Math.abs(netCashflow))}`;
+      els.miniMonthNet.dataset.sign = 'negative';
+    } else {
+      els.miniMonthNet.textContent = formatCurrency(0);
+      els.miniMonthNet.dataset.sign = 'neutral';
+    }
+  }
 
   // Budget progress (shown in month mode if budget > 0)
   const budget = Number(state.settings.monthlyBudget) || 0;
@@ -622,12 +722,43 @@ function renderExpenseList(periodExpenses) {
 
   if (filtered.length === 0) {
     els.emptyState.hidden = false;
+    if (els.feedFooter) els.feedFooter.hidden = true;
     return;
   }
 
   els.emptyState.hidden = true;
 
-  for (const item of filtered) {
+  // In minimal landing modes (Spotlight, Two-Tab Zen on Log tab, Pocket Card when collapsed),
+  // keep the landing page fast & uncluttered by showing the 5 most recent entries first.
+  const isMinimalLanding =
+    (state.uiDesign === 'spotlight' && !state.insightsOpen) ||
+    (state.uiDesign === 'tabs' && state.activeView === 'log') ||
+    (state.uiDesign === 'pocket' && !state.insightsOpen);
+
+  const hasActiveFilters = Boolean(
+    state.searchQuery.trim() ||
+      state.selectedCategory ||
+      state.selectedPaymentMethod ||
+      state.feedFilterType !== 'all'
+  );
+
+  const shouldLimitToRecent = isMinimalLanding && !state.showAllFeed && !hasActiveFilters;
+  const visibleItems = shouldLimitToRecent ? filtered.slice(0, 5) : filtered;
+
+  if (els.feedHeading) {
+    els.feedHeading.textContent = shouldLimitToRecent ? 'Recent Activity' : 'Transactions';
+  }
+
+  if (els.feedFooter && els.showAllFeedBtn) {
+    if (shouldLimitToRecent && filtered.length > 5) {
+      els.feedFooter.hidden = false;
+      els.showAllFeedBtn.textContent = `View all ${filtered.length} transactions & insights →`;
+    } else {
+      els.feedFooter.hidden = true;
+    }
+  }
+
+  for (const item of visibleItems) {
     const isIncome = normalizeEntryType(item) === 'income';
     const cat = getCategoryById(item.category);
     const payObj = getPaymentMethodById(normalizePaymentMethod(item));
@@ -656,9 +787,33 @@ function renderExpenseList(periodExpenses) {
 
     const metaP = document.createElement('p');
     metaP.className = 'expense-meta';
-    const syncIndicator = item.synced ? '☁️' : '📱';
     const typeTag = isIncome ? 'Income • ' : '';
-    metaP.textContent = `${typeTag}${cat.name} • ${payObj.icon} ${payObj.shortName} • ${formatReadableDate(item.date)} • ${syncIndicator}`;
+    const catSpan = document.createElement('span');
+    catSpan.textContent = `${typeTag}${cat.name}`;
+
+    const dot1 = document.createElement('span');
+    dot1.textContent = '•';
+    dot1.setAttribute('aria-hidden', 'true');
+
+    const payBadge = document.createElement('span');
+    payBadge.className = 'expense-pay-pill';
+    payBadge.textContent = payObj.shortName;
+
+    const dot2 = document.createElement('span');
+    dot2.textContent = '•';
+    dot2.setAttribute('aria-hidden', 'true');
+
+    const dateSpan = document.createElement('span');
+    dateSpan.textContent = formatReadableDate(item.date);
+
+    metaP.append(catSpan, dot1, payBadge, dot2, dateSpan);
+    if (item.synced) {
+      const syncSpan = document.createElement('span');
+      syncSpan.className = 'expense-sync-tag';
+      syncSpan.title = 'Synced to Google Sheet';
+      syncSpan.textContent = '• ☁️';
+      metaP.appendChild(syncSpan);
+    }
 
     details.append(noteP, metaP);
     main.append(catBadge, details);
@@ -679,7 +834,40 @@ function renderExpenseList(periodExpenses) {
 
     right.append(amtSpan, editBtn);
     li.append(main, right);
+    li.addEventListener('click', (ev) => {
+      if (!ev.target.closest('button')) {
+        openEditModal(item);
+      }
+    });
     els.expenseList.appendChild(li);
+  }
+}
+
+function isAnyDialogOpen() {
+  return Boolean(
+    els.nameGateDialog?.open || els.syncDialog?.open || els.editDialog?.open
+  );
+}
+
+function focusExpenseInput() {
+  if (!els.expenseInput || isAnyDialogOpen()) return;
+  if (state.uiDesign === 'tabs' && state.activeView === 'insights') return;
+
+  try {
+    els.expenseInput.focus({ preventScroll: false });
+    const len = els.expenseInput.value.length;
+    els.expenseInput.setSelectionRange(len, len);
+  } catch {
+    els.expenseInput.focus();
+  }
+
+  // Trigger on-screen mobile keyboard via VirtualKeyboard API where supported
+  try {
+    if ('virtualKeyboard' in navigator && navigator.virtualKeyboard?.show) {
+      navigator.virtualKeyboard.show();
+    }
+  } catch {
+    // Ignore if browser requires gesture
   }
 }
 
@@ -708,26 +896,72 @@ function updateSyncStatusUI() {
 
   if (!hasWebhook) {
     els.syncDot.dataset.state = 'local';
-    els.syncLabel.textContent = 'Backup: Set up Google Sheet';
+    els.syncLabel.textContent = 'Setup Sync';
     return;
   }
 
   if (state.syncState === 'syncing') {
     els.syncDot.dataset.state = 'syncing';
-    els.syncLabel.textContent = 'Syncing to Sheet...';
+    els.syncLabel.textContent = 'Syncing...';
   } else if (state.syncState === 'error') {
     els.syncDot.dataset.state = 'error';
-    els.syncLabel.textContent = `Sync retry queued (${unsyncedCount})`;
+    els.syncLabel.textContent = `Retry (${unsyncedCount})`;
   } else if (unsyncedCount === 0) {
     els.syncDot.dataset.state = 'synced';
-    els.syncLabel.textContent = 'Google Sheet Synced';
+    els.syncLabel.textContent = 'Synced';
   } else {
     els.syncDot.dataset.state = 'local';
-    els.syncLabel.textContent = `${unsyncedCount} pending sync`;
+    els.syncLabel.textContent = `${unsyncedCount} pending`;
+  }
+}
+
+function updateDesignAndViewDOM() {
+  document.body.dataset.design = state.uiDesign;
+  document.body.dataset.view = state.activeView;
+  document.body.dataset.insightsOpen = state.insightsOpen ? 'true' : 'false';
+  document.body.dataset.showAllFeed = state.showAllFeed ? 'true' : 'false';
+
+  els.designPills.forEach((pill) => {
+    pill.classList.toggle('active', pill.dataset.design === state.uiDesign);
+  });
+
+  if (els.designSwitcherHint) {
+    els.designSwitcherHint.textContent = DESIGN_DESCRIPTIONS[state.uiDesign] || '';
+  }
+
+  els.viewTabs.forEach((tab) => {
+    const isAct = tab.dataset.view === state.activeView;
+    tab.classList.toggle('active', isAct);
+    tab.setAttribute('aria-selected', isAct ? 'true' : 'false');
+  });
+
+  // Determine whether the heavy analytics container should be visible
+  let showInsights = true;
+  if (state.uiDesign === 'tabs') {
+    showInsights = state.activeView === 'insights';
+  } else if (
+    state.uiDesign === 'spotlight' ||
+    state.uiDesign === 'chat' ||
+    state.uiDesign === 'pocket'
+  ) {
+    showInsights = state.insightsOpen;
+  }
+
+  if (els.insightsContainer) {
+    els.insightsContainer.classList.toggle('is-hidden', !showInsights);
+    els.insightsContainer.setAttribute('aria-hidden', showInsights ? 'false' : 'true');
+  }
+
+  if (els.toggleInsightsBtn && els.toggleInsightsLabel) {
+    els.toggleInsightsBtn.setAttribute('aria-expanded', state.insightsOpen ? 'true' : 'false');
+    els.toggleInsightsLabel.textContent = state.insightsOpen
+      ? 'Hide Insights ▴'
+      : 'Insights & Breakdown ▾';
   }
 }
 
 function renderAll() {
+  updateDesignAndViewDOM();
   updatePeriodHeader();
   const periodExpenses = getPeriodExpenses();
   renderKPIs(periodExpenses);
@@ -774,8 +1008,8 @@ function updateComposerTypeUI() {
     `Entry mode: ${isIncome ? 'Income' : 'Expense'}. Click to switch to ${isIncome ? 'Expense' : 'Income'}.`
   );
   els.expenseInput.placeholder = isIncome
-    ? 'Drop income: e.g. 50000 salary, 1200 freelance yesterday...'
-    : 'Drop expense or +income: e.g. 200 fuel upi, 1500 shoes cc, 250 coffee from cashback...';
+    ? 'e.g. 50000 salary, 500 cashback'
+    : 'e.g. 200 fuel upi, 150 coffee';
 }
 
 function formatPreviewTitleText(draftItems) {
@@ -1039,18 +1273,25 @@ function renderParsePreviewDOM() {
 
     const dateBadge = document.createElement('span');
     dateBadge.className = 'preview-date-badge';
-    dateBadge.textContent = formatReadableDate(draft.date);
+    dateBadge.textContent = `📅 ${formatReadableDate(draft.date)}`;
 
     const dateInput = document.createElement('input');
     dateInput.type = 'date';
     dateInput.className = 'preview-inline-date';
     dateInput.setAttribute('aria-label', `Date for item ${idx + 1}`);
     dateInput.value = draft.date;
+    dateGroup.addEventListener('click', () => {
+      try {
+        dateInput.showPicker?.();
+      } catch {
+        // Fallback to native input click
+      }
+    });
     dateInput.addEventListener('change', () => {
       if (dateInput.value) {
         draft.date = dateInput.value;
         draft.dateLabel = formatReadableDate(dateInput.value);
-        dateBadge.textContent = draft.dateLabel;
+        dateBadge.textContent = `📅 ${draft.dateLabel}`;
         draft.overrides = draft.overrides || {};
         draft.overrides.date = true;
         resetBtn.hidden = false;
@@ -1169,6 +1410,7 @@ function addExpenseFromMessage(messageText) {
   renderParsePreviewDOM();
   updateSendBtnLabel();
   renderAll();
+  focusExpenseInput();
 
   const undoAddedExpenses = () => {
     const addedIds = new Set(newEntries.map((e) => e.id));
@@ -1309,6 +1551,116 @@ function openSyncAndSettingsModal() {
 }
 
 function setupEventListeners() {
+  // Show design switcher bar only when ?switcher=1 or ?design= is present in URL
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (els.designSwitcherBar && (params.has('switcher') || params.has('design'))) {
+      els.designSwitcherBar.hidden = false;
+    }
+  } catch {
+    // Ignore URL errors
+  }
+
+  // Clicking anywhere on the composer card background/header focuses the input & opens keyboard
+  if (els.composerDock) {
+    els.composerDock.addEventListener('click', (e) => {
+      const interactive = e.target.closest('button, input, select, a, label');
+      if (!interactive) {
+        focusExpenseInput();
+      }
+    });
+  }
+
+  // Re-focus input & open keyboard when returning to the app / tab
+  window.addEventListener('pageshow', () => {
+    focusExpenseInput();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      focusExpenseInput();
+    }
+  });
+  window.addEventListener('focus', () => {
+    if (document.activeElement === document.body || !document.activeElement) {
+      focusExpenseInput();
+    }
+  });
+  els.syncDialog?.addEventListener('close', () => focusExpenseInput());
+  els.editDialog?.addEventListener('close', () => focusExpenseInput());
+
+  // Design Switcher Bar (Option 1–4 + Classic)
+  els.designPills.forEach((pill) => {
+    pill.addEventListener('click', () => {
+      const nextDesign = pill.dataset.design || 'spotlight';
+      state.uiDesign = nextDesign;
+      state.activeView = 'log';
+      state.insightsOpen = false;
+      state.showAllFeed = false;
+      try {
+        localStorage.setItem('qe_ui_design_v1', nextDesign);
+      } catch {
+        // Ignore storage errors
+      }
+      renderAll();
+      els.expenseInput?.focus();
+    });
+  });
+
+  // Two-Tab Zen View Switcher (⚡ Quick Log vs 📊 Insights)
+  els.viewTabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      state.activeView = tab.dataset.view || 'log';
+      if (state.activeView === 'insights') {
+        state.showAllFeed = true;
+      }
+      renderAll();
+      if (state.activeView === 'log') {
+        els.expenseInput?.focus();
+      }
+    });
+  });
+
+  // Insights & Breakdown Toggle Button (Options 1, 3, 4)
+  if (els.toggleInsightsBtn) {
+    els.toggleInsightsBtn.addEventListener('click', () => {
+      state.insightsOpen = !state.insightsOpen;
+      if (state.insightsOpen) {
+        state.showAllFeed = true;
+      }
+      renderAll();
+    });
+  }
+
+  // "View all transactions & insights ->" button at bottom of recent-5 list
+  if (els.showAllFeedBtn) {
+    els.showAllFeedBtn.addEventListener('click', () => {
+      if (state.uiDesign === 'tabs') {
+        state.activeView = 'insights';
+      } else {
+        state.insightsOpen = true;
+        state.showAllFeed = true;
+      }
+      renderAll();
+    });
+  }
+
+  // Quick 1-Tap Category / Mode Chips inside Composer
+  els.quickFillChips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const token = (chip.dataset.fill || '').trim();
+      if (!token) return;
+      const current = els.expenseInput.value.trim();
+      if (!current) {
+        // Place keyword and position cursor at start so user can immediately type the amount, or after if they prefer
+        els.expenseInput.value = `${token} `;
+      } else if (!current.toLowerCase().includes(token.toLowerCase())) {
+        els.expenseInput.value = `${current} ${token}`;
+      }
+      updateLivePreview();
+      els.expenseInput.focus();
+    });
+  });
+
   // Mandatory Welcome Name Gate (cannot be closed with Escape until name is submitted)
   if (els.nameGateDialog) {
     els.nameGateDialog.addEventListener('cancel', (e) => {
@@ -1690,6 +2042,9 @@ function init() {
 
   // Require user name before using the app; if already set, record launch
   if (ensureUserNameGate()) {
+    focusExpenseInput();
+    requestAnimationFrame(() => focusExpenseInput());
+    setTimeout(() => focusExpenseInput(), 80);
     trackAppUsage({ onLaunch: true }).then((stats) => {
       state.usageStats = stats;
       updateUsageTrackerUI();
