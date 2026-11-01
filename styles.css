@@ -1254,6 +1254,15 @@ pre:focus-visible {
   gap: 1rem;
 }
 
+.name-gate-dialog {
+  max-width: 26rem;
+}
+
+.name-gate-btn {
+  width: 100%;
+  margin-block-start: 0.25rem;
+}
+
 /* Gestalt proximity rule: label closer to input than between form groups */
 .form-group {
   display: flex;

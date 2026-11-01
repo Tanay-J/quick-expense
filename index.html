@@ -41,27 +41,6 @@
   </header>
 
   <main class="app-main">
-    <!-- One-Time Quick Name Prompt Banner (Hidden once user sets their name) -->
-    <section id="user-name-banner" class="name-prompt-bar" aria-label="Personalize your profile" hidden>
-      <div class="name-prompt-text">
-        <span aria-hidden="true">👋</span>
-        <span>Welcome! What's your name?</span>
-      </div>
-      <form id="quick-name-form" class="name-prompt-form" action="#" method="POST">
-        <label for="quick-name-input" class="visually-hidden">Your Name</label>
-        <input
-          type="text"
-          id="quick-name-input"
-          name="userName"
-          placeholder="My Name"
-          maxlength="40"
-          autocomplete="given-name"
-        >
-        <button type="submit" class="mini-save-btn">Save</button>
-        <button type="button" id="dismiss-name-btn" class="mini-dismiss-btn" aria-label="Dismiss name prompt">✕</button>
-      </form>
-    </section>
-
     <!-- Period Navigation Bar -->
     <section class="period-bar" aria-label="Time Period Filter">
       <div class="month-selector">
@@ -225,17 +204,65 @@
   <!-- Toast Announcement -->
   <div id="toast-region" class="toast-region" aria-live="polite"></div>
 
+  <!-- Mandatory Welcome Name Gate Modal (<dialog>) -->
+  <dialog id="name-gate-dialog" class="app-dialog name-gate-dialog" closedby="none" aria-labelledby="name-gate-title">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h1 id="name-gate-title" class="dialog-title">Welcome to DropSpend 👋</h1>
+      </div>
+      <p class="dialog-lead">
+        Enter your name to start logging your daily expenses and income.
+      </p>
+      <form id="quick-name-form" class="dialog-form" action="#" method="POST">
+        <div class="form-group">
+          <label for="quick-name-input">Your Name</label>
+          <input
+            type="text"
+            id="quick-name-input"
+            name="userName"
+            placeholder="My Name"
+            maxlength="40"
+            required
+            autocomplete="given-name"
+          >
+        </div>
+        <div class="dialog-actions">
+          <button type="submit" class="primary-btn">Get Started →</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
   <!-- Cloud Sync & Settings Modal (<dialog>) -->
   <dialog id="sync-dialog" class="app-dialog" closedby="any" aria-labelledby="sync-dialog-title">
     <div class="dialog-content">
       <div class="dialog-header">
-        <h1 id="sync-dialog-title" class="dialog-title">Profile, Cloud Sync &amp; Settings</h1>
+        <h1 id="sync-dialog-title" class="dialog-title">2-Way Google Sheets Cloud Backup</h1>
         <form method="dialog">
           <button type="submit" class="icon-btn" aria-label="Close dialog">✕</button>
         </form>
       </div>
 
+      <p class="dialog-lead">
+        Your expenses save instantly on this device. Connect a personal Google Sheet (100% free forever) so your data is backed up and syncs across your phone and laptop.
+      </p>
+
       <form id="settings-form" class="dialog-form" action="#" method="POST">
+        <div class="form-group">
+          <label for="webhook-url-input">Google Apps Script Web App URL</label>
+          <input
+            type="url"
+            id="webhook-url-input"
+            name="webhookUrl"
+            placeholder="https://script.google.com/macros/s/.../exec"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-describedby="webhook-help"
+          >
+          <span id="webhook-help" class="field-hint">Leave blank for local-only mode, or paste your deployed Apps Script URL for automatic 2-way sync.</span>
+        </div>
+
         <div class="form-row-2">
           <div class="form-group">
             <label for="user-name-input">Your Name</label>
@@ -245,34 +272,23 @@
               name="userName"
               placeholder="My Name"
               maxlength="40"
+              required
               autocomplete="given-name"
             >
           </div>
           <div class="form-group">
-            <label for="webhook-url-input">Google Sheet Sync URL (Optional)</label>
-            <input
-              type="url"
-              id="webhook-url-input"
-              name="webhookUrl"
-              placeholder="https://script.google.com/macros/s/.../exec"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-            >
+            <label for="default-payment-input">Default Payment Mode</label>
+            <select id="default-payment-input" name="defaultPayment"></select>
           </div>
         </div>
 
-        <div class="form-row-3">
+        <div class="form-row-2">
           <div class="form-group">
-            <label for="currency-input">Currency</label>
+            <label for="currency-input">Currency Symbol</label>
             <input type="text" id="currency-input" name="currency" value="₹" maxlength="4">
           </div>
           <div class="form-group">
-            <label for="default-payment-input">Default Payment</label>
-            <select id="default-payment-input" name="defaultPayment"></select>
-          </div>
-          <div class="form-group">
-            <label for="budget-input">Monthly Budget</label>
+            <label for="budget-input">Monthly Budget (Optional)</label>
             <input type="text" id="budget-input" name="monthlyBudget" inputmode="numeric" placeholder="e.g. 25000">
           </div>
         </div>
@@ -283,7 +299,7 @@
         </div>
       </form>
 
-      <details class="setup-guide">
+      <details class="setup-guide" open>
         <summary>How to set up your free Google Sheet (90 seconds)</summary>
         <div class="setup-steps">
           <ol>

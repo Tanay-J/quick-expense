@@ -16,8 +16,6 @@ export const DEFAULT_TELEMETRY_WEBHOOK_URL = 'https://script.google.com/macros/s
 
 export const GOOGLE_APPS_SCRIPT_CODE = `const SHEET_NAME = 'Expenses';
 const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted', 'type', 'paymentMethod'];
-const STATS_SHEET_NAME = 'UsageStats';
-const STATS_HEADERS = ['deviceId', 'userName', 'firstSeen', 'lastSeen', 'sessions', 'txCount', 'activeDays', 'platform', 'timezone'];
 // Optional: If created at https://script.google.com instead of Extensions -> Apps Script, paste your Sheet ID here:
 const OPTIONAL_SPREADSHEET_ID = '';
 
@@ -40,112 +38,6 @@ function getOrCreateSheet() {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold').setBackground('#f3f4f6');
   }
   return sheet;
-}
-
-function getOrCreateStatsSheet() {
-  const ss = getSpreadsheet();
-  let sheet = ss.getSheetByName(STATS_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(STATS_SHEET_NAME);
-    sheet.appendRow(STATS_HEADERS);
-    sheet.getRange(1, 1, 1, STATS_HEADERS.length).setFontWeight('bold').setBackground('#ecfdf5');
-    sheet.setFrozenRows(1);
-  } else if (sheet.getLastColumn() < STATS_HEADERS.length) {
-    sheet.getRange(1, 1, 1, STATS_HEADERS.length).setValues([STATS_HEADERS]).setFontWeight('bold').setBackground('#ecfdf5');
-  }
-  return sheet;
-}
-
-function recordTelemetry(telemetry) {
-  if (!telemetry || !telemetry.deviceId) return null;
-  const sheet = getOrCreateStatsSheet();
-  const lastRow = sheet.getLastRow();
-  const nowIso = new Date().toISOString().slice(0, 19).replace('T', ' ');
-  let foundRow = -1;
-  let existingName = '';
-  let existingFirstSeen = nowIso;
-  let existingSessions = 0;
-  let existingTxCount = 0;
-  let existingActiveDays = 1;
-
-  if (lastRow > 1) {
-    const rows = sheet.getRange(2, 1, lastRow - 1, STATS_HEADERS.length).getValues();
-    for (var i = 0; i < rows.length; i++) {
-      if (String(rows[i][0]) === String(telemetry.deviceId)) {
-        foundRow = i + 2;
-        var isNineCol = rows[i].length >= 9 && String(rows[i][2] || '').indexOf('-') !== -1;
-        if (isNineCol) {
-          existingName = String(rows[i][1] || '');
-          existingFirstSeen = rows[i][2] || nowIso;
-          existingSessions = Number(rows[i][4]) || 0;
-          existingTxCount = Number(rows[i][5]) || 0;
-          existingActiveDays = Number(rows[i][6]) || 1;
-        } else {
-          existingFirstSeen = rows[i][1] || nowIso;
-          existingSessions = Number(rows[i][3]) || 0;
-          existingTxCount = Number(rows[i][4]) || 0;
-          existingActiveDays = Number(rows[i][5]) || 1;
-        }
-        break;
-      }
-    }
-  }
-
-  var incomingName = String(telemetry.userName || '').trim().slice(0, 50);
-  var finalName = incomingName || existingName || 'Anonymous';
-  const nextSessions = telemetry.isNewSession ? existingSessions + 1 : Math.max(1, existingSessions);
-  const nextTxCount = Math.max(existingTxCount, Number(telemetry.txCount) || 0);
-  const nextActiveDays = Math.max(existingActiveDays, Number(telemetry.activeDays) || 1);
-
-  var rowValues = [
-    String(telemetry.deviceId),
-    finalName,
-    existingFirstSeen,
-    nowIso,
-    nextSessions,
-    nextTxCount,
-    nextActiveDays,
-    String(telemetry.platform || ''),
-    String(telemetry.timezone || '')
-  ];
-
-  if (foundRow !== -1) {
-    sheet.getRange(foundRow, 1, 1, STATS_HEADERS.length).setValues([rowValues]);
-  } else {
-    sheet.appendRow(rowValues);
-  }
-  return getUsageSummary();
-}
-
-function getUsageSummary() {
-  const sheet = getOrCreateStatsSheet();
-  const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) {
-    return { uniqueUsers: 0, activeUsers: 0, totalSessions: 0, totalTxLogged: 0, userNames: [] };
-  }
-  const rows = sheet.getRange(2, 1, lastRow - 1, STATS_HEADERS.length).getValues();
-  var uniqueUsers = 0;
-  var activeUsers = 0;
-  var totalSessions = 0;
-  var totalTxLogged = 0;
-  var userNames = [];
-  for (var i = 0; i < rows.length; i++) {
-    if (!rows[i][0]) continue;
-    uniqueUsers++;
-    var isNineCol = String(rows[i][2] || '').indexOf('-') !== -1;
-    var nameVal = isNineCol ? String(rows[i][1] || '').trim() : '';
-    var sessionsVal = isNineCol ? Number(rows[i][4]) || 1 : Number(rows[i][3]) || 1;
-    var userTx = isNineCol ? Number(rows[i][5]) || 0 : Number(rows[i][4]) || 0;
-    if (userTx > 0) {
-      activeUsers++;
-    }
-    if (nameVal && nameVal !== 'Anonymous' && userNames.length < 15) {
-      userNames.push(nameVal);
-    }
-    totalSessions += sessionsVal;
-    totalTxLogged += userTx;
-  }
-  return { uniqueUsers: uniqueUsers, activeUsers: activeUsers, totalSessions: totalSessions, totalTxLogged: totalTxLogged, userNames: userNames };
 }
 
 function readAllRows(sheet) {
@@ -187,9 +79,8 @@ function doGet() {
   try {
     const sheet = getOrCreateSheet();
     const items = readAllRows(sheet).filter(function(item) { return !item.deleted; });
-    const usageSummary = getUsageSummary();
     return ContentService.createTextOutput(
-      JSON.stringify({ ok: true, items: items, usageSummary: usageSummary, serverTime: Date.now() })
+      JSON.stringify({ ok: true, items: items, serverTime: Date.now() })
     ).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(
@@ -203,14 +94,6 @@ function doPost(e) {
   lock.tryLock(10000);
   try {
     const payload = JSON.parse(e.postData.contents || '{}');
-    if (payload.telemetry) {
-      recordTelemetry(payload.telemetry);
-    }
-    if (payload.action === 'telemetry_only') {
-      return ContentService.createTextOutput(
-        JSON.stringify({ ok: true, usageSummary: getUsageSummary(), serverTime: Date.now() })
-      ).setMimeType(ContentService.MimeType.JSON);
-    }
     const incoming = Array.isArray(payload.items) ? payload.items : [];
     const sheet = getOrCreateSheet();
     const existing = readAllRows(sheet);
@@ -244,7 +127,7 @@ function doPost(e) {
     }
     const updatedItems = readAllRows(sheet).filter(function(it) { return !it.deleted; });
     return ContentService.createTextOutput(
-      JSON.stringify({ ok: true, items: updatedItems, usageSummary: getUsageSummary(), serverTime: Date.now() })
+      JSON.stringify({ ok: true, items: updatedItems, serverTime: Date.now() })
     ).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(
@@ -429,12 +312,13 @@ export async function trackAppUsage({ onLaunch = false } = {}) {
     return updatedStats;
   }
 
-  // Sync with Google Sheet UsageStats tab (via DEFAULT_TELEMETRY_WEBHOOK_URL or webhookUrl)
+  // Silently report usage to creator's telemetry webhook once userName is set
   const settings = loadSettings();
-  const sheetUrl = (settings.telemetryUrl || DEFAULT_TELEMETRY_WEBHOOK_URL || settings.webhookUrl || '').trim();
-  if (sheetUrl) {
+  const myName = (settings.userName || '').trim();
+  const telemetryEndpoint = (DEFAULT_TELEMETRY_WEBHOOK_URL || '').trim();
+  if (telemetryEndpoint && myName) {
     try {
-      const resp = await fetch(sheetUrl, {
+      const resp = await fetch(telemetryEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
@@ -466,8 +350,8 @@ export async function trackAppUsage({ onLaunch = false } = {}) {
 }
 
 /**
- * Two-way sync with Google Sheets Web App URL.
- * Sends any dirty/unsynced items + tombstones + anonymous telemetry, then merges cloud rows back into local state.
+ * Two-way sync with user's personal Google Sheets Web App URL.
+ * Sends any dirty/unsynced items + tombstones, then merges cloud rows back into local state.
  */
 export async function syncWithGoogleSheets({ forceAll = false } = {}) {
   const settings = loadSettings();
@@ -523,8 +407,7 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           action: 'sync',
-          items: payloadItems,
-          telemetry: buildTelemetryPayload(false)
+          items: payloadItems
         })
       });
     } else {

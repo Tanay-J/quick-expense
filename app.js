@@ -52,10 +52,9 @@ const state = {
 
 // DOM Elements
 const els = {
-  userNameBanner: document.getElementById('user-name-banner'),
+  nameGateDialog: document.getElementById('name-gate-dialog'),
   quickNameForm: document.getElementById('quick-name-form'),
   quickNameInput: document.getElementById('quick-name-input'),
-  dismissNameBtn: document.getElementById('dismiss-name-btn'),
   usageStatsBtn: document.getElementById('usage-stats-btn'),
   usageStatsLabel: document.getElementById('usage-stats-label'),
   syncStatusBtn: document.getElementById('sync-status-btn'),
@@ -684,20 +683,20 @@ function renderExpenseList(periodExpenses) {
   }
 }
 
+function ensureUserNameGate() {
+  const myName = (state.settings.userName || '').trim();
+  if (!myName && els.nameGateDialog) {
+    if (!els.nameGateDialog.open) {
+      els.nameGateDialog.showModal();
+    }
+    setTimeout(() => els.quickNameInput?.focus(), 50);
+    return false;
+  }
+  return true;
+}
+
 function updateUsageTrackerUI() {
   const myName = (state.settings.userName || '').trim();
-
-  // Show or hide the 1-line welcome name prompt bar
-  if (els.userNameBanner) {
-    let dismissed = false;
-    try {
-      dismissed = Boolean(sessionStorage.getItem('qe_name_dismissed_v1'));
-    } catch {
-      // ignore
-    }
-    els.userNameBanner.hidden = Boolean(myName) || dismissed;
-  }
-
   if (els.usageStatsLabel) {
     els.usageStatsLabel.textContent = myName || 'My Name';
   }
@@ -1107,6 +1106,9 @@ async function triggerBackgroundSync(forceAll = false) {
 }
 
 function addExpenseFromMessage(messageText) {
+  if (!ensureUserNameGate()) {
+    return;
+  }
   // Use interactive state.draftItems (including any inline edits made in the preview)
   if (state.draftItems.length === 0 && messageText.trim()) {
     updateLivePreview();
@@ -1307,31 +1309,36 @@ function openSyncAndSettingsModal() {
 }
 
 function setupEventListeners() {
-  // Quick 1-tap Welcome Name Form
+  // Mandatory Welcome Name Gate (cannot be closed with Escape until name is submitted)
+  if (els.nameGateDialog) {
+    els.nameGateDialog.addEventListener('cancel', (e) => {
+      const hasName = Boolean((state.settings.userName || '').trim());
+      if (!hasName) {
+        e.preventDefault();
+        els.quickNameInput?.focus();
+      }
+    });
+  }
+
   if (els.quickNameForm) {
     els.quickNameForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const enteredName = (els.quickNameInput?.value || '').trim();
-      if (!enteredName) return;
+      if (!enteredName) {
+        els.quickNameInput?.focus();
+        return;
+      }
       state.settings = saveSettings({ userName: enteredName });
+      if (els.nameGateDialog?.open) {
+        els.nameGateDialog.close();
+      }
       updateUsageTrackerUI();
       showToast(`👋 Welcome, ${enteredName}!`);
-      trackAppUsage({ onLaunch: false }).then((stats) => {
+      els.expenseInput?.focus();
+      trackAppUsage({ onLaunch: true }).then((stats) => {
         state.usageStats = stats;
         updateUsageTrackerUI();
       });
-    });
-  }
-  if (els.dismissNameBtn) {
-    els.dismissNameBtn.addEventListener('click', () => {
-      try {
-        sessionStorage.setItem('qe_name_dismissed_v1', '1');
-      } catch {
-        // ignore
-      }
-      if (els.userNameBanner) {
-        els.userNameBanner.hidden = true;
-      }
     });
   }
 
@@ -1459,8 +1466,10 @@ function setupEventListeners() {
 
   els.settingsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const enteredName = els.userNameInput ? els.userNameInput.value.trim() : '';
+    const finalName = enteredName || state.settings.userName || '';
     state.settings = saveSettings({
-      userName: els.userNameInput ? els.userNameInput.value.trim() : state.settings.userName || '',
+      userName: finalName,
       webhookUrl: els.webhookUrlInput.value.trim(),
       currency: els.currencyInput.value.trim() || '₹',
       monthlyBudget: Number(els.budgetInput.value.replace(/,/g, '')) || 0,
@@ -1468,6 +1477,7 @@ function setupEventListeners() {
     });
     els.syncDialog.close();
     renderAll();
+    ensureUserNameGate();
     trackAppUsage({ onLaunch: false }).then((stats) => {
       state.usageStats = stats;
       updateUsageTrackerUI();
@@ -1678,11 +1688,13 @@ function init() {
     triggerBackgroundSync(false);
   }
 
-  // Record anonymous launch & fetch active user count
-  trackAppUsage({ onLaunch: true }).then((stats) => {
-    state.usageStats = stats;
-    updateUsageTrackerUI();
-  });
+  // Require user name before using the app; if already set, record launch
+  if (ensureUserNameGate()) {
+    trackAppUsage({ onLaunch: true }).then((stats) => {
+      state.usageStats = stats;
+      updateUsageTrackerUI();
+    });
+  }
 }
 
 init();
