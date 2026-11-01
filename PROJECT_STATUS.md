@@ -1,7 +1,8 @@
 # DropSpend (Quick Expense Tracker) — Project Context & Status
 
 **Project Path:** `/Users/tanayjoshi/Projects/quick-expense`  
-**Last Analysed:** October 31, 2026  
+**Last Updated:** November 1, 2026  
+**Version:** v1.1 (Git repo initialized on `main`)  
 **Architecture:** Local-First Progressive Web App (PWA) + 2-Way Google Sheets Cloud Sync (100% Free Forever)
 
 ---
@@ -19,15 +20,15 @@
 
 | File | Size / Lines | Responsibility |
 | :--- | :--- | :--- |
-| `index.html` | 293 lines | Semantic HTML5 app shell, period navigation bar, KPI summary cards, category & 14-day trend panels, `<search>` filter, sticky chat input dock with live parse preview, and native `<dialog>` modals for Cloud Sync/Settings and Edit Expense. |
-| `styles.css` | 998 lines | Mobile-first dark-slate & emerald theme (`#0b1120` / `#10b981`), accessible focus rings, `48px`–`52px` coarse-pointer tap targets, stacked category bar, and CSS bar chart. |
-| `app.js` | 864 lines | Main UI controller, state management, KPI calculations (total, budget progress, daily average, monthly pace projection, top category), live parse preview pills, IME-safe `Enter` submission, CSV/JSON export & import, and background sync triggers. |
-| `parser.js` | 324 lines | Offline natural language parser: extracts amounts (`200`, `1,200`, `250.50`, `1.5k`, `₹200`, `rs 200`, `200/-`), relative/explicit dates (`today`/`aaj`, `yesterday`/`kal`, `parso`, `N days ago`, `last <weekday>`, `15 oct`), infers categories across 9 categories, and learns custom keywords (`qe_learned_keywords_v1`). |
-| `sync.js` | 326 lines | `localStorage` helpers (`qe_expenses_v1`, `qe_tombstones_v1`, `qe_settings_v1`), 2-way Google Sheets sync (`syncWithGoogleSheets`), embedded `GOOGLE_APPS_SCRIPT_CODE` for 1-click copy, and `exportToCSV`. |
+| `index.html` | 293 lines | Semantic HTML5 app shell, period navigation bar, KPI summary cards, category & 14-day trend panels, `<search>` filter, sticky chat input dock with interactive parse preview region, and native `<dialog>` modals for Cloud Sync/Settings and Edit Expense. |
+| `styles.css` | 1,226 lines | Mobile-first dark-slate & emerald theme (`#0b1120` / `#10b981`), interactive `.parse-preview` & `.preview-edit-row` controls, accessible focus rings, `48px`–`52px` coarse-pointer tap targets, stacked category bar, CSS bar chart, and interactive action toasts. |
+| `app.js` | 1,229 lines | Main UI controller, state management (`expenses`, `settings`, `draftItems`, `lastSavedIds`), interactive "Going to be saved" preview with inline editing & `Reset edits`, post-save `✎ Edit` / `↩ Undo & Edit in Bar` toast actions, KPI calculations, IME-safe `Enter` submission, CSV/JSON export & import, and background sync triggers. |
+| `parser.js` | 402 lines | Offline natural language parser: `parseDraftMessage` + `parseExpenseMessage`, extracts amounts (`200`, `1,200`, `250.50`, `1.5k`, inline addition `120+80`, `₹200`, `rs 200`, `200/-`), relative/explicit dates (`today`/`aaj`, `yesterday`/`kal`, `parso`, `N days ago`, `last <weekday>`, `15 oct`, `oct 15`), infers categories across 9 categories, and learns custom keywords (`qe_learned_keywords_v1`). |
+| `sync.js` | 334 lines | `localStorage` helpers (`qe_expenses_v1`, `qe_tombstones_v1`, `qe_settings_v1`), 2-way Google Sheets sync (`syncWithGoogleSheets`) with remote deletion reconciliation, embedded `GOOGLE_APPS_SCRIPT_CODE` for 1-click copy, and `exportToCSV`. |
 | `google-apps-script.js` | 127 lines | Standalone Google Apps Script (`doGet` and `doPost` with `LockService`) that manages the `Expenses` sheet tab (`id, date, amount, category, note, raw, updatedAt, deleted`). |
 | `manifest.json` | 18 lines | Standalone PWA Web App Manifest with embedded SVG `₹` icon. |
-| `sw.js` | 51 lines | Offline-first Service Worker (`dropspend-v1`) caching static assets while bypassing `script.google.com` / `googleusercontent.com` API requests. |
-| `README.md` | 125 lines | User guide, architecture rationale, local server instructions, Google Sheets setup steps, and status summary. |
+| `sw.js` | 51 lines | Offline-first Service Worker (`dropspend-v2`) caching static assets while bypassing `script.google.com` / `googleusercontent.com` API requests. |
+| `README.md` | 116 lines | User guide, architecture rationale, local server instructions, Google Sheets setup steps, and status summary. |
 
 ---
 
@@ -63,11 +64,15 @@
 - [x] **Food Keyword Whitespace Typo (`parser.js`)**: Trimmed `' canteen'` to `'canteen'` in `DEFAULT_KEYWORDS.food`.
 - [x] **Full JSON Backup & Restore (`app.js`, `parser.js`)**: Included `learnedKeywords` (`qe_learned_keywords_v1`) and `settings` (`currency`, `monthlyBudget`) in JSON export/import.
 
+- [x] **Inline Addition Expressions (`parser.js`)**: Added support for inline math like `"120+80 lunch"` → `₹200`.
+- [x] **Service Worker Cache Invalidation (`sw.js`)**: Bumped cache version to `dropspend-v2`.
+
 ---
 
 ## 5. Next Steps Checklist
 - [x] Fix the 4 code audit items (`parser.js`, `sync.js`, `app.js`).
 - [x] Add interactive "Going to be saved" parse output preview with inline quick-editing and post-save Undo/Edit.
-- [ ] Initialize Git repository (`git init`) and create initial commit.
-- [ ] Deploy static files to **GitHub Pages** or **Cloudflare Pages** for HTTPS mobile home-screen installation.
+- [x] Support inline addition expressions (`"120+80 lunch"`) and bump Service Worker cache (`dropspend-v2`).
+- [x] Initialize Git repository (`git init`) and create initial commit on `main`.
+- [ ] Push to a remote repository and deploy static files to **GitHub Pages** or **Cloudflare Pages** for HTTPS mobile home-screen installation.
 - [ ] Set up the Google Sheet + Apps Script deployment and connect the Web App URL in DropSpend settings.
