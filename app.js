@@ -18,7 +18,6 @@ import {
   exportToCSV,
   getOrCreateAnonDeviceId,
   GOOGLE_APPS_SCRIPT_CODE,
-  initUserNameFromUrl,
   loadCachedUsageStats,
   loadExpenses,
   loadSettings,
@@ -31,9 +30,6 @@ import {
   syncWithGoogleSheets,
   trackAppUsage
 } from './sync.js';
-
-// Capture ?user=Name or ?name=Name from shared URL before loading settings
-initUserNameFromUrl();
 
 // Application State
 const state = {

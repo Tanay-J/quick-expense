@@ -349,28 +349,6 @@ export function saveSettings(settings) {
   return next;
 }
 
-/**
- * If you share a personalized link like https://your-app.com/?user=Rahul (or ?name=Priya),
- * this automatically captures the person's name into local settings and cleans the URL bar.
- */
-export function initUserNameFromUrl() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const fromUrl = (params.get('user') || params.get('name') || params.get('by') || '').trim();
-    if (fromUrl) {
-      saveSettings({ userName: fromUrl.slice(0, 50) });
-      params.delete('user');
-      params.delete('name');
-      params.delete('by');
-      const cleanQuery = params.toString();
-      const cleanUrl = `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`;
-      window.history.replaceState({}, '', cleanUrl);
-    }
-  } catch {
-    // ignore
-  }
-}
-
 export function getOrCreateAnonDeviceId() {
   try {
     let id = localStorage.getItem(ANON_DEVICE_KEY);
