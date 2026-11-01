@@ -98,6 +98,7 @@ const els = {
   // Dialogs
   syncDialog: document.getElementById('sync-dialog'),
   usageTrackerBadge: document.getElementById('usage-tracker-badge'),
+  modalActiveUsers: document.getElementById('modal-active-users'),
   modalUniqueUsers: document.getElementById('modal-unique-users'),
   modalTotalSessions: document.getElementById('modal-total-sessions'),
   modalAnonId: document.getElementById('modal-anon-id'),
@@ -679,17 +680,23 @@ function renderExpenseList(periodExpenses) {
 
 function updateUsageTrackerUI() {
   const stats = state.usageStats || loadCachedUsageStats();
-  const users = Math.max(1, Number(stats.uniqueUsers) || 1);
-  const sessions = Math.max(1, Number(stats.totalSessions) || 1);
+  const localHasTx = state.expenses.length > 0 ? 1 : 0;
+  const activeUsers = Math.max(localHasTx, Number(stats.activeUsers) || 0);
+  const visitors = Math.max(1, Number(stats.uniqueUsers) || 1);
+  const entriesLogged = Math.max(state.expenses.length, Number(stats.totalTxLogged) || 0);
 
   if (els.usageStatsLabel) {
-    els.usageStatsLabel.textContent = `${users.toLocaleString('en-IN')} ${users === 1 ? 'user' : 'users'}`;
+    const shownCount = activeUsers > 0 ? activeUsers : visitors;
+    els.usageStatsLabel.textContent = `${shownCount.toLocaleString('en-IN')} ${shownCount === 1 ? 'user' : 'users'}`;
+  }
+  if (els.modalActiveUsers) {
+    els.modalActiveUsers.textContent = activeUsers.toLocaleString('en-IN');
   }
   if (els.modalUniqueUsers) {
-    els.modalUniqueUsers.textContent = users.toLocaleString('en-IN');
+    els.modalUniqueUsers.textContent = visitors.toLocaleString('en-IN');
   }
   if (els.modalTotalSessions) {
-    els.modalTotalSessions.textContent = sessions.toLocaleString('en-IN');
+    els.modalTotalSessions.textContent = entriesLogged.toLocaleString('en-IN');
   }
   if (els.modalAnonId) {
     els.modalAnonId.textContent = getOrCreateAnonDeviceId();
@@ -697,9 +704,6 @@ function updateUsageTrackerUI() {
   if (els.usageTrackerBadge) {
     if (stats.source === 'sheet') {
       els.usageTrackerBadge.textContent = 'Google Sheet Telemetry';
-      els.usageTrackerBadge.dataset.source = 'live';
-    } else if (stats.source === 'counterapi') {
-      els.usageTrackerBadge.textContent = 'Live Counter';
       els.usageTrackerBadge.dataset.source = 'live';
     } else {
       els.usageTrackerBadge.textContent = 'Local Device';

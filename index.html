@@ -218,24 +218,24 @@
       <section class="usage-tracker-card" aria-label="Live App Usage Statistics">
         <div class="usage-tracker-header">
           <strong class="usage-tracker-title">👥 Live App Usage Tracker</strong>
-          <span id="usage-tracker-badge" class="usage-source-badge">Auto Counter Active</span>
+          <span id="usage-tracker-badge" class="usage-source-badge">Local Device</span>
         </div>
         <div class="usage-metrics-row">
           <div class="usage-metric">
-            <span class="usage-metric-label">Unique Users</span>
+            <span class="usage-metric-lbl">Active Users (Logged ≥1)</span>
+            <strong id="modal-active-users" class="usage-metric-val">1</strong>
+          </div>
+          <div class="usage-metric">
+            <span class="usage-metric-lbl">Total Visitors</span>
             <strong id="modal-unique-users" class="usage-metric-val">1</strong>
           </div>
           <div class="usage-metric">
-            <span class="usage-metric-label">Total Sessions</span>
-            <strong id="modal-total-sessions" class="usage-metric-val">1</strong>
-          </div>
-          <div class="usage-metric">
-            <span class="usage-metric-label">Your Device ID</span>
-            <code id="modal-anon-id" class="usage-anon-code">usr_...</code>
+            <span class="usage-metric-lbl">Entries Logged</span>
+            <strong id="modal-total-sessions" class="usage-metric-val">0</strong>
           </div>
         </div>
         <p class="field-hint">
-          Tracks unique browsers &amp; sessions automatically on your deployed domain (100% privacy-safe — never sends private expense amounts). Also logs to a <code>UsageStats</code> tab in your Google Sheet!
+          Distinguishes <strong>Active Users</strong> (people who actually saved ≥1 expense/income) from casual visitors. Device ID: <code id="modal-anon-id" class="usage-anon-code">usr_...</code>
         </p>
       </section>
 

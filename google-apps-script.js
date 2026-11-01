@@ -19,7 +19,7 @@
 const SHEET_NAME = 'Expenses';
 const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted', 'type', 'paymentMethod'];
 const STATS_SHEET_NAME = 'UsageStats';
-const STATS_HEADERS = ['deviceId', 'firstSeen', 'lastSeen', 'sessions', 'txCount', 'platform', 'timezone'];
+const STATS_HEADERS = ['deviceId', 'firstSeen', 'lastSeen', 'sessions', 'txCount', 'activeDays', 'platform', 'timezone'];
 
 function getOrCreateSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -43,6 +43,8 @@ function getOrCreateStatsSheet() {
     sheet.appendRow(STATS_HEADERS);
     sheet.getRange(1, 1, 1, STATS_HEADERS.length).setFontWeight('bold').setBackground('#ecfdf5');
     sheet.setFrozenRows(1);
+  } else if (sheet.getLastColumn() < STATS_HEADERS.length) {
+    sheet.getRange(1, 1, 1, STATS_HEADERS.length).setValues([STATS_HEADERS]).setFontWeight('bold').setBackground('#ecfdf5');
   }
   return sheet;
 }
@@ -54,6 +56,8 @@ function recordTelemetry(telemetry) {
   const nowIso = new Date().toISOString().slice(0, 19).replace('T', ' ');
   let foundRow = -1;
   let existingSessions = 0;
+  let existingTxCount = 0;
+  let existingActiveDays = 1;
 
   if (lastRow > 1) {
     const rows = sheet.getRange(2, 1, lastRow - 1, STATS_HEADERS.length).getValues();
@@ -61,12 +65,17 @@ function recordTelemetry(telemetry) {
       if (String(rows[i][0]) === String(telemetry.deviceId)) {
         foundRow = i + 2;
         existingSessions = Number(rows[i][3]) || 0;
+        existingTxCount = Number(rows[i][4]) || 0;
+        existingActiveDays = Number(rows[i][5]) || 1;
         break;
       }
     }
   }
 
   const nextSessions = telemetry.isNewSession ? existingSessions + 1 : Math.max(1, existingSessions);
+  const nextTxCount = Math.max(existingTxCount, Number(telemetry.txCount) || 0);
+  const nextActiveDays = Math.max(existingActiveDays, Number(telemetry.activeDays) || 1);
+
   if (foundRow !== -1) {
     const firstSeen = sheet.getRange(foundRow, 2).getValue() || nowIso;
     sheet.getRange(foundRow, 1, 1, STATS_HEADERS.length).setValues([[
@@ -74,7 +83,8 @@ function recordTelemetry(telemetry) {
       firstSeen,
       nowIso,
       nextSessions,
-      Number(telemetry.txCount) || 0,
+      nextTxCount,
+      nextActiveDays,
       String(telemetry.platform || ''),
       String(telemetry.timezone || '')
     ]]);
@@ -84,7 +94,8 @@ function recordTelemetry(telemetry) {
       nowIso,
       nowIso,
       1,
-      Number(telemetry.txCount) || 0,
+      nextTxCount,
+      nextActiveDays,
       String(telemetry.platform || ''),
       String(telemetry.timezone || '')
     ]);
@@ -96,19 +107,24 @@ function getUsageSummary() {
   const sheet = getOrCreateStatsSheet();
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) {
-    return { uniqueUsers: 0, totalSessions: 0, totalTxLogged: 0 };
+    return { uniqueUsers: 0, activeUsers: 0, totalSessions: 0, totalTxLogged: 0 };
   }
   const rows = sheet.getRange(2, 1, lastRow - 1, STATS_HEADERS.length).getValues();
   let uniqueUsers = 0;
+  let activeUsers = 0;
   let totalSessions = 0;
   let totalTxLogged = 0;
   for (let i = 0; i < rows.length; i++) {
     if (!rows[i][0]) continue;
     uniqueUsers++;
+    const userTx = Number(rows[i][4]) || 0;
+    if (userTx > 0) {
+      activeUsers++;
+    }
     totalSessions += Number(rows[i][3]) || 1;
-    totalTxLogged += Number(rows[i][4]) || 0;
+    totalTxLogged += userTx;
   }
-  return { uniqueUsers, totalSessions, totalTxLogged };
+  return { uniqueUsers, activeUsers, totalSessions, totalTxLogged };
 }
 
 function readAllRows(sheet) {

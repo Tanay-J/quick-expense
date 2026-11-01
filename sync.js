@@ -17,7 +17,7 @@ export const DEFAULT_TELEMETRY_WEBHOOK_URL = '';
 export const GOOGLE_APPS_SCRIPT_CODE = `const SHEET_NAME = 'Expenses';
 const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted', 'type', 'paymentMethod'];
 const STATS_SHEET_NAME = 'UsageStats';
-const STATS_HEADERS = ['deviceId', 'firstSeen', 'lastSeen', 'sessions', 'txCount', 'platform', 'timezone'];
+const STATS_HEADERS = ['deviceId', 'firstSeen', 'lastSeen', 'sessions', 'txCount', 'activeDays', 'platform', 'timezone'];
 
 function getOrCreateSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -41,6 +41,8 @@ function getOrCreateStatsSheet() {
     sheet.appendRow(STATS_HEADERS);
     sheet.getRange(1, 1, 1, STATS_HEADERS.length).setFontWeight('bold').setBackground('#ecfdf5');
     sheet.setFrozenRows(1);
+  } else if (sheet.getLastColumn() < STATS_HEADERS.length) {
+    sheet.getRange(1, 1, 1, STATS_HEADERS.length).setValues([STATS_HEADERS]).setFontWeight('bold').setBackground('#ecfdf5');
   }
   return sheet;
 }
@@ -52,6 +54,8 @@ function recordTelemetry(telemetry) {
   const nowIso = new Date().toISOString().slice(0, 19).replace('T', ' ');
   let foundRow = -1;
   let existingSessions = 0;
+  let existingTxCount = 0;
+  let existingActiveDays = 1;
 
   if (lastRow > 1) {
     const rows = sheet.getRange(2, 1, lastRow - 1, STATS_HEADERS.length).getValues();
@@ -59,12 +63,17 @@ function recordTelemetry(telemetry) {
       if (String(rows[i][0]) === String(telemetry.deviceId)) {
         foundRow = i + 2;
         existingSessions = Number(rows[i][3]) || 0;
+        existingTxCount = Number(rows[i][4]) || 0;
+        existingActiveDays = Number(rows[i][5]) || 1;
         break;
       }
     }
   }
 
   const nextSessions = telemetry.isNewSession ? existingSessions + 1 : Math.max(1, existingSessions);
+  const nextTxCount = Math.max(existingTxCount, Number(telemetry.txCount) || 0);
+  const nextActiveDays = Math.max(existingActiveDays, Number(telemetry.activeDays) || 1);
+
   if (foundRow !== -1) {
     const firstSeen = sheet.getRange(foundRow, 2).getValue() || nowIso;
     sheet.getRange(foundRow, 1, 1, STATS_HEADERS.length).setValues([[
@@ -72,7 +81,8 @@ function recordTelemetry(telemetry) {
       firstSeen,
       nowIso,
       nextSessions,
-      Number(telemetry.txCount) || 0,
+      nextTxCount,
+      nextActiveDays,
       String(telemetry.platform || ''),
       String(telemetry.timezone || '')
     ]]);
@@ -82,7 +92,8 @@ function recordTelemetry(telemetry) {
       nowIso,
       nowIso,
       1,
-      Number(telemetry.txCount) || 0,
+      nextTxCount,
+      nextActiveDays,
       String(telemetry.platform || ''),
       String(telemetry.timezone || '')
     ]);
@@ -94,19 +105,24 @@ function getUsageSummary() {
   const sheet = getOrCreateStatsSheet();
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) {
-    return { uniqueUsers: 0, totalSessions: 0, totalTxLogged: 0 };
+    return { uniqueUsers: 0, activeUsers: 0, totalSessions: 0, totalTxLogged: 0 };
   }
   const rows = sheet.getRange(2, 1, lastRow - 1, STATS_HEADERS.length).getValues();
   var uniqueUsers = 0;
+  var activeUsers = 0;
   var totalSessions = 0;
   var totalTxLogged = 0;
   for (var i = 0; i < rows.length; i++) {
     if (!rows[i][0]) continue;
     uniqueUsers++;
+    var userTx = Number(rows[i][4]) || 0;
+    if (userTx > 0) {
+      activeUsers++;
+    }
     totalSessions += Number(rows[i][3]) || 1;
-    totalTxLogged += Number(rows[i][4]) || 0;
+    totalTxLogged += userTx;
   }
-  return { uniqueUsers: uniqueUsers, totalSessions: totalSessions, totalTxLogged: totalTxLogged };
+  return { uniqueUsers: uniqueUsers, activeUsers: activeUsers, totalSessions: totalSessions, totalTxLogged: totalTxLogged };
 }
 
 function readAllRows(sheet) {
@@ -324,9 +340,11 @@ export function getOrCreateAnonDeviceId() {
 export function loadCachedUsageStats() {
   try {
     const raw = localStorage.getItem(PUBLIC_COUNTER_CACHE_KEY);
-    return raw ? JSON.parse(raw) : { uniqueUsers: 1, totalSessions: 1, source: 'local' };
+    return raw
+      ? JSON.parse(raw)
+      : { uniqueUsers: 1, activeUsers: 0, totalSessions: 1, totalTxLogged: 0, source: 'local' };
   } catch {
-    return { uniqueUsers: 1, totalSessions: 1, source: 'local' };
+    return { uniqueUsers: 1, activeUsers: 0, totalSessions: 1, totalTxLogged: 0, source: 'local' };
   }
 }
 
@@ -340,10 +358,12 @@ function saveCachedUsageStats(stats) {
 
 function buildTelemetryPayload(isNewSession = false) {
   const expenses = loadExpenses();
+  const uniqueDates = new Set(expenses.map((e) => e.date).filter(Boolean));
   return {
     deviceId: getOrCreateAnonDeviceId(),
     isNewSession: Boolean(isNewSession),
     txCount: expenses.length,
+    activeDays: Math.max(1, uniqueDates.size),
     platform: navigator.userAgentData?.platform || navigator.platform || 'web',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || ''
   };
@@ -351,20 +371,19 @@ function buildTelemetryPayload(isNewSession = false) {
 
 /**
  * Zero-cost anonymous usage tracker for deployed instances:
- * 1. Tracks Unique Users & Total Sessions automatically using a free public JSON counter
- *    keyed to the deployed hostname (e.g. GitHub Pages / Cloudflare Pages / Vercel).
- * 2. Also sends an anonymous telemetry ping to the Google Sheet `UsageStats` tab if configured.
+ * Sends an anonymous telemetry ping to the Google Sheet `UsageStats` tab
+ * (via `DEFAULT_TELEMETRY_WEBHOOK_URL` or user's `webhookUrl`), tracking:
+ * - `activeUsers`: People who have ACTUALLY logged >= 1 expense/income
+ * - `uniqueUsers`: Total devices that opened the link
+ * - `totalSessions`: Total app launches
+ * - `totalTxLogged`: Total entries logged across all users
  */
 export async function trackAppUsage({ onLaunch = false } = {}) {
   const cached = loadCachedUsageStats();
-  let isFirstVisitEver = false;
+  const localTxCount = loadExpenses().length;
   let isNewSession = false;
 
   try {
-    if (!localStorage.getItem('qe_user_counted_v1')) {
-      isFirstVisitEver = true;
-      localStorage.setItem('qe_user_counted_v1', '1');
-    }
     if (onLaunch && !sessionStorage.getItem('qe_session_counted_v1')) {
       isNewSession = true;
       sessionStorage.setItem('qe_session_counted_v1', '1');
@@ -375,8 +394,9 @@ export async function trackAppUsage({ onLaunch = false } = {}) {
 
   let updatedStats = {
     uniqueUsers: Math.max(1, cached.uniqueUsers || 1),
+    activeUsers: Math.max(localTxCount > 0 ? 1 : 0, cached.activeUsers || 0),
     totalSessions: Math.max(1, (cached.totalSessions || 0) + (isNewSession ? 1 : 0)),
-    totalTxLogged: loadExpenses().length,
+    totalTxLogged: Math.max(localTxCount, cached.totalTxLogged || 0),
     source: cached.source || 'local'
   };
   saveCachedUsageStats(updatedStats);
@@ -385,9 +405,9 @@ export async function trackAppUsage({ onLaunch = false } = {}) {
     return updatedStats;
   }
 
-  // 1. If a dedicated telemetryUrl or webhookUrl is set, sync with Google Sheet UsageStats tab
+  // Sync with Google Sheet UsageStats tab (via DEFAULT_TELEMETRY_WEBHOOK_URL or webhookUrl)
   const settings = loadSettings();
-  const sheetUrl = (settings.telemetryUrl || settings.webhookUrl || DEFAULT_TELEMETRY_WEBHOOK_URL || '').trim();
+  const sheetUrl = (settings.telemetryUrl || DEFAULT_TELEMETRY_WEBHOOK_URL || settings.webhookUrl || '').trim();
   if (sheetUrl) {
     try {
       const resp = await fetch(sheetUrl, {
@@ -403,8 +423,9 @@ export async function trackAppUsage({ onLaunch = false } = {}) {
         if (data?.ok && data.usageSummary) {
           updatedStats = {
             uniqueUsers: Math.max(1, Number(data.usageSummary.uniqueUsers) || 1),
+            activeUsers: Number(data.usageSummary.activeUsers) ?? (localTxCount > 0 ? 1 : 0),
             totalSessions: Math.max(1, Number(data.usageSummary.totalSessions) || 1),
-            totalTxLogged: Number(data.usageSummary.totalTxLogged) || loadExpenses().length,
+            totalTxLogged: Math.max(localTxCount, Number(data.usageSummary.totalTxLogged) || 0),
             source: 'sheet'
           };
           saveCachedUsageStats(updatedStats);
@@ -412,50 +433,8 @@ export async function trackAppUsage({ onLaunch = false } = {}) {
         }
       }
     } catch {
-      // fall through to public counter
+      // keep cached stats offline/fallback
     }
-  }
-
-  // 2. Zero-config public counter (CounterAPI) keyed by deployed hostname
-  try {
-    const hostSlug = (window.location.hostname || 'localhost')
-      .replace(/[^a-zA-Z0-9_-]/g, '-')
-      .replace(/^-+|-+$/g, '') || 'localhost';
-    const namespace = `dropspend-${hostSlug}`;
-
-    const userEndpoint = isFirstVisitEver
-      ? `https://api.counterapi.dev/v1/${namespace}/unique_users/up`
-      : `https://api.counterapi.dev/v1/${namespace}/unique_users/`;
-    const sessionEndpoint = isNewSession
-      ? `https://api.counterapi.dev/v1/${namespace}/sessions/up`
-      : `https://api.counterapi.dev/v1/${namespace}/sessions/`;
-
-    const [uRes, sRes] = await Promise.allSettled([
-      fetch(userEndpoint),
-      fetch(sessionEndpoint)
-    ]);
-
-    let usersCount = updatedStats.uniqueUsers;
-    let sessionsCount = updatedStats.totalSessions;
-
-    if (uRes.status === 'fulfilled' && uRes.value.ok) {
-      const uJson = await uRes.value.json();
-      if (typeof uJson?.count === 'number') usersCount = Math.max(1, uJson.count);
-    }
-    if (sRes.status === 'fulfilled' && sRes.value.ok) {
-      const sJson = await sRes.value.json();
-      if (typeof sJson?.count === 'number') sessionsCount = Math.max(1, sJson.count);
-    }
-
-    updatedStats = {
-      uniqueUsers: usersCount,
-      totalSessions: sessionsCount,
-      totalTxLogged: loadExpenses().length,
-      source: 'counterapi'
-    };
-    saveCachedUsageStats(updatedStats);
-  } catch {
-    // keep cached stats offline/fallback
   }
 
   return updatedStats;
@@ -539,6 +518,7 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
     if (data.usageSummary) {
       saveCachedUsageStats({
         uniqueUsers: Math.max(1, Number(data.usageSummary.uniqueUsers) || 1),
+        activeUsers: Number(data.usageSummary.activeUsers) ?? (localExpenses.length > 0 ? 1 : 0),
         totalSessions: Math.max(1, Number(data.usageSummary.totalSessions) || 1),
         totalTxLogged: Number(data.usageSummary.totalTxLogged) || localExpenses.length,
         source: 'sheet'
