@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <title>DropSpend — Chat Expense Tracker</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand-group">
+        <span class="brand-logo" aria-hidden="true">₹</span>
+        <div>
+          <h1 class="app-title">DropSpend</h1>
+          <p class="app-subtitle">Type like a message. Saved &amp; synced.</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" id="sync-status-btn" class="sync-pill" aria-label="Configure Google Sheets Cloud Sync">
+          <span id="sync-dot" class="sync-dot" data-state="local" aria-hidden="true"></span>
+          <span id="sync-label">Backup: Local</span>
+        </button>
+        <button type="button" id="export-csv-btn" class="icon-btn" aria-label="Export CSV">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span class="btn-text-desktop">CSV</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <!-- Period Navigation Bar -->
+    <section class="period-bar" aria-label="Time Period Filter">
+      <div class="month-selector">
+        <button type="button" id="prev-month-btn" class="nav-btn" aria-label="Previous month">‹</button>
+        <span id="current-period-label" class="period-label">October 2026</span>
+        <button type="button" id="next-month-btn" class="nav-btn" aria-label="Next month">›</button>
+      </div>
+      <div class="period-modes" role="group" aria-label="Period range">
+        <button type="button" class="mode-chip active" data-mode="month">Month</button>
+        <button type="button" class="mode-chip" data-mode="7d">Last 7D</button>
+        <button type="button" class="mode-chip" data-mode="all">All Time</button>
+      </div>
+    </section>
+
+    <!-- KPI Summary Cards -->
+    <section class="kpi-section" aria-labelledby="kpi-heading">
+      <h2 id="kpi-heading" class="visually-hidden">Spending Overview</h2>
+      <div class="kpi-grid">
+        <article class="kpi-card kpi-primary">
+          <span class="kpi-title">Total Spent</span>
+          <strong id="kpi-total" class="kpi-value">₹0</strong>
+          <div id="budget-progress-wrap" class="budget-wrap" hidden>
+            <div class="budget-meta">
+              <span id="budget-status-text">0% of budget</span>
+            </div>
+            <progress id="budget-progress" class="budget-bar" value="0" max="100"></progress>
+          </div>
+          <span id="kpi-sub-count" class="kpi-sub">0 expenses logged</span>
+        </article>
+
+        <article class="kpi-card">
+          <span class="kpi-title">Daily Average</span>
+          <strong id="kpi-avg" class="kpi-value">₹0</strong>
+          <span id="kpi-projected" class="kpi-sub">Projected: ₹0</span>
+        </article>
+
+        <article class="kpi-card">
+          <span class="kpi-title">Top Category</span>
+          <strong id="kpi-top-cat" class="kpi-value">—</strong>
+          <span id="kpi-top-cat-amt" class="kpi-sub">No data yet</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- Two-Column Analytics Grid on Desktop / Stacked on Mobile -->
+    <div class="analytics-grid">
+      <section class="panel" aria-labelledby="cat-heading">
+        <div class="panel-header">
+          <h2 id="cat-heading" class="panel-title">By Category</h2>
+          <button type="button" id="clear-cat-filter-btn" class="text-btn" hidden>Clear filter</button>
+        </div>
+        <div id="category-stacked-bar" class="stacked-bar" aria-hidden="true"></div>
+        <ul id="category-list" class="category-list"></ul>
+      </section>
+
+      <section class="panel" aria-labelledby="trend-heading">
+        <div class="panel-header">
+          <h2 id="trend-heading" class="panel-title">Daily Activity</h2>
+          <span id="trend-subtitle" class="panel-subtitle">Last 14 days</span>
+        </div>
+        <div id="trend-chart" class="trend-chart" role="img" aria-label="Bar chart of daily spending"></div>
+      </section>
+    </div>
+
+    <!-- Search & Recent Expenses Feed -->
+    <section class="panel transactions-panel" aria-labelledby="feed-heading">
+      <div class="feed-header">
+        <h2 id="feed-heading" class="panel-title">Expense Log</h2>
+        <search class="search-box">
+          <form id="search-form" action="#" method="GET">
+            <label for="search-input" class="visually-hidden">Search expenses</label>
+            <input
+              type="search"
+              id="search-input"
+              name="q"
+              placeholder="Search fuel, coffee, uber..."
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+            >
+          </form>
+        </search>
+      </div>
+
+      <ul id="expense-list" class="expense-list"></ul>
+
+      <div id="empty-state" class="empty-state" hidden>
+        <p class="empty-title">No expenses here yet</p>
+        <p class="empty-hint">Try dropping a message below or tap a quick demo chip:</p>
+        <div class="sample-chips">
+          <button type="button" class="sample-chip" data-sample="200 fuel bike">“200 fuel bike”</button>
+          <button type="button" class="sample-chip" data-sample="450 dinner with friends yesterday">“450 dinner with friends yesterday”</button>
+          <button type="button" class="sample-chip" data-sample="150 coffee, 80 auto, 640 groceries">“150 coffee, 80 auto, 640 groceries”</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Sticky Chat-First Expense Input Dock -->
+  <aside class="composer-dock" aria-label="Quick Expense Input">
+    <div class="composer-inner">
+      <!-- Interactive Parse Output & Quick-Edit Bar -->
+      <div id="parse-preview" class="parse-preview" role="region" aria-label="Parsed expense preview" aria-live="polite" hidden></div>
+
+      <form id="expense-form" class="composer-form" action="#" method="POST">
+        <label for="expense-input" class="visually-hidden">Drop an expense message (e.g., 200 fuel bike)</label>
+        <input
+          type="text"
+          id="expense-input"
+          name="message"
+          class="composer-input"
+          placeholder="Drop expense: e.g. 200 fuel bike, 150 coffee yesterday..."
+          enterkeyhint="send"
+          autocomplete="off"
+          required
+        >
+        <button type="submit" id="send-expense-btn" class="send-btn" aria-label="Save expense">
+          <span id="send-btn-text">Save</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- Toast Announcement -->
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+
+  <!-- Cloud Sync & Settings Modal (<dialog>) -->
+  <dialog id="sync-dialog" class="app-dialog" closedby="any" aria-labelledby="sync-dialog-title">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h1 id="sync-dialog-title" class="dialog-title">Google Sheets Cloud Backup &amp; Settings</h1>
+        <form method="dialog">
+          <button type="submit" class="icon-btn" aria-label="Close dialog">✕</button>
+        </form>
+      </div>
+
+      <p class="dialog-lead">
+        Keep your expenses <strong>100% free forever</strong> in your own Google Drive. Even if your phone is lost or cleared, 1 click restores everything.
+      </p>
+
+      <form id="settings-form" class="dialog-form" action="#" method="POST">
+        <div class="form-group">
+          <label for="webhook-url-input">Google Apps Script Web App URL</label>
+          <input
+            type="url"
+            id="webhook-url-input"
+            name="webhookUrl"
+            placeholder="https://script.google.com/macros/s/.../exec"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-describedby="webhook-help"
+          >
+          <span id="webhook-help" class="field-hint">Paste your deployed Apps Script URL for automatic 2-way sync.</span>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="currency-input">Currency Symbol</label>
+            <input type="text" id="currency-input" name="currency" value="₹" maxlength="4">
+          </div>
+          <div class="form-group">
+            <label for="budget-input">Monthly Budget (Optional)</label>
+            <input type="text" id="budget-input" name="monthlyBudget" inputmode="numeric" placeholder="e.g. 25000">
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="submit" class="primary-btn">Save &amp; Sync Now</button>
+          <button type="button" id="force-sync-btn" class="secondary-btn">Force Full Sync / Restore</button>
+        </div>
+      </form>
+
+      <details class="setup-guide">
+        <summary>How to set up your free Google Sheet (90 seconds)</summary>
+        <div class="setup-steps">
+          <ol>
+            <li>Open <a href="https://sheets.new" target="_blank" rel="noopener noreferrer">sheets.new</a> to create a blank Google Sheet in your Google Drive.</li>
+            <li>In the top menu, click <strong>Extensions → Apps Script</strong>.</li>
+            <li>Click the button below to copy the sync script, then paste it into the Apps Script editor (replacing existing code) and press Save.</li>
+            <li>Click <strong>Deploy → New deployment</strong> (top right), choose type <strong>Web app</strong>, set <em>Execute as: Me</em> and <em>Who has access: Anyone</em>, and click <strong>Deploy</strong>.</li>
+            <li>Copy the <strong>Web app URL</strong> and paste it into the field above!</li>
+          </ol>
+          <div class="code-copy-bar">
+            <button type="button" id="copy-gas-btn" class="secondary-btn">Copy Google Apps Script Code</button>
+          </div>
+          <pre tabindex="0" class="code-preview"><code id="gas-code-block"></code></pre>
+        </div>
+      </details>
+
+      <hr class="dialog-divider">
+
+      <div class="backup-row">
+        <div>
+          <h2 class="sub-heading">Local File Backup</h2>
+          <p class="field-hint">Download or restore a full JSON snapshot anytime.</p>
+        </div>
+        <div class="backup-btns">
+          <button type="button" id="export-json-btn" class="secondary-btn">Download JSON</button>
+          <label for="import-json-input" class="secondary-btn file-label">Restore JSON</label>
+          <input type="file" id="import-json-input" accept="application/json" class="visually-hidden">
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Edit Expense Modal (<dialog>) -->
+  <dialog id="edit-dialog" class="app-dialog" closedby="any" aria-labelledby="edit-dialog-title">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h1 id="edit-dialog-title" class="dialog-title">Edit Expense</h1>
+        <form method="dialog">
+          <button type="submit" class="icon-btn" aria-label="Close edit dialog">✕</button>
+        </form>
+      </div>
+
+      <form id="edit-expense-form" class="dialog-form" action="#" method="POST">
+        <input type="hidden" id="edit-id" name="id">
+
+        <div class="form-group">
+          <label for="edit-amount">Amount</label>
+          <input type="text" id="edit-amount" name="amount" inputmode="decimal" required>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-note">Description / Note</label>
+          <input type="text" id="edit-note" name="note" required>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-category">Category (Changing this teaches DropSpend for next time!)</label>
+          <select id="edit-category" name="category"></select>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-date">Date</label>
+          <input type="date" id="edit-date" name="date" required>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="submit" class="primary-btn">Save Changes</button>
+          <button type="button" id="delete-expense-btn" class="danger-btn">Delete Expense</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
