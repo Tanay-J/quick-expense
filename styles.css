@@ -232,6 +232,74 @@ pre:focus-visible {
   gap: 1rem;
 }
 
+/* Welcome Name Prompt Bar */
+.name-prompt-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(16, 185, 129, 0.1));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: var(--radius-lg);
+  padding: 0.65rem 0.9rem;
+}
+
+.name-prompt-bar[hidden] {
+  display: none !important;
+}
+
+.name-prompt-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.name-prompt-form {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1;
+  max-width: 22rem;
+}
+
+.name-prompt-form input {
+  flex: 1;
+  min-height: 40px;
+  padding-inline: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.mini-save-btn {
+  min-height: 40px;
+  padding-inline: 0.85rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--accent);
+  color: #042f2e;
+  font-weight: 700;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.mini-dismiss-btn {
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
 /* Period Selector Bar */
 .period-bar {
   display: flex;

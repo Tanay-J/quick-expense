@@ -18,6 +18,7 @@ import {
   exportToCSV,
   getOrCreateAnonDeviceId,
   GOOGLE_APPS_SCRIPT_CODE,
+  initUserNameFromUrl,
   loadCachedUsageStats,
   loadExpenses,
   loadSettings,
@@ -30,6 +31,9 @@ import {
   syncWithGoogleSheets,
   trackAppUsage
 } from './sync.js';
+
+// Capture ?user=Name or ?name=Name from shared URL before loading settings
+initUserNameFromUrl();
 
 // Application State
 const state = {
@@ -52,6 +56,10 @@ const state = {
 
 // DOM Elements
 const els = {
+  userNameBanner: document.getElementById('user-name-banner'),
+  quickNameForm: document.getElementById('quick-name-form'),
+  quickNameInput: document.getElementById('quick-name-input'),
+  dismissNameBtn: document.getElementById('dismiss-name-btn'),
   usageStatsBtn: document.getElementById('usage-stats-btn'),
   usageStatsLabel: document.getElementById('usage-stats-label'),
   syncStatusBtn: document.getElementById('sync-status-btn'),
@@ -102,7 +110,9 @@ const els = {
   modalUniqueUsers: document.getElementById('modal-unique-users'),
   modalTotalSessions: document.getElementById('modal-total-sessions'),
   modalAnonId: document.getElementById('modal-anon-id'),
+  modalUserNames: document.getElementById('modal-user-names'),
   settingsForm: document.getElementById('settings-form'),
+  userNameInput: document.getElementById('user-name-input'),
   webhookUrlInput: document.getElementById('webhook-url-input'),
   currencyInput: document.getElementById('currency-input'),
   budgetInput: document.getElementById('budget-input'),
@@ -684,10 +694,23 @@ function updateUsageTrackerUI() {
   const activeUsers = Math.max(localHasTx, Number(stats.activeUsers) || 0);
   const visitors = Math.max(1, Number(stats.uniqueUsers) || 1);
   const entriesLogged = Math.max(state.expenses.length, Number(stats.totalTxLogged) || 0);
+  const myName = (state.settings.userName || '').trim();
+
+  // Show or hide the 1-line welcome name prompt bar
+  if (els.userNameBanner) {
+    let dismissed = false;
+    try {
+      dismissed = Boolean(sessionStorage.getItem('qe_name_dismissed_v1'));
+    } catch {
+      // ignore
+    }
+    els.userNameBanner.hidden = Boolean(myName) || dismissed;
+  }
 
   if (els.usageStatsLabel) {
     const shownCount = activeUsers > 0 ? activeUsers : visitors;
-    els.usageStatsLabel.textContent = `${shownCount.toLocaleString('en-IN')} ${shownCount === 1 ? 'user' : 'users'}`;
+    const countPart = `${shownCount.toLocaleString('en-IN')} ${shownCount === 1 ? 'user' : 'users'}`;
+    els.usageStatsLabel.textContent = myName ? `${myName} • ${countPart}` : countPart;
   }
   if (els.modalActiveUsers) {
     els.modalActiveUsers.textContent = activeUsers.toLocaleString('en-IN');
@@ -699,7 +722,20 @@ function updateUsageTrackerUI() {
     els.modalTotalSessions.textContent = entriesLogged.toLocaleString('en-IN');
   }
   if (els.modalAnonId) {
-    els.modalAnonId.textContent = getOrCreateAnonDeviceId();
+    const idStr = getOrCreateAnonDeviceId();
+    els.modalAnonId.textContent = myName ? `${myName} (${idStr})` : idStr;
+  }
+  if (els.modalUserNames) {
+    const names = Array.isArray(stats.userNames) ? stats.userNames.filter(Boolean) : [];
+    if (myName && !names.includes(myName)) {
+      names.unshift(myName);
+    }
+    if (names.length > 0) {
+      els.modalUserNames.hidden = false;
+      els.modalUserNames.textContent = `👥 Named users: ${names.join(', ')}`;
+    } else {
+      els.modalUserNames.hidden = true;
+    }
   }
   if (els.usageTrackerBadge) {
     if (stats.source === 'sheet') {
@@ -1302,6 +1338,9 @@ function openEditModal(expense) {
 }
 
 function openSyncAndSettingsModal() {
+  if (els.userNameInput) {
+    els.userNameInput.value = state.settings.userName || '';
+  }
   els.webhookUrlInput.value = state.settings.webhookUrl || '';
   els.currencyInput.value = state.settings.currency || '₹';
   els.budgetInput.value = state.settings.monthlyBudget ? String(state.settings.monthlyBudget) : '';
@@ -1313,6 +1352,34 @@ function openSyncAndSettingsModal() {
 }
 
 function setupEventListeners() {
+  // Quick 1-tap Welcome Name Form
+  if (els.quickNameForm) {
+    els.quickNameForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const enteredName = (els.quickNameInput?.value || '').trim();
+      if (!enteredName) return;
+      state.settings = saveSettings({ userName: enteredName });
+      updateUsageTrackerUI();
+      showToast(`👋 Welcome, ${enteredName}!`);
+      trackAppUsage({ onLaunch: false }).then((stats) => {
+        state.usageStats = stats;
+        updateUsageTrackerUI();
+      });
+    });
+  }
+  if (els.dismissNameBtn) {
+    els.dismissNameBtn.addEventListener('click', () => {
+      try {
+        sessionStorage.setItem('qe_name_dismissed_v1', '1');
+      } catch {
+        // ignore
+      }
+      if (els.userNameBanner) {
+        els.userNameBanner.hidden = true;
+      }
+    });
+  }
+
   // Composer default mode toggle (Expense <-> Income)
   if (els.composerTypeBtn) {
     els.composerTypeBtn.addEventListener('click', () => {
@@ -1438,6 +1505,7 @@ function setupEventListeners() {
   els.settingsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     state.settings = saveSettings({
+      userName: els.userNameInput ? els.userNameInput.value.trim() : state.settings.userName || '',
       webhookUrl: els.webhookUrlInput.value.trim(),
       currency: els.currencyInput.value.trim() || '₹',
       monthlyBudget: Number(els.budgetInput.value.replace(/,/g, '')) || 0,
@@ -1445,13 +1513,13 @@ function setupEventListeners() {
     });
     els.syncDialog.close();
     renderAll();
+    trackAppUsage({ onLaunch: false }).then((stats) => {
+      state.usageStats = stats;
+      updateUsageTrackerUI();
+    });
     if (state.settings.webhookUrl) {
       showToast('Syncing with Google Sheets...');
       await triggerBackgroundSync(true);
-      trackAppUsage({ onLaunch: false }).then((stats) => {
-        state.usageStats = stats;
-        updateUsageTrackerUI();
-      });
     } else {
       showToast('Settings saved');
     }

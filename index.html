@@ -41,6 +41,27 @@
   </header>
 
   <main class="app-main">
+    <!-- One-Time Quick Name Prompt Banner (Hidden once user sets their name) -->
+    <section id="user-name-banner" class="name-prompt-bar" aria-label="Personalize your profile" hidden>
+      <div class="name-prompt-text">
+        <span aria-hidden="true">👋</span>
+        <span>Welcome! What's your name?</span>
+      </div>
+      <form id="quick-name-form" class="name-prompt-form" action="#" method="POST">
+        <label for="quick-name-input" class="visually-hidden">Your Name</label>
+        <input
+          type="text"
+          id="quick-name-input"
+          name="userName"
+          placeholder="e.g. Tanay, Rahul..."
+          maxlength="40"
+          autocomplete="given-name"
+        >
+        <button type="submit" class="mini-save-btn">Save</button>
+        <button type="button" id="dismiss-name-btn" class="mini-dismiss-btn" aria-label="Dismiss name prompt">✕</button>
+      </form>
+    </section>
+
     <!-- Period Navigation Bar -->
     <section class="period-bar" aria-label="Time Period Filter">
       <div class="month-selector">
@@ -237,22 +258,34 @@
         <p class="field-hint">
           Distinguishes <strong>Active Users</strong> (people who actually saved ≥1 expense/income) from casual visitors. Device ID: <code id="modal-anon-id" class="usage-anon-code">usr_...</code>
         </p>
+        <p id="modal-user-names" class="field-hint" hidden></p>
       </section>
 
       <form id="settings-form" class="dialog-form" action="#" method="POST">
-        <div class="form-group">
-          <label for="webhook-url-input">Google Apps Script Web App URL</label>
-          <input
-            type="url"
-            id="webhook-url-input"
-            name="webhookUrl"
-            placeholder="https://script.google.com/macros/s/.../exec"
-            autocorrect="off"
-            autocapitalize="off"
-            spellcheck="false"
-            aria-describedby="webhook-help"
-          >
-          <span id="webhook-help" class="field-hint">Paste your deployed Apps Script URL for automatic 2-way sync &amp; Google Sheet usage analytics.</span>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="user-name-input">Your Name (Shown in UsageStats)</label>
+            <input
+              type="text"
+              id="user-name-input"
+              name="userName"
+              placeholder="e.g. Tanay, Rahul..."
+              maxlength="40"
+              autocomplete="given-name"
+            >
+          </div>
+          <div class="form-group">
+            <label for="webhook-url-input">Personal Google Sheet Sync URL (Optional)</label>
+            <input
+              type="url"
+              id="webhook-url-input"
+              name="webhookUrl"
+              placeholder="https://script.google.com/macros/s/.../exec"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+            >
+          </div>
         </div>
 
         <div class="form-row-3">

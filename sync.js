@@ -12,12 +12,12 @@ const PUBLIC_COUNTER_CACHE_KEY = 'qe_usage_stats_cache_v1';
  * (deviceId, session count, tx count — NEVER their private expense amounts/notes)
  * is logged to the "UsageStats" tab of your Google Sheet!
  */
-export const DEFAULT_TELEMETRY_WEBHOOK_URL = '';
+export const DEFAULT_TELEMETRY_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwWUN6LyBsdzRI-_p5f3aVhEQaZqIrvoGatXDbtLdFjzIl4wlmnX7f960fBC-3Kv1k/exec';
 
 export const GOOGLE_APPS_SCRIPT_CODE = `const SHEET_NAME = 'Expenses';
 const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted', 'type', 'paymentMethod'];
 const STATS_SHEET_NAME = 'UsageStats';
-const STATS_HEADERS = ['deviceId', 'firstSeen', 'lastSeen', 'sessions', 'txCount', 'activeDays', 'platform', 'timezone'];
+const STATS_HEADERS = ['deviceId', 'userName', 'firstSeen', 'lastSeen', 'sessions', 'txCount', 'activeDays', 'platform', 'timezone'];
 // Optional: If created at https://script.google.com instead of Extensions -> Apps Script, paste your Sheet ID here:
 const OPTIONAL_SPREADSHEET_ID = '';
 
@@ -62,6 +62,8 @@ function recordTelemetry(telemetry) {
   const lastRow = sheet.getLastRow();
   const nowIso = new Date().toISOString().slice(0, 19).replace('T', ' ');
   let foundRow = -1;
+  let existingName = '';
+  let existingFirstSeen = nowIso;
   let existingSessions = 0;
   let existingTxCount = 0;
   let existingActiveDays = 1;
@@ -71,41 +73,46 @@ function recordTelemetry(telemetry) {
     for (var i = 0; i < rows.length; i++) {
       if (String(rows[i][0]) === String(telemetry.deviceId)) {
         foundRow = i + 2;
-        existingSessions = Number(rows[i][3]) || 0;
-        existingTxCount = Number(rows[i][4]) || 0;
-        existingActiveDays = Number(rows[i][5]) || 1;
+        var isNineCol = rows[i].length >= 9 && String(rows[i][2] || '').indexOf('-') !== -1;
+        if (isNineCol) {
+          existingName = String(rows[i][1] || '');
+          existingFirstSeen = rows[i][2] || nowIso;
+          existingSessions = Number(rows[i][4]) || 0;
+          existingTxCount = Number(rows[i][5]) || 0;
+          existingActiveDays = Number(rows[i][6]) || 1;
+        } else {
+          existingFirstSeen = rows[i][1] || nowIso;
+          existingSessions = Number(rows[i][3]) || 0;
+          existingTxCount = Number(rows[i][4]) || 0;
+          existingActiveDays = Number(rows[i][5]) || 1;
+        }
         break;
       }
     }
   }
 
+  var incomingName = String(telemetry.userName || '').trim().slice(0, 50);
+  var finalName = incomingName || existingName || 'Anonymous';
   const nextSessions = telemetry.isNewSession ? existingSessions + 1 : Math.max(1, existingSessions);
   const nextTxCount = Math.max(existingTxCount, Number(telemetry.txCount) || 0);
   const nextActiveDays = Math.max(existingActiveDays, Number(telemetry.activeDays) || 1);
 
+  var rowValues = [
+    String(telemetry.deviceId),
+    finalName,
+    existingFirstSeen,
+    nowIso,
+    nextSessions,
+    nextTxCount,
+    nextActiveDays,
+    String(telemetry.platform || ''),
+    String(telemetry.timezone || '')
+  ];
+
   if (foundRow !== -1) {
-    const firstSeen = sheet.getRange(foundRow, 2).getValue() || nowIso;
-    sheet.getRange(foundRow, 1, 1, STATS_HEADERS.length).setValues([[
-      String(telemetry.deviceId),
-      firstSeen,
-      nowIso,
-      nextSessions,
-      nextTxCount,
-      nextActiveDays,
-      String(telemetry.platform || ''),
-      String(telemetry.timezone || '')
-    ]]);
+    sheet.getRange(foundRow, 1, 1, STATS_HEADERS.length).setValues([rowValues]);
   } else {
-    sheet.appendRow([
-      String(telemetry.deviceId),
-      nowIso,
-      nowIso,
-      1,
-      nextTxCount,
-      nextActiveDays,
-      String(telemetry.platform || ''),
-      String(telemetry.timezone || '')
-    ]);
+    sheet.appendRow(rowValues);
   }
   return getUsageSummary();
 }
@@ -114,24 +121,31 @@ function getUsageSummary() {
   const sheet = getOrCreateStatsSheet();
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) {
-    return { uniqueUsers: 0, activeUsers: 0, totalSessions: 0, totalTxLogged: 0 };
+    return { uniqueUsers: 0, activeUsers: 0, totalSessions: 0, totalTxLogged: 0, userNames: [] };
   }
   const rows = sheet.getRange(2, 1, lastRow - 1, STATS_HEADERS.length).getValues();
   var uniqueUsers = 0;
   var activeUsers = 0;
   var totalSessions = 0;
   var totalTxLogged = 0;
+  var userNames = [];
   for (var i = 0; i < rows.length; i++) {
     if (!rows[i][0]) continue;
     uniqueUsers++;
-    var userTx = Number(rows[i][4]) || 0;
+    var isNineCol = String(rows[i][2] || '').indexOf('-') !== -1;
+    var nameVal = isNineCol ? String(rows[i][1] || '').trim() : '';
+    var sessionsVal = isNineCol ? Number(rows[i][4]) || 1 : Number(rows[i][3]) || 1;
+    var userTx = isNineCol ? Number(rows[i][5]) || 0 : Number(rows[i][4]) || 0;
     if (userTx > 0) {
       activeUsers++;
     }
-    totalSessions += Number(rows[i][3]) || 1;
+    if (nameVal && nameVal !== 'Anonymous' && userNames.length < 15) {
+      userNames.push(nameVal);
+    }
+    totalSessions += sessionsVal;
     totalTxLogged += userTx;
   }
-  return { uniqueUsers: uniqueUsers, activeUsers: activeUsers, totalSessions: totalSessions, totalTxLogged: totalTxLogged };
+  return { uniqueUsers: uniqueUsers, activeUsers: activeUsers, totalSessions: totalSessions, totalTxLogged: totalTxLogged, userNames: userNames };
 }
 
 function readAllRows(sheet) {
@@ -303,6 +317,7 @@ export function loadSettings() {
     const raw = localStorage.getItem(SETTINGS_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
     return {
+      userName: parsed.userName || '',
       webhookUrl: parsed.webhookUrl || '',
       telemetryUrl: parsed.telemetryUrl || DEFAULT_TELEMETRY_WEBHOOK_URL || '',
       currency: parsed.currency || '₹',
@@ -312,6 +327,7 @@ export function loadSettings() {
     };
   } catch {
     return {
+      userName: '',
       webhookUrl: '',
       telemetryUrl: DEFAULT_TELEMETRY_WEBHOOK_URL || '',
       currency: '₹',
@@ -333,6 +349,28 @@ export function saveSettings(settings) {
   return next;
 }
 
+/**
+ * If you share a personalized link like https://your-app.com/?user=Rahul (or ?name=Priya),
+ * this automatically captures the person's name into local settings and cleans the URL bar.
+ */
+export function initUserNameFromUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = (params.get('user') || params.get('name') || params.get('by') || '').trim();
+    if (fromUrl) {
+      saveSettings({ userName: fromUrl.slice(0, 50) });
+      params.delete('user');
+      params.delete('name');
+      params.delete('by');
+      const cleanQuery = params.toString();
+      const cleanUrl = `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export function getOrCreateAnonDeviceId() {
   try {
     let id = localStorage.getItem(ANON_DEVICE_KEY);
@@ -351,9 +389,9 @@ export function loadCachedUsageStats() {
     const raw = localStorage.getItem(PUBLIC_COUNTER_CACHE_KEY);
     return raw
       ? JSON.parse(raw)
-      : { uniqueUsers: 1, activeUsers: 0, totalSessions: 1, totalTxLogged: 0, source: 'local' };
+      : { uniqueUsers: 1, activeUsers: 0, totalSessions: 1, totalTxLogged: 0, userNames: [], source: 'local' };
   } catch {
-    return { uniqueUsers: 1, activeUsers: 0, totalSessions: 1, totalTxLogged: 0, source: 'local' };
+    return { uniqueUsers: 1, activeUsers: 0, totalSessions: 1, totalTxLogged: 0, userNames: [], source: 'local' };
   }
 }
 
@@ -367,9 +405,11 @@ function saveCachedUsageStats(stats) {
 
 function buildTelemetryPayload(isNewSession = false) {
   const expenses = loadExpenses();
+  const settings = loadSettings();
   const uniqueDates = new Set(expenses.map((e) => e.date).filter(Boolean));
   return {
     deviceId: getOrCreateAnonDeviceId(),
+    userName: (settings.userName || '').trim(),
     isNewSession: Boolean(isNewSession),
     txCount: expenses.length,
     activeDays: Math.max(1, uniqueDates.size),
@@ -379,13 +419,9 @@ function buildTelemetryPayload(isNewSession = false) {
 }
 
 /**
- * Zero-cost anonymous usage tracker for deployed instances:
- * Sends an anonymous telemetry ping to the Google Sheet `UsageStats` tab
- * (via `DEFAULT_TELEMETRY_WEBHOOK_URL` or user's `webhookUrl`), tracking:
- * - `activeUsers`: People who have ACTUALLY logged >= 1 expense/income
- * - `uniqueUsers`: Total devices that opened the link
- * - `totalSessions`: Total app launches
- * - `totalTxLogged`: Total entries logged across all users
+ * Zero-cost usage tracker for deployed instances:
+ * Sends a telemetry ping (including `userName`, `deviceId`, `txCount`, `activeDays`)
+ * to the Google Sheet `UsageStats` tab (via `DEFAULT_TELEMETRY_WEBHOOK_URL` or user's `webhookUrl`).
  */
 export async function trackAppUsage({ onLaunch = false } = {}) {
   const cached = loadCachedUsageStats();
@@ -406,6 +442,7 @@ export async function trackAppUsage({ onLaunch = false } = {}) {
     activeUsers: Math.max(localTxCount > 0 ? 1 : 0, cached.activeUsers || 0),
     totalSessions: Math.max(1, (cached.totalSessions || 0) + (isNewSession ? 1 : 0)),
     totalTxLogged: Math.max(localTxCount, cached.totalTxLogged || 0),
+    userNames: Array.isArray(cached.userNames) ? cached.userNames : [],
     source: cached.source || 'local'
   };
   saveCachedUsageStats(updatedStats);
@@ -435,6 +472,7 @@ export async function trackAppUsage({ onLaunch = false } = {}) {
             activeUsers: Number(data.usageSummary.activeUsers) ?? (localTxCount > 0 ? 1 : 0),
             totalSessions: Math.max(1, Number(data.usageSummary.totalSessions) || 1),
             totalTxLogged: Math.max(localTxCount, Number(data.usageSummary.totalTxLogged) || 0),
+            userNames: Array.isArray(data.usageSummary.userNames) ? data.usageSummary.userNames : [],
             source: 'sheet'
           };
           saveCachedUsageStats(updatedStats);
