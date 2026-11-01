@@ -17,7 +17,7 @@
  */
 
 const SHEET_NAME = 'Expenses';
-const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted'];
+const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted', 'type'];
 
 function getOrCreateSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -27,6 +27,8 @@ function getOrCreateSheet() {
     sheet.appendRow(HEADERS);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold').setBackground('#f3f4f6');
     sheet.setFrozenRows(1);
+  } else if (sheet.getLastColumn() < HEADERS.length) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold').setBackground('#f3f4f6');
   }
   return sheet;
 }
@@ -34,7 +36,8 @@ function getOrCreateSheet() {
 function readAllRows(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return [];
-  const values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+  const colCount = Math.max(sheet.getLastColumn(), HEADERS.length);
+  const values = sheet.getRange(2, 1, lastRow - 1, colCount).getValues();
   const items = [];
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
@@ -57,7 +60,8 @@ function readAllRows(sheet) {
       note: String(row[4] || ''),
       raw: String(row[5] || ''),
       updatedAt: Number(row[6]) || 0,
-      deleted: row[7] === true || row[7] === 'true'
+      deleted: row[7] === true || row[7] === 'true',
+      type: String(row[8] || '')
     });
   }
   return items;
@@ -101,7 +105,8 @@ function doPost(e) {
         String(item.note || ''),
         String(item.raw || ''),
         Number(item.updatedAt) || Date.now(),
-        Boolean(item.deleted)
+        Boolean(item.deleted),
+        String(item.type || 'expense')
       ];
 
       if (current) {

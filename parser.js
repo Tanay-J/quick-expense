@@ -1,24 +1,63 @@
 /**
- * Smart Zero-Cost Local Natural Language Expense Parser
+ * Smart Zero-Cost Local Natural Language Expense & Income Parser
  * Parses messages like:
  * - "200 fuel bike"
  * - "450 dinner with friends yesterday"
+ * - "+50000 salary oct" or "salary 85k"
+ * - "received 450 cashback, 200 fuel bike"
  * - "1.5k shoes amazon"
  * - "150 coffee, 80 auto, 1200 groceries"
  * - "rent 15000 1st oct"
  */
 
-export const CATEGORIES = [
-  { id: 'food', name: 'Food & Dining', icon: '🍽️', hue: '24' },
-  { id: 'groceries', name: 'Groceries', icon: '🛒', hue: '142' },
-  { id: 'transport', name: 'Transport & Fuel', icon: '⛽', hue: '210' },
-  { id: 'bills', name: 'Bills & Utilities', icon: '⚡', hue: '45' },
-  { id: 'shopping', name: 'Shopping', icon: '🛍️', hue: '280' },
-  { id: 'health', name: 'Health & Fitness', icon: '💊', hue: '340' },
-  { id: 'entertainment', name: 'Entertainment', icon: '🎬', hue: '190' },
-  { id: 'personal', name: 'Personal & Home', icon: '🏠', hue: '165' },
-  { id: 'other', name: 'Other', icon: '📌', hue: '220' }
+export const EXPENSE_CATEGORIES = [
+  { id: 'food', name: 'Food & Dining', icon: '🍽️', hue: '24', type: 'expense' },
+  { id: 'groceries', name: 'Groceries', icon: '🛒', hue: '142', type: 'expense' },
+  { id: 'transport', name: 'Transport & Fuel', icon: '⛽', hue: '210', type: 'expense' },
+  { id: 'bills', name: 'Bills & Utilities', icon: '⚡', hue: '45', type: 'expense' },
+  { id: 'shopping', name: 'Shopping', icon: '🛍️', hue: '280', type: 'expense' },
+  { id: 'health', name: 'Health & Fitness', icon: '💊', hue: '340', type: 'expense' },
+  { id: 'entertainment', name: 'Entertainment', icon: '🎬', hue: '190', type: 'expense' },
+  { id: 'personal', name: 'Personal & Home', icon: '🏠', hue: '165', type: 'expense' },
+  { id: 'other', name: 'Other Expense', icon: '📌', hue: '220', type: 'expense' }
 ];
+
+export const INCOME_CATEGORIES = [
+  { id: 'salary', name: 'Salary & Paycheck', icon: '💰', hue: '152', type: 'income' },
+  { id: 'freelance', name: 'Freelance & Business', icon: '💼', hue: '172', type: 'income' },
+  { id: 'investments', name: 'Investments & Returns', icon: '📈', hue: '135', type: 'income' },
+  { id: 'refunds', name: 'Refunds & Cashback', icon: '🔄', hue: '195', type: 'income' },
+  { id: 'gifts_in', name: 'Gifts & Splitwise', icon: '🎁', hue: '310', type: 'income' },
+  { id: 'other_income', name: 'Other Income', icon: '💵', hue: '160', type: 'income' }
+];
+
+export const CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
+
+export function isIncomeCategory(categoryId) {
+  return INCOME_CATEGORIES.some((c) => c.id === categoryId);
+}
+
+export function getCategoriesByType(type = 'expense') {
+  return type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+}
+
+export const DEFAULT_INCOME_KEYWORDS = {
+  salary: [
+    'salary', 'paycheck', 'stipend', 'wages', 'bonus', 'appraisal', 'payout', 'pension'
+  ],
+  freelance: [
+    'freelance', 'consulting', 'client', 'project payment', 'invoice', 'commission', 'side hustle', 'gig'
+  ],
+  investments: [
+    'dividend', 'dividends', 'interest', 'stocks', 'mutual fund', 'fd', 'profit', 'returns', 'capital gain', 'rental income'
+  ],
+  refunds: [
+    'refund', 'refunded', 'cashback', 'reimbursement', 'reimbursed', 'reversal', 'claim', 'return'
+  ],
+  gifts_in: [
+    'splitwise', 'settled', 'pocket money', 'allowance', 'shagun', 'gift money', 'paid back', 'returned by'
+  ]
+};
 
 export const DEFAULT_KEYWORDS = {
   transport: [
@@ -98,7 +137,8 @@ export function saveLearnedKeyword(word, categoryId) {
   const clean = word.toLowerCase().trim();
   if (clean.length < 2 || /^\d+$/.test(clean)) return;
   const stopWords = new Set([
-    'for', 'with', 'and', 'the', 'from', 'paid', 'spent', 'to', 'in', 'on', 'at', 'by', 'my', 'rs', 'inr'
+    'for', 'with', 'and', 'the', 'from', 'paid', 'spent', 'received', 'got', 'credited',
+    'income', 'to', 'in', 'on', 'at', 'by', 'my', 'rs', 'inr'
   ]);
   if (stopWords.has(clean)) return;
 
@@ -124,7 +164,7 @@ export function learnFromNote(note, categoryId) {
 }
 
 export function getCategoryById(id) {
-  return CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
+  return CATEGORIES.find((c) => c.id === id) || EXPENSE_CATEGORIES[EXPENSE_CATEGORIES.length - 1];
 }
 
 /**
@@ -223,24 +263,37 @@ function extractDate(text, now = new Date()) {
 }
 
 /**
- * Infer category from text using learned keywords first, then default dictionary
+ * Detect whether a segment explicitly signals 'income' or 'expense'
  */
-export function inferCategory(text) {
-  const lower = text.toLowerCase().trim();
-  if (!lower) return 'other';
+export function detectExplicitType(segment, defaultType = 'expense') {
+  if (!segment) return defaultType;
+  const trimmed = segment.trim();
 
-  const learned = getLearnedKeywords();
-  const words = lower.replace(/[^\p{L}\p{N}\s&]/gu, ' ').split(/\s+/).filter(Boolean);
-
-  // 1. Check learned user keywords first (exact token match)
-  for (const w of words) {
-    if (learned[w]) {
-      return learned[w];
-    }
+  // Unary '+' before an amount or at start of message -> income (not binary '120+80')
+  if (/^\+/.test(trimmed) || /(?:^|\s)\+\s*(?:₹|rs\.?|inr\s*)?\d/i.test(trimmed)) {
+    return 'income';
   }
 
-  // 2. Check multi-word phrases and single words in default dictionary
-  for (const [catId, keywords] of Object.entries(DEFAULT_KEYWORDS)) {
+  // Unary '-' before an amount or at start -> expense
+  if (/^-/.test(trimmed) || /(?:^|\s)-\s*(?:₹|rs\.?|inr\s*)?\d/i.test(trimmed)) {
+    return 'expense';
+  }
+
+  // Explicit income verbs / phrases
+  if (/\b(received|credited|earned|income|got\s+paid|paid\s+back)\b/i.test(trimmed)) {
+    return 'income';
+  }
+
+  // Explicit expense verbs
+  if (/\b(spent|debited)\b/i.test(trimmed)) {
+    return 'expense';
+  }
+
+  return null;
+}
+
+function matchDictionary(lower, words, dict) {
+  for (const [catId, keywords] of Object.entries(dict)) {
     for (const kw of keywords) {
       if (kw.includes(' ')) {
         if (lower.includes(kw)) return catId;
@@ -249,30 +302,77 @@ export function inferCategory(text) {
       }
     }
   }
-
-  // 3. Partial prefix match (e.g., "grocer", "veg", "med", "petr")
-  for (const [catId, keywords] of Object.entries(DEFAULT_KEYWORDS)) {
+  for (const [catId, keywords] of Object.entries(dict)) {
     for (const kw of keywords) {
       if (kw.length >= 4 && words.some((w) => w.length >= 3 && (kw.startsWith(w) || w.startsWith(kw)))) {
         return catId;
       }
     }
   }
+  return null;
+}
+
+/**
+ * Infer category from text using learned keywords first, then default dictionary.
+ * If forcedType ('expense' | 'income') is provided, restricts category to that type.
+ */
+export function inferCategory(text, forcedType = null) {
+  const lower = (text || '').toLowerCase().trim();
+  const fallback = forcedType === 'income' ? 'other_income' : 'other';
+  if (!lower) return fallback;
+
+  const learned = getLearnedKeywords();
+  const words = lower.replace(/[^\p{L}\p{N}\s&]/gu, ' ').split(/\s+/).filter(Boolean);
+
+  // 1. Check learned user keywords first (exact token match)
+  for (const w of words) {
+    const learnedCat = learned[w];
+    if (learnedCat) {
+      if (!forcedType) return learnedCat;
+      const isInc = isIncomeCategory(learnedCat);
+      if ((forcedType === 'income' && isInc) || (forcedType === 'expense' && !isInc)) {
+        return learnedCat;
+      }
+    }
+  }
+
+  // 2. If forcedType is 'income', search income dictionary only
+  if (forcedType === 'income') {
+    return matchDictionary(lower, words, DEFAULT_INCOME_KEYWORDS) || 'other_income';
+  }
+
+  // 3. If forcedType is 'expense', search expense dictionary only
+  if (forcedType === 'expense') {
+    return matchDictionary(lower, words, DEFAULT_KEYWORDS) || 'other';
+  }
+
+  // 4. Auto-detect: check unambiguous income keywords (salary, refund, cashback, freelance, etc.) first
+  const incomeCat = matchDictionary(lower, words, DEFAULT_INCOME_KEYWORDS);
+  if (incomeCat) return incomeCat;
+
+  // 5. Check expense keywords
+  const expenseCat = matchDictionary(lower, words, DEFAULT_KEYWORDS);
+  if (expenseCat) return expenseCat;
 
   return 'other';
 }
 
 /**
- * Parse a single expense segment like "200 fuel bike" or "coffee 150 yesterday"
+ * Parse a single expense or income segment like:
+ * - "200 fuel bike"
+ * - "+50000 salary"
+ * - "received 450 cashback yesterday"
  */
-export function parseSingleExpense(segment, now = new Date()) {
+export function parseSingleExpense(segment, now = new Date(), defaultType = 'expense') {
   if (!segment || !segment.trim()) return null;
+
+  const explicitType = detectExplicitType(segment, defaultType);
 
   // Extract date first so numbers in dates ("2 days ago", "15 oct") aren't confused with amounts
   const { dateStr, cleanedText: dateCleanedText, dateLabel } = extractDate(segment, now);
 
   // Evaluate simple inline addition expressions like "120+80 lunch" or "100 + 50 snacks"
-  const cleanedText = dateCleanedText.replace(
+  const mathCleanedText = dateCleanedText.replace(
     /\b(\d+(?:\.\d{1,2})?(?:\s*\+\s*\d+(?:\.\d{1,2})?)+)\b/g,
     (expr) => {
       const sum = expr
@@ -282,6 +382,9 @@ export function parseSingleExpense(segment, now = new Date()) {
       return String(Math.round(sum * 100) / 100);
     }
   );
+
+  // Strip leading unary + or - before currency/digits so amountRegex matches cleanly
+  const cleanedText = mathCleanedText.replace(/(^|\s)[+-]\s*(?=(?:₹|rs\.?|inr\s*)?\d)/gi, '$1');
 
   // Match amount: supports "200", "2,400", "250.50", "1.5k", "₹200", "rs 200", "200/-"
   const amountRegex = /(?:^|\s)(?:₹|rs\.?|inr\s*)?(\d{1,3}(?:,\d{2,3})+|\d+)(?:\.(\d{1,2}))?\s*(k)?(?:\s*\/-)?(?=\s|$)/i;
@@ -304,13 +407,19 @@ export function parseSingleExpense(segment, now = new Date()) {
   const before = cleanedText.slice(0, matchIndex);
   const after = cleanedText.slice(matchIndex + fullMatch.length);
   let note = `${before} ${after}`
-    .replace(/\b(spent|paid|for|on|rs\.?|inr|rupees)\b/gi, ' ')
+    .replace(/^[+-]\s*/, '')
+    .replace(/\b(spent|paid|received|credited|earned|got|for|on|from|rs\.?|inr|rupees)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
-  // Capitalize first letter of note
-  const categoryId = inferCategory(note || segment);
-  const categoryObj = getCategoryById(categoryId);
+  const forcedType = explicitType || (defaultType === 'income' ? 'income' : null);
+  const categoryId = inferCategory(note || segment, forcedType);
+  const resolvedType = isIncomeCategory(categoryId) ? 'income' : (explicitType || defaultType || 'expense');
+  const finalCategoryId =
+    resolvedType === 'income' && !isIncomeCategory(categoryId)
+      ? inferCategory(note || segment, 'income')
+      : categoryId;
+  const categoryObj = getCategoryById(finalCategoryId);
 
   if (!note) {
     note = categoryObj.name;
@@ -319,9 +428,10 @@ export function parseSingleExpense(segment, now = new Date()) {
   }
 
   return {
+    type: resolvedType,
     amount,
     note,
-    category: categoryId,
+    category: finalCategoryId,
     date: dateStr,
     dateLabel,
     raw: segment.trim()
@@ -329,10 +439,10 @@ export function parseSingleExpense(segment, now = new Date()) {
 }
 
 /**
- * Parse a full user message that may contain 1 or multiple expenses
- * e.g. "200 fuel bike, 150 coffee" or newline-separated entries
+ * Parse a full user message that may contain 1 or multiple expenses/incomes
+ * e.g. "200 fuel bike, 150 coffee" or "+50000 salary, 200 fuel"
  */
-export function parseExpenseMessage(input, now = new Date()) {
+export function parseExpenseMessage(input, now = new Date(), defaultType = 'expense') {
   if (!input || !input.trim()) return [];
 
   // Split by newlines or commas ONLY when comma is NOT inside a number like 1,200
@@ -343,7 +453,7 @@ export function parseExpenseMessage(input, now = new Date()) {
 
   const parsed = [];
   for (const seg of segments) {
-    const item = parseSingleExpense(seg, now);
+    const item = parseSingleExpense(seg, now, defaultType);
     if (item) {
       parsed.push(item);
     }
@@ -353,10 +463,10 @@ export function parseExpenseMessage(input, now = new Date()) {
 
 /**
  * Parse a message into interactive draft items for the live "Going to be saved" preview.
- * Even if an amount hasn't been typed yet (e.g. "dinner yesterday"), returns the inferred
- * category, cleaned note, and resolved date so the user can see & edit all fields inline.
+ * Even if an amount hasn't been typed yet (e.g. "dinner yesterday" or "salary"), returns the inferred
+ * type, category, cleaned note, and resolved date so the user can see & edit all fields inline.
  */
-export function parseDraftMessage(input, now = new Date()) {
+export function parseDraftMessage(input, now = new Date(), defaultType = 'expense') {
   if (!input || !input.trim()) return [];
 
   const segments = input
@@ -366,20 +476,28 @@ export function parseDraftMessage(input, now = new Date()) {
 
   const drafts = [];
   for (const seg of segments) {
-    const full = parseSingleExpense(seg, now);
+    const full = parseSingleExpense(seg, now, defaultType);
     if (full) {
       drafts.push({ ...full, missingAmount: false });
       continue;
     }
 
+    const explicitType = detectExplicitType(seg, defaultType);
     const { dateStr, cleanedText, dateLabel } = extractDate(seg, now);
     let note = cleanedText
-      .replace(/\b(spent|paid|for|on|rs\.?|inr|rupees)\b/gi, ' ')
+      .replace(/^[+-]\s*/, '')
+      .replace(/\b(spent|paid|received|credited|earned|got|for|on|from|rs\.?|inr|rupees)\b/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
-    const categoryId = inferCategory(note || seg);
-    const categoryObj = getCategoryById(categoryId);
+    const forcedType = explicitType || (defaultType === 'income' ? 'income' : null);
+    const categoryId = inferCategory(note || seg, forcedType);
+    const resolvedType = isIncomeCategory(categoryId) ? 'income' : (explicitType || defaultType || 'expense');
+    const finalCategoryId =
+      resolvedType === 'income' && !isIncomeCategory(categoryId)
+        ? inferCategory(note || seg, 'income')
+        : categoryId;
+    const categoryObj = getCategoryById(finalCategoryId);
 
     if (!note) {
       note = categoryObj.name;
@@ -388,9 +506,10 @@ export function parseDraftMessage(input, now = new Date()) {
     }
 
     drafts.push({
+      type: resolvedType,
       amount: null,
       note,
-      category: categoryId,
+      category: finalCategoryId,
       date: dateStr,
       dateLabel,
       raw: seg,

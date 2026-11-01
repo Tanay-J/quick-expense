@@ -1,9 +1,11 @@
+import { isIncomeCategory } from './parser.js';
+
 const STORAGE_KEY = 'qe_expenses_v1';
 const TOMBSTONES_KEY = 'qe_tombstones_v1';
 const SETTINGS_KEY = 'qe_settings_v1';
 
 export const GOOGLE_APPS_SCRIPT_CODE = `const SHEET_NAME = 'Expenses';
-const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted'];
+const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted', 'type'];
 
 function getOrCreateSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -13,6 +15,8 @@ function getOrCreateSheet() {
     sheet.appendRow(HEADERS);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold').setBackground('#f3f4f6');
     sheet.setFrozenRows(1);
+  } else if (sheet.getLastColumn() < HEADERS.length) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold').setBackground('#f3f4f6');
   }
   return sheet;
 }
@@ -20,7 +24,8 @@ function getOrCreateSheet() {
 function readAllRows(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return [];
-  const values = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+  const colCount = Math.max(sheet.getLastColumn(), HEADERS.length);
+  const values = sheet.getRange(2, 1, lastRow - 1, colCount).getValues();
   const items = [];
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
@@ -43,7 +48,8 @@ function readAllRows(sheet) {
       note: String(row[4] || ''),
       raw: String(row[5] || ''),
       updatedAt: Number(row[6]) || 0,
-      deleted: row[7] === true || row[7] === 'true'
+      deleted: row[7] === true || row[7] === 'true',
+      type: String(row[8] || '')
     });
   }
   return items;
@@ -87,7 +93,8 @@ function doPost(e) {
         String(item.note || ''),
         String(item.raw || ''),
         Number(item.updatedAt) || Date.now(),
-        Boolean(item.deleted)
+        Boolean(item.deleted),
+        String(item.type || 'expense')
       ];
       if (current) {
         if ((Number(item.updatedAt) || 0) >= current.updatedAt) {
@@ -110,10 +117,20 @@ function doPost(e) {
   }
 }`;
 
+export function normalizeEntryType(item) {
+  if (item?.type === 'income' || item?.type === 'expense') {
+    return item.type;
+  }
+  return isIncomeCategory(item?.category) ? 'income' : 'expense';
+}
+
 export function loadExpenses() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list)
+      ? list.map((item) => ({ ...item, type: normalizeEntryType(item) }))
+      : [];
   } catch {
     return [];
   }
@@ -201,7 +218,8 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
       note: e.note,
       raw: e.raw || '',
       updatedAt: e.updatedAt || Date.now(),
-      deleted: false
+      deleted: false,
+      type: normalizeEntryType(e)
     })),
     ...tombstones.map((t) => ({
       id: t.id,
@@ -211,7 +229,8 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
       note: t.note || '',
       raw: '',
       updatedAt: t.updatedAt || Date.now(),
-      deleted: true
+      deleted: true,
+      type: normalizeEntryType(t)
     }))
   ];
 
@@ -254,6 +273,7 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
       }
       mergedMap.set(loc.id, {
         ...loc,
+        type: normalizeEntryType(loc),
         synced: loc.synced || syncedIds.has(loc.id)
       });
     }
@@ -262,11 +282,13 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
       if (!rem || !rem.id || rem.deleted) continue;
       const existing = mergedMap.get(rem.id);
       if (!existing || (Number(rem.updatedAt) || 0) > (Number(existing.updatedAt) || 0)) {
+        const remCat = String(rem.category || 'other');
         mergedMap.set(rem.id, {
           id: String(rem.id),
           date: String(rem.date).slice(0, 10),
           amount: Number(rem.amount) || 0,
-          category: String(rem.category || 'other'),
+          category: remCat,
+          type: normalizeEntryType(rem),
           note: String(rem.note || ''),
           raw: String(rem.raw || ''),
           updatedAt: Number(rem.updatedAt) || Date.now(),
@@ -300,7 +322,7 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
 }
 
 export function exportToCSV(expenses) {
-  const headers = ['Date', 'Amount', 'Category', 'Item / Note', 'Original Message'];
+  const headers = ['Date', 'Type', 'Amount', 'Category', 'Item / Note', 'Original Message'];
   const escapeCSV = (val) => {
     const str = String(val ?? '');
     if (/[",\n]/.test(str)) {
@@ -311,6 +333,7 @@ export function exportToCSV(expenses) {
 
   const rows = expenses.map((e) => [
     e.date,
+    normalizeEntryType(e) === 'income' ? 'Income' : 'Expense',
     e.amount,
     e.category,
     e.note,

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dropspend-v2';
+const CACHE_NAME = 'dropspend-v3';
 const ASSETS = [
   './',
   './index.html',

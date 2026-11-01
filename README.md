@@ -26,20 +26,24 @@ Traditional expense trackers require too many taps (open app → tap `+` → typ
 Instead of paying for an LLM API on every message, `parser.js` uses a deterministic + self-learning natural language parser that runs in `<1ms` completely offline:
 
 ### Supported Input Patterns
-- **Simple messages**: `"200 fuel bike"` → `{ amount: 200, category: "transport", note: "Fuel bike", date: "Today" }`
-- **Amount anywhere & shorthand**: `"fuel bike 200"`, `"₹250.50 coffee"`, `"1.5k shoes myntra"` (`₹1,500`), `"1,200 groceries"`
-- **Batch logging (comma or newline separated)**:
-  - `"150 coffee, 80 auto, 1,200 groceries"` → Logs 3 separate transactions at once.
+- **Simple expense messages**: `"200 fuel bike"` → `{ type: "expense", amount: 200, category: "transport", note: "Fuel bike", date: "Today" }`
+- **Income messages (auto-detected via `+` prefix, verbs, or keywords)**:
+  - `"+50000 salary"` or `"salary 85k yesterday"` → `{ type: "income", amount: 50000, category: "salary" }`
+  - `"received 450 cashback"` or `"1200 refund amazon"` → `{ type: "income", category: "refunds" }`
+  - `"15k freelance"`, `"dividend 1,250 15 oct"`, `"+2500 splitwise"`
+- **Amount anywhere & shorthand**: `"fuel bike 200"`, `"₹250.50 coffee"`, `"1.5k shoes myntra"` (`₹1,500`), `"1,200 groceries"`, inline math `"120+80 lunch"` (`₹200`)
+- **Batch logging (comma or newline separated, including mixed expense + income)**:
+  - `"150 coffee, +2500 splitwise, 1,200 groceries"` → Logs 2 expenses and 1 income at once.
 - **Relative & explicit dates**:
   - `"yesterday"` / `"last night"` / `"kal"` → Yesterday
   - `"day before yesterday"` / `"parso"` → 2 days ago
   - `"3 days ago"` → Subtract 3 days
   - `"last friday"` → Previous Friday
-  - `"15 oct"` / `"1st oct"` → Explicit date
+  - `"15 oct"` / `"oct 15"` / `"1st oct"` → Explicit date
 
 ### Self-Learning Category Engine
-- Comes preloaded with a dictionary across 9 categories (`Food & Dining`, `Groceries`, `Transport & Fuel`, `Bills & Utilities`, `Shopping`, `Health & Fitness`, `Entertainment`, `Personal & Home`, `Other`).
-- **Auto-learning**: Whenever you edit an expense and change its category, `learnFromNote()` saves the keywords in that note (`localStorage` key `qe_learned_keywords_v1`) so future messages containing those words are categorized automatically.
+- Comes preloaded with **9 Expense Categories** (`Food & Dining`, `Groceries`, `Transport & Fuel`, `Bills & Utilities`, `Shopping`, `Health & Fitness`, `Entertainment`, `Personal & Home`, `Other Expense`) and **6 Income Categories** (`Salary & Paycheck`, `Freelance & Business`, `Investments & Returns`, `Refunds & Cashback`, `Gifts & Splitwise`, `Other Income`).
+- **Auto-learning**: Whenever you edit an entry or change its category in the live preview, `learnFromNote()` saves the keywords in that note (`localStorage` key `qe_learned_keywords_v1`) so future messages containing those words are categorized automatically.
 
 ---
 

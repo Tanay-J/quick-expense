@@ -1,7 +1,10 @@
 import {
   CATEGORIES,
+  getCategoriesByType,
   getCategoryById,
   getLearnedKeywords,
+  inferCategory,
+  isIncomeCategory,
   learnFromNote,
   mergeLearnedKeywords,
   parseDraftMessage,
@@ -15,6 +18,7 @@ import {
   loadExpenses,
   loadSettings,
   loadTombstones,
+  normalizeEntryType,
   saveExpenses,
   saveSettings,
   saveTombstones,
@@ -29,6 +33,9 @@ const state = {
   selectedYear: new Date().getFullYear(),
   selectedMonth: new Date().getMonth(), // 0-11
   selectedCategory: null,
+  catBreakdownType: 'expense', // 'expense' | 'income'
+  feedFilterType: 'all', // 'all' | 'expense' | 'income'
+  composerType: 'expense', // 'expense' | 'income'
   searchQuery: '',
   syncState: 'local', // 'local' | 'synced' | 'syncing' | 'error'
   draftItems: [], // Interactive parsed items staged for saving
@@ -47,6 +54,9 @@ const els = {
   modeChips: document.querySelectorAll('.mode-chip'),
   kpiTotal: document.getElementById('kpi-total'),
   kpiSubCount: document.getElementById('kpi-sub-count'),
+  kpiIncome: document.getElementById('kpi-income'),
+  kpiIncomeSub: document.getElementById('kpi-income-sub'),
+  kpiNet: document.getElementById('kpi-net'),
   kpiAvg: document.getElementById('kpi-avg'),
   kpiProjected: document.getElementById('kpi-projected'),
   kpiTopCat: document.getElementById('kpi-top-cat'),
@@ -54,11 +64,13 @@ const els = {
   budgetWrap: document.getElementById('budget-progress-wrap'),
   budgetStatusText: document.getElementById('budget-status-text'),
   budgetProgress: document.getElementById('budget-progress'),
+  catTypeChips: document.querySelectorAll('[data-cat-type]'),
   catStackedBar: document.getElementById('category-stacked-bar'),
   catList: document.getElementById('category-list'),
   clearCatFilterBtn: document.getElementById('clear-cat-filter-btn'),
   trendChart: document.getElementById('trend-chart'),
   trendSubtitle: document.getElementById('trend-subtitle'),
+  feedTypeChips: document.querySelectorAll('[data-feed-type]'),
   searchForm: document.getElementById('search-form'),
   searchInput: document.getElementById('search-input'),
   expenseList: document.getElementById('expense-list'),
@@ -66,6 +78,9 @@ const els = {
   sampleChips: document.querySelectorAll('.sample-chip'),
   parsePreview: document.getElementById('parse-preview'),
   expenseForm: document.getElementById('expense-form'),
+  composerTypeBtn: document.getElementById('composer-type-btn'),
+  composerTypeIcon: document.getElementById('composer-type-icon'),
+  composerTypeLabel: document.getElementById('composer-type-label'),
   expenseInput: document.getElementById('expense-input'),
   sendExpenseBtn: document.getElementById('send-expense-btn'),
   sendBtnText: document.getElementById('send-btn-text'),
@@ -84,6 +99,7 @@ const els = {
   editDialog: document.getElementById('edit-dialog'),
   editExpenseForm: document.getElementById('edit-expense-form'),
   editId: document.getElementById('edit-id'),
+  editType: document.getElementById('edit-type'),
   editAmount: document.getElementById('edit-amount'),
   editNote: document.getElementById('edit-note'),
   editCategory: document.getElementById('edit-category'),
@@ -190,15 +206,20 @@ function updatePeriodHeader() {
 }
 
 function renderKPIs(periodExpenses) {
-  const total = periodExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-  els.kpiTotal.textContent = formatCurrency(total);
-  els.kpiSubCount.textContent = `${periodExpenses.length} expense${periodExpenses.length === 1 ? '' : 's'} logged`;
+  const expenseItems = periodExpenses.filter((item) => normalizeEntryType(item) !== 'income');
+  const incomeItems = periodExpenses.filter((item) => normalizeEntryType(item) === 'income');
+
+  const totalSpent = expenseItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const totalIncome = incomeItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const netCashflow = totalIncome - totalSpent;
+
+  els.kpiTotal.textContent = formatCurrency(totalSpent);
 
   // Budget progress (shown in month mode if budget > 0)
   const budget = Number(state.settings.monthlyBudget) || 0;
   if (state.periodMode === 'month' && budget > 0) {
     els.budgetWrap.hidden = false;
-    const pct = Math.min(100, Math.round((total / budget) * 100));
+    const pct = Math.min(100, Math.round((totalSpent / budget) * 100));
     els.budgetProgress.value = pct;
     const hue = pct > 90 ? 0 : pct > 75 ? 38 : 150;
     els.budgetProgress.style.setProperty('--budget-hue', String(hue));
@@ -228,28 +249,60 @@ function renderKPIs(periodExpenses) {
     daysElapsed = Math.max(1, uniqueDates.size);
   }
 
-  const dailyAvg = total / daysElapsed;
+  const dailyAvg = totalSpent / daysElapsed;
   els.kpiAvg.textContent = formatCurrency(Math.round(dailyAvg));
+  els.kpiSubCount.textContent = `${expenseItems.length} expense${expenseItems.length === 1 ? '' : 's'} • ${formatCurrency(Math.round(dailyAvg))}/day`;
 
-  if (state.periodMode === 'month') {
+  // Income KPI card
+  if (els.kpiIncome) {
+    els.kpiIncome.textContent = `+${formatCurrency(totalIncome)}`;
+    els.kpiIncomeSub.textContent = `${incomeItems.length} income entr${incomeItems.length === 1 ? 'y' : 'ies'}`;
+  }
+
+  // Net Cashflow KPI card
+  if (els.kpiNet) {
+    if (netCashflow > 0) {
+      els.kpiNet.textContent = `+${formatCurrency(netCashflow)}`;
+      els.kpiNet.dataset.sign = 'positive';
+    } else if (netCashflow < 0) {
+      els.kpiNet.textContent = `−${formatCurrency(Math.abs(netCashflow))}`;
+      els.kpiNet.dataset.sign = 'negative';
+    } else {
+      els.kpiNet.textContent = formatCurrency(0);
+      els.kpiNet.dataset.sign = 'neutral';
+    }
+  }
+
+  if (totalIncome > 0) {
+    const savingsPct = Math.round(((totalIncome - totalSpent) / totalIncome) * 100);
+    if (savingsPct >= 0) {
+      els.kpiProjected.textContent = `Saved ${savingsPct}% of income`;
+    } else {
+      els.kpiProjected.textContent = `Overspent by ${formatCurrency(Math.abs(netCashflow))}`;
+    }
+  } else if (state.periodMode === 'month') {
     const projected = Math.round(dailyAvg * daysInMonth);
     els.kpiProjected.textContent = `Month pace: ${formatCurrency(projected)}`;
   } else {
     els.kpiProjected.textContent = `Across ${daysElapsed} active day${daysElapsed === 1 ? '' : 's'}`;
   }
 
-  // Top category
+  // Top category (for expenses, or income if no expenses exist)
+  const targetItems = expenseItems.length > 0 ? expenseItems : incomeItems;
+  const targetTotal = expenseItems.length > 0 ? totalSpent : totalIncome;
+  const targetLabel = expenseItems.length > 0 ? 'spend' : 'income';
+
   const byCat = {};
-  for (const e of periodExpenses) {
+  for (const e of targetItems) {
     byCat[e.category] = (byCat[e.category] || 0) + Number(e.amount || 0);
   }
   const sortedCats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
   if (sortedCats.length > 0) {
     const [topCatId, topAmt] = sortedCats[0];
     const catObj = getCategoryById(topCatId);
-    const pct = total > 0 ? Math.round((topAmt / total) * 100) : 0;
+    const pct = targetTotal > 0 ? Math.round((topAmt / targetTotal) * 100) : 0;
     els.kpiTopCat.textContent = `${catObj.icon} ${catObj.name}`;
-    els.kpiTopCatAmt.textContent = `${formatCurrency(topAmt)} (${pct}% of spend)`;
+    els.kpiTopCatAmt.textContent = `${formatCurrency(topAmt)} (${pct}% of ${targetLabel})`;
   } else {
     els.kpiTopCat.textContent = '—';
     els.kpiTopCatAmt.textContent = 'No data yet';
@@ -257,9 +310,16 @@ function renderKPIs(periodExpenses) {
 }
 
 function renderCategories(periodExpenses) {
-  const total = periodExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  els.catTypeChips.forEach((chip) => {
+    chip.classList.toggle('active', chip.dataset.catType === state.catBreakdownType);
+  });
+
+  const matchingItems = periodExpenses.filter(
+    (item) => normalizeEntryType(item) === state.catBreakdownType
+  );
+  const total = matchingItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const byCat = {};
-  for (const e of periodExpenses) {
+  for (const e of matchingItems) {
     byCat[e.category] = (byCat[e.category] || 0) + Number(e.amount || 0);
   }
 
@@ -267,16 +327,23 @@ function renderCategories(periodExpenses) {
   els.catList.replaceChildren();
   els.clearCatFilterBtn.hidden = !state.selectedCategory;
 
-  const sorted = CATEGORIES.map((c) => ({
-    ...c,
-    amount: byCat[c.id] || 0,
-    pct: total > 0 ? ((byCat[c.id] || 0) / total) * 100 : 0
-  })).filter((c) => c.amount > 0).sort((a, b) => b.amount - a.amount);
+  const pool = getCategoriesByType(state.catBreakdownType);
+  const sorted = pool
+    .map((c) => ({
+      ...c,
+      amount: byCat[c.id] || 0,
+      pct: total > 0 ? ((byCat[c.id] || 0) / total) * 100 : 0
+    }))
+    .filter((c) => c.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
 
   if (sorted.length === 0) {
     const emptyLi = document.createElement('li');
     emptyLi.className = 'field-hint';
-    emptyLi.textContent = 'Category breakdown will appear once you log an expense.';
+    emptyLi.textContent =
+      state.catBreakdownType === 'income'
+        ? 'Income breakdown will appear once you log an income entry (e.g. "+50000 salary").'
+        : 'Category breakdown will appear once you log an expense.';
     els.catList.appendChild(emptyLi);
     return;
   }
@@ -315,7 +382,10 @@ function renderCategories(periodExpenses) {
     right.className = 'cat-right';
 
     const amtStrong = document.createElement('strong');
-    amtStrong.textContent = formatCurrency(cat.amount);
+    amtStrong.textContent =
+      state.catBreakdownType === 'income'
+        ? `+${formatCurrency(cat.amount)}`
+        : formatCurrency(cat.amount);
 
     const pctSpan = document.createElement('span');
     pctSpan.className = 'cat-pct';
@@ -355,34 +425,47 @@ function renderTrendChart(periodExpenses) {
     days.push({
       iso,
       label: d.getDate(),
-      amount: 0
+      expenseAmt: 0,
+      incomeAmt: 0
     });
   }
 
-  const byDate = {};
+  const expByDate = {};
+  const incByDate = {};
   for (const e of periodExpenses) {
-    byDate[e.date] = (byDate[e.date] || 0) + Number(e.amount || 0);
+    if (normalizeEntryType(e) === 'income') {
+      incByDate[e.date] = (incByDate[e.date] || 0) + Number(e.amount || 0);
+    } else {
+      expByDate[e.date] = (expByDate[e.date] || 0) + Number(e.amount || 0);
+    }
   }
 
+  const showIncomeBars = state.catBreakdownType === 'income' || state.feedFilterType === 'income';
   let maxAmt = 0;
   for (const d of days) {
-    d.amount = byDate[d.iso] || 0;
-    if (d.amount > maxAmt) maxAmt = d.amount;
+    d.expenseAmt = expByDate[d.iso] || 0;
+    d.incomeAmt = incByDate[d.iso] || 0;
+    const primary = showIncomeBars ? d.incomeAmt : d.expenseAmt;
+    if (primary > maxAmt) maxAmt = primary;
   }
 
   for (const d of days) {
+    const primaryAmt = showIncomeBars ? d.incomeAmt : d.expenseAmt;
     const col = document.createElement('div');
     col.className = 'trend-col';
-    col.title = `${d.iso}: ${formatCurrency(d.amount)}`;
+    const parts = [];
+    if (d.expenseAmt > 0) parts.push(`Spent ${formatCurrency(d.expenseAmt)}`);
+    if (d.incomeAmt > 0) parts.push(`Income +${formatCurrency(d.incomeAmt)}`);
+    col.title = `${d.iso}: ${parts.length > 0 ? parts.join(' • ') : formatCurrency(0)}`;
 
     const track = document.createElement('div');
     track.className = 'trend-bar-track';
 
     const fill = document.createElement('div');
-    fill.className = 'trend-bar-fill';
-    const pct = maxAmt > 0 ? Math.max(4, Math.round((d.amount / maxAmt) * 100)) : 4;
+    fill.className = `trend-bar-fill ${showIncomeBars ? 'is-income' : ''}`;
+    const pct = maxAmt > 0 ? Math.max(4, Math.round((primaryAmt / maxAmt) * 100)) : 4;
     fill.style.setProperty('--bar-pct', `${pct}%`);
-    fill.style.setProperty('--bar-alpha', d.amount > 0 ? '0.95' : '0.2');
+    fill.style.setProperty('--bar-alpha', primaryAmt > 0 ? '0.95' : '0.2');
 
     track.appendChild(fill);
 
@@ -396,7 +479,15 @@ function renderTrendChart(periodExpenses) {
 }
 
 function renderExpenseList(periodExpenses) {
+  els.feedTypeChips.forEach((chip) => {
+    chip.classList.toggle('active', chip.dataset.feedType === state.feedFilterType);
+  });
+
   let filtered = periodExpenses;
+
+  if (state.feedFilterType !== 'all') {
+    filtered = filtered.filter((e) => normalizeEntryType(e) === state.feedFilterType);
+  }
 
   if (state.selectedCategory) {
     filtered = filtered.filter((e) => e.category === state.selectedCategory);
@@ -406,10 +497,12 @@ function renderExpenseList(periodExpenses) {
     const q = state.searchQuery.toLowerCase().trim();
     filtered = filtered.filter((e) => {
       const catName = getCategoryById(e.category).name.toLowerCase();
+      const typeLabel = normalizeEntryType(e);
       return (
         (e.note && e.note.toLowerCase().includes(q)) ||
         (e.raw && e.raw.toLowerCase().includes(q)) ||
         catName.includes(q) ||
+        typeLabel.includes(q) ||
         String(e.amount).includes(q)
       );
     });
@@ -425,9 +518,10 @@ function renderExpenseList(periodExpenses) {
   els.emptyState.hidden = true;
 
   for (const item of filtered) {
+    const isIncome = normalizeEntryType(item) === 'income';
     const cat = getCategoryById(item.category);
     const li = document.createElement('li');
-    li.className = 'expense-item';
+    li.className = `expense-item ${isIncome ? 'is-income' : ''}`;
     if (state.lastSavedIds.has(item.id)) {
       li.classList.add('just-saved');
     }
@@ -452,7 +546,8 @@ function renderExpenseList(periodExpenses) {
     const metaP = document.createElement('p');
     metaP.className = 'expense-meta';
     const syncIndicator = item.synced ? '☁️' : '📱';
-    metaP.textContent = `${cat.name} • ${formatReadableDate(item.date)} • ${syncIndicator}`;
+    const typeTag = isIncome ? 'Income • ' : '';
+    metaP.textContent = `${typeTag}${cat.name} • ${formatReadableDate(item.date)} • ${syncIndicator}`;
 
     details.append(noteP, metaP);
     main.append(catBadge, details);
@@ -461,8 +556,8 @@ function renderExpenseList(periodExpenses) {
     right.className = 'expense-right';
 
     const amtSpan = document.createElement('span');
-    amtSpan.className = 'expense-amount';
-    amtSpan.textContent = formatCurrency(item.amount);
+    amtSpan.className = `expense-amount ${isIncome ? 'is-income' : ''}`;
+    amtSpan.textContent = isIncome ? `+${formatCurrency(item.amount)}` : formatCurrency(item.amount);
 
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
@@ -537,10 +632,48 @@ function attachImeSafeEnterSubmit(inputEl) {
   });
 }
 
+function updateComposerTypeUI() {
+  if (!els.composerTypeBtn) return;
+  const isIncome = state.composerType === 'income';
+  els.composerTypeBtn.dataset.type = state.composerType;
+  els.composerTypeIcon.textContent = isIncome ? '+' : '−';
+  els.composerTypeLabel.textContent = isIncome ? 'Income' : 'Expense';
+  els.composerTypeBtn.setAttribute(
+    'aria-label',
+    `Entry mode: ${isIncome ? 'Income' : 'Expense'}. Click to switch to ${isIncome ? 'Expense' : 'Income'}.`
+  );
+  els.expenseInput.placeholder = isIncome
+    ? 'Drop income: e.g. 50000 salary, 1200 freelance yesterday...'
+    : 'Drop expense or +income: e.g. 200 fuel, +50k salary, 150 coffee...';
+}
+
+function formatPreviewTitleText(draftItems) {
+  const hasMissingAmt = draftItems.some((d) => !(Number(d.amount) > 0));
+  if (hasMissingAmt) {
+    return 'Parsed draft — enter amount to save:';
+  }
+  if (draftItems.length === 1) {
+    const item = draftItems[0];
+    return item.type === 'income'
+      ? `Going to save income (+${formatCurrency(item.amount)}):`
+      : 'Going to be saved:';
+  }
+  const incCount = draftItems.filter((d) => d.type === 'income').length;
+  const expCount = draftItems.length - incCount;
+  const totalAmt = draftItems.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+  if (incCount > 0 && expCount > 0) {
+    return `Going to save ${draftItems.length} entries (${expCount} expense, ${incCount} income):`;
+  }
+  if (incCount > 0) {
+    return `Going to save ${incCount} income entries (+${formatCurrency(totalAmt)}):`;
+  }
+  return `Going to save ${expCount} expenses (${formatCurrency(totalAmt)}):`;
+}
+
 // Sync draftItems when user types in #expense-input, preserving manual field overrides
 function updateLivePreview({ resetOverrides = false } = {}) {
   const raw = els.expenseInput.value;
-  const parsedDrafts = parseDraftMessage(raw);
+  const parsedDrafts = parseDraftMessage(raw, new Date(), state.composerType);
 
   if (parsedDrafts.length === 0) {
     state.draftItems = [];
@@ -555,11 +688,20 @@ function updateLivePreview({ resetOverrides = false } = {}) {
     const prev = prevDrafts[idx];
     const overrides = prev?.overrides ? { ...prev.overrides } : {};
     const mergedAmount = overrides.amount ? prev.amount : item.amount;
+    const mergedType = overrides.type ? prev.type : item.type;
+    let mergedCategory = overrides.category ? prev.category : item.category;
+    // Ensure category matches mergedType if type was overridden
+    if (mergedType === 'income' && !isIncomeCategory(mergedCategory)) {
+      mergedCategory = inferCategory(overrides.note ? prev.note : item.note, 'income');
+    } else if (mergedType === 'expense' && isIncomeCategory(mergedCategory)) {
+      mergedCategory = inferCategory(overrides.note ? prev.note : item.note, 'expense');
+    }
     return {
       ...item,
+      type: mergedType || 'expense',
       amount: mergedAmount,
       missingAmount: !(Number(mergedAmount) > 0),
-      category: overrides.category ? prev.category : item.category,
+      category: mergedCategory,
       note: overrides.note ? prev.note : item.note,
       date: overrides.date ? prev.date : item.date,
       dateLabel: overrides.date ? formatReadableDate(prev.date) : item.dateLabel,
@@ -595,14 +737,7 @@ function renderParsePreviewDOM() {
 
   const titleLabel = document.createElement('span');
   titleLabel.className = 'preview-title-text';
-  if (hasMissingAmt) {
-    titleLabel.textContent = 'Parsed draft — enter amount to save:';
-  } else if (state.draftItems.length > 1) {
-    const totalAmt = state.draftItems.reduce((s, d) => s + (Number(d.amount) || 0), 0);
-    titleLabel.textContent = `Going to save ${state.draftItems.length} expenses (${formatCurrency(totalAmt)}):`;
-  } else {
-    titleLabel.textContent = 'Going to be saved:';
-  }
+  titleLabel.textContent = formatPreviewTitleText(state.draftItems);
 
   titleWrap.append(statusDot, titleLabel);
 
@@ -635,8 +770,25 @@ function renderParsePreviewDOM() {
   listWrap.className = 'preview-rows';
 
   state.draftItems.forEach((draft, idx) => {
+    const isInc = draft.type === 'income';
     const row = document.createElement('div');
-    row.className = 'preview-edit-row';
+    row.className = `preview-edit-row ${isInc ? 'is-income' : ''}`;
+
+    // 0. Type Toggle Button (Expense vs Income)
+    const typeBtn = document.createElement('button');
+    typeBtn.type = 'button';
+    typeBtn.className = `preview-type-toggle ${isInc ? 'is-income' : 'is-expense'}`;
+    typeBtn.textContent = isInc ? '+ Income' : '− Expense';
+    typeBtn.title = 'Click to switch between Expense and Income';
+    typeBtn.setAttribute('aria-label', `Transaction type for item ${idx + 1}: ${isInc ? 'Income' : 'Expense'}. Click to switch.`);
+    typeBtn.addEventListener('click', () => {
+      draft.type = draft.type === 'income' ? 'expense' : 'income';
+      draft.overrides = draft.overrides || {};
+      draft.overrides.type = true;
+      draft.category = inferCategory(draft.note || draft.raw, draft.type);
+      renderParsePreviewDOM();
+      updateSendBtnLabel();
+    });
 
     // 1. Amount field
     const amtGroup = document.createElement('label');
@@ -645,14 +797,14 @@ function renderParsePreviewDOM() {
 
     const symSpan = document.createElement('span');
     symSpan.className = 'preview-currency-sym';
-    symSpan.textContent = state.settings.currency || '₹';
+    symSpan.textContent = (isInc ? '+' : '') + (state.settings.currency || '₹');
 
     const amtInput = document.createElement('input');
     amtInput.type = 'text';
     amtInput.inputMode = 'decimal';
     amtInput.className = 'preview-inline-input preview-amount-input';
     amtInput.placeholder = 'Amount';
-    amtInput.setAttribute('aria-label', `Amount for expense ${idx + 1}`);
+    amtInput.setAttribute('aria-label', `Amount for item ${idx + 1}`);
     amtInput.value = draft.amount !== null && draft.amount !== undefined ? String(draft.amount) : '';
 
     amtInput.addEventListener('input', () => {
@@ -672,28 +824,21 @@ function renderParsePreviewDOM() {
       resetBtn.hidden = false;
       const anyMissing = state.draftItems.some((d) => !(Number(d.amount) > 0));
       statusDot.className = `preview-status-dot ${anyMissing ? 'is-pending' : 'is-ready'}`;
-      if (anyMissing) {
-        titleLabel.textContent = 'Parsed draft — enter amount to save:';
-      } else if (state.draftItems.length > 1) {
-        const sum = state.draftItems.reduce((s, d) => s + (Number(d.amount) || 0), 0);
-        titleLabel.textContent = `Going to save ${state.draftItems.length} expenses (${formatCurrency(sum)}):`;
-      } else {
-        titleLabel.textContent = 'Going to be saved:';
-      }
+      titleLabel.textContent = formatPreviewTitleText(state.draftItems);
       updateSendBtnLabel();
     });
     attachImeSafeEnterSubmit(amtInput);
     amtGroup.append(symSpan, amtInput);
 
-    // 2. Category dropdown
+    // 2. Category dropdown (filtered to matching type)
     const catGroup = document.createElement('label');
     catGroup.className = 'preview-field preview-field-category';
     catGroup.title = 'Change category (teaches DropSpend for next time)';
 
     const catSelect = document.createElement('select');
     catSelect.className = 'preview-inline-select';
-    catSelect.setAttribute('aria-label', `Category for expense ${idx + 1}`);
-    for (const c of CATEGORIES) {
+    catSelect.setAttribute('aria-label', `Category for item ${idx + 1}`);
+    for (const c of getCategoriesByType(draft.type)) {
       const opt = document.createElement('option');
       opt.value = c.id;
       opt.textContent = `${c.icon} ${c.name}`;
@@ -717,7 +862,7 @@ function renderParsePreviewDOM() {
     noteInput.type = 'text';
     noteInput.className = 'preview-inline-input preview-note-input';
     noteInput.placeholder = 'Description';
-    noteInput.setAttribute('aria-label', `Description for expense ${idx + 1}`);
+    noteInput.setAttribute('aria-label', `Description for item ${idx + 1}`);
     noteInput.value = draft.note || '';
     noteInput.addEventListener('input', () => {
       draft.note = noteInput.value;
@@ -731,7 +876,7 @@ function renderParsePreviewDOM() {
     // 4. Date picker
     const dateGroup = document.createElement('label');
     dateGroup.className = 'preview-field preview-field-date';
-    dateGroup.title = 'Change expense date';
+    dateGroup.title = 'Change transaction date';
 
     const dateBadge = document.createElement('span');
     dateBadge.className = 'preview-date-badge';
@@ -740,7 +885,7 @@ function renderParsePreviewDOM() {
     const dateInput = document.createElement('input');
     dateInput.type = 'date';
     dateInput.className = 'preview-inline-date';
-    dateInput.setAttribute('aria-label', `Date for expense ${idx + 1}`);
+    dateInput.setAttribute('aria-label', `Date for item ${idx + 1}`);
     dateInput.value = draft.date;
     dateInput.addEventListener('change', () => {
       if (dateInput.value) {
@@ -755,7 +900,7 @@ function renderParsePreviewDOM() {
     attachImeSafeEnterSubmit(dateInput);
     dateGroup.append(dateBadge, dateInput);
 
-    row.append(amtGroup, catGroup, noteGroup, dateGroup);
+    row.append(typeBtn, amtGroup, catGroup, noteGroup, dateGroup);
 
     // 5. Remove button when multiple items are staged
     if (state.draftItems.length > 1) {
@@ -808,7 +953,7 @@ function addExpenseFromMessage(messageText) {
   }
 
   if (state.draftItems.length === 0) {
-    showToast('Type an expense, e.g. "200 fuel bike"');
+    showToast('Type an expense or income, e.g. "200 fuel bike" or "+50000 salary"');
     return;
   }
 
@@ -818,7 +963,7 @@ function addExpenseFromMessage(messageText) {
     if (amtInputs[missingIdx]) {
       amtInputs[missingIdx].focus();
     }
-    showToast('Enter the expense amount in the preview box above');
+    showToast('Enter the amount in the preview box above');
     return;
   }
 
@@ -830,16 +975,18 @@ function addExpenseFromMessage(messageText) {
 
   const nowTs = Date.now();
   const newEntries = state.draftItems.map((item, idx) => {
+    const entryType = item.type === 'income' ? 'income' : 'expense';
     const cleanedNote = (item.note || '').trim() || getCategoryById(item.category).name;
     // If the user changed the category in the preview before saving, teach the parser!
     if (item.overrides?.category) {
       learnFromNote(cleanedNote, item.category);
     }
     return {
-      id: `exp_${nowTs}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
+      id: `${entryType === 'income' ? 'inc' : 'exp'}_${nowTs}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
+      type: entryType,
       date: item.date || toLocalISODate(new Date()),
       amount: Number(item.amount),
-      category: item.category || 'other',
+      category: item.category || (entryType === 'income' ? 'other_income' : 'other'),
       note: cleanedNote,
       raw: item.raw || messageText.trim(),
       updatedAt: nowTs + idx,
@@ -870,6 +1017,7 @@ function addExpenseFromMessage(messageText) {
     for (const entry of newEntries) {
       tombstones.push({
         id: entry.id,
+        type: entry.type,
         date: entry.date,
         amount: entry.amount,
         category: entry.category,
@@ -898,8 +1046,9 @@ function addExpenseFromMessage(messageText) {
   if (newEntries.length === 1) {
     const e = newEntries[0];
     const cat = getCategoryById(e.category);
+    const amtText = e.type === 'income' ? `+${formatCurrency(e.amount)}` : formatCurrency(e.amount);
     showToast(
-      `✅ Saved ${formatCurrency(e.amount)} • ${cat.icon} ${e.note} (${formatReadableDate(e.date)})`,
+      `✅ Saved ${amtText} • ${cat.icon} ${e.note} (${formatReadableDate(e.date)})`,
       [
         {
           label: '✎ Edit',
@@ -914,7 +1063,7 @@ function addExpenseFromMessage(messageText) {
   } else {
     const sum = newEntries.reduce((s, e) => s + e.amount, 0);
     showToast(
-      `✅ Saved ${newEntries.length} expenses (${formatCurrency(sum)})`,
+      `✅ Saved ${newEntries.length} entries (${formatCurrency(sum)})`,
       [
         {
           label: '↩ Undo & Edit in Bar',
@@ -927,9 +1076,10 @@ function addExpenseFromMessage(messageText) {
   triggerBackgroundSync(false);
 }
 
-function populateCategorySelect() {
+function populateCategorySelect(type = 'expense') {
   els.editCategory.replaceChildren();
-  for (const cat of CATEGORIES) {
+  const list = getCategoriesByType(type);
+  for (const cat of list) {
     const opt = document.createElement('option');
     opt.value = cat.id;
     opt.textContent = `${cat.icon} ${cat.name}`;
@@ -938,7 +1088,12 @@ function populateCategorySelect() {
 }
 
 function openEditModal(expense) {
+  const entryType = normalizeEntryType(expense);
   els.editId.value = expense.id;
+  if (els.editType) {
+    els.editType.value = entryType;
+  }
+  populateCategorySelect(entryType);
   els.editAmount.value = String(expense.amount);
   els.editNote.value = expense.note;
   els.editCategory.value = expense.category;
@@ -947,6 +1102,16 @@ function openEditModal(expense) {
 }
 
 function setupEventListeners() {
+  // Composer default mode toggle (Expense <-> Income)
+  if (els.composerTypeBtn) {
+    els.composerTypeBtn.addEventListener('click', () => {
+      state.composerType = state.composerType === 'income' ? 'expense' : 'income';
+      updateComposerTypeUI();
+      updateLivePreview({ resetOverrides: true });
+      els.expenseInput.focus();
+    });
+  }
+
   // Live preview on input
   els.expenseInput.addEventListener('input', updateLivePreview);
 
@@ -981,7 +1146,7 @@ function setupEventListeners() {
   els.sampleChips.forEach((chip) => {
     chip.addEventListener('click', () => {
       els.expenseInput.value = chip.dataset.sample || '';
-      updateLivePreview();
+      updateLivePreview({ resetOverrides: true });
       els.expenseInput.focus();
     });
   });
@@ -1012,6 +1177,23 @@ function setupEventListeners() {
     });
   });
 
+  // Category panel type toggle (Expenses vs Income)
+  els.catTypeChips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      state.catBreakdownType = chip.dataset.catType;
+      state.selectedCategory = null;
+      renderAll();
+    });
+  });
+
+  // Transactions feed type filter (All vs Expenses vs Income)
+  els.feedTypeChips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      state.feedFilterType = chip.dataset.feedType;
+      renderAll();
+    });
+  });
+
   els.clearCatFilterBtn.addEventListener('click', () => {
     state.selectedCategory = null;
     renderAll();
@@ -1027,7 +1209,7 @@ function setupEventListeners() {
   // CSV Export
   els.exportCsvBtn.addEventListener('click', () => {
     if (state.expenses.length === 0) {
-      showToast('No expenses to export yet');
+      showToast('No transactions to export yet');
       return;
     }
     exportToCSV(state.expenses);
@@ -1070,7 +1252,7 @@ function setupEventListeners() {
     showToast('Restoring & syncing with Google Sheet...');
     await triggerBackgroundSync(true);
     if (state.syncState === 'synced') {
-      showToast(`✅ Synced ${state.expenses.length} expenses with Google Sheet`);
+      showToast(`✅ Synced ${state.expenses.length} entries with Google Sheet`);
       els.syncDialog.close();
     } else {
       showToast('⚠️ Could not reach URL. Check deployment permissions.');
@@ -1131,14 +1313,14 @@ function setupEventListeners() {
       const byId = new Map(state.expenses.map((item) => [item.id, item]));
       for (const item of list) {
         if (item && item.id && item.amount) {
-          byId.set(item.id, { ...item, synced: false });
+          byId.set(item.id, { ...item, type: normalizeEntryType(item), synced: false });
         }
       }
       state.expenses = Array.from(byId.values()).sort((a, b) => b.date.localeCompare(a.date));
       saveExpenses(state.expenses);
       renderAll();
       els.syncDialog.close();
-      showToast(`✅ Restored ${list.length} expenses`);
+      showToast(`✅ Restored ${list.length} entries`);
       triggerBackgroundSync(true);
     } catch {
       showToast('Invalid JSON backup file');
@@ -1147,7 +1329,16 @@ function setupEventListeners() {
     }
   });
 
-  // Edit & Delete Expense Modal
+  // Update category options when Type changes inside Edit Modal
+  if (els.editType) {
+    els.editType.addEventListener('change', () => {
+      const newType = els.editType.value;
+      populateCategorySelect(newType);
+      els.editCategory.value = inferCategory(els.editNote.value, newType);
+    });
+  }
+
+  // Edit & Delete Transaction Modal
   els.editExpenseForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const id = els.editId.value;
@@ -1157,6 +1348,7 @@ function setupEventListeners() {
     const newAmount = parseFloat(els.editAmount.value);
     if (Number.isNaN(newAmount) || newAmount <= 0) return;
 
+    const newType = els.editType ? els.editType.value : normalizeEntryType(state.expenses[idx]);
     const newNote = els.editNote.value.trim();
     const newCategory = els.editCategory.value;
     const newDate = els.editDate.value;
@@ -1166,6 +1358,7 @@ function setupEventListeners() {
 
     state.expenses[idx] = {
       ...state.expenses[idx],
+      type: newType,
       amount: newAmount,
       note: newNote,
       category: newCategory,
@@ -1192,6 +1385,7 @@ function setupEventListeners() {
     const tombstones = loadTombstones();
     tombstones.push({
       id: target.id,
+      type: normalizeEntryType(target),
       date: target.date,
       amount: target.amount,
       category: target.category,
@@ -1202,7 +1396,7 @@ function setupEventListeners() {
 
     els.editDialog.close();
     renderAll();
-    showToast('Deleted expense');
+    showToast('Deleted entry');
     triggerBackgroundSync(false);
   });
 
@@ -1214,7 +1408,8 @@ function setupEventListeners() {
 
 // Initialize App
 function init() {
-  populateCategorySelect();
+  populateCategorySelect('expense');
+  updateComposerTypeUI();
   els.gasCodeBlock.textContent = GOOGLE_APPS_SCRIPT_CODE;
   setupEventListeners();
   renderAll();
