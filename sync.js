@@ -2,6 +2,7 @@ import { getPaymentMethodById, isIncomeCategory } from './parser.js';
 
 const STORAGE_KEY = 'qe_expenses_v1';
 const TOMBSTONES_KEY = 'qe_tombstones_v1';
+const RECURRING_KEY = 'qe_recurring_v1';
 const SETTINGS_KEY = 'qe_settings_v1';
 const ANON_DEVICE_KEY = 'qe_anon_device_id_v1';
 const PUBLIC_COUNTER_CACHE_KEY = 'qe_usage_stats_cache_v1';
@@ -195,6 +196,24 @@ export function saveTombstones(tombstones) {
   }
 }
 
+export function loadRecurringRules() {
+  try {
+    const raw = localStorage.getItem(RECURRING_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveRecurringRules(rules) {
+  try {
+    localStorage.setItem(RECURRING_KEY, JSON.stringify(rules));
+  } catch {
+    // ignore
+  }
+}
+
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -206,6 +225,9 @@ export function loadSettings() {
       currency: parsed.currency || '₹',
       defaultPayment: parsed.defaultPayment || 'upi',
       monthlyBudget: Number(parsed.monthlyBudget) || 0,
+      ccStatementDay: Number(parsed.ccStatementDay) || 15,
+      ccDueDay: Number(parsed.ccDueDay) || 5,
+      ccLastPaidCycle: parsed.ccLastPaidCycle || '',
       lastSyncAt: parsed.lastSyncAt || null
     };
   } catch {
@@ -216,6 +238,9 @@ export function loadSettings() {
       currency: '₹',
       defaultPayment: 'upi',
       monthlyBudget: 0,
+      ccStatementDay: 15,
+      ccDueDay: 5,
+      ccLastPaidCycle: '',
       lastSyncAt: null
     };
   }

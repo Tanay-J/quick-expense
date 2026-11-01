@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f172a">
   <title>DropSpend — Chat Expense Tracker</title>
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=15">
 </head>
 <body data-design="tabs" data-view="log">
   <!-- Live Design Option Switcher (hidden by default; append ?switcher=1 to URL to compare layouts) -->
@@ -119,6 +119,7 @@
           <label for="expense-input" class="visually-hidden">Drop an expense or income message (e.g., 200 fuel bike or +50000 salary)</label>
           <input
             type="text"
+            inputmode="text"
             id="expense-input"
             name="message"
             class="composer-input"
@@ -128,6 +129,20 @@
             autofocus
             required
           >
+          <script>
+            (function () {
+              var inp = document.getElementById('expense-input');
+              if (inp) {
+                try {
+                  inp.focus({ preventScroll: true });
+                  inp.click();
+                  if (navigator.virtualKeyboard && navigator.virtualKeyboard.show) {
+                    navigator.virtualKeyboard.show();
+                  }
+                } catch (e) {}
+              }
+            })();
+          </script>
           <button type="submit" id="send-expense-btn" class="send-btn" aria-label="Save transaction">
             <span id="send-btn-text">Save</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
@@ -146,7 +161,11 @@
           <button type="button" class="quick-fill-chip" data-fill="groceries ">🛒 Groceries</button>
           <button type="button" class="quick-fill-chip" data-fill="uber ">🚕 Cab</button>
           <button type="button" class="quick-fill-chip" data-fill="cc">💳 Card</button>
+          <button type="button" id="quick-open-recurring-btn" class="quick-fill-chip is-tracker-chip" title="Manage Monthly Recurring Bills, Subscriptions &amp; Credit Card Cycle">🔁 Bills &amp; Card</button>
         </div>
+
+        <!-- Zero-Clutter Smart Due Reminder Banner (Hidden unless a recurring bill or CC due date is active) -->
+        <div id="due-reminders-bar" class="due-reminders-bar" role="region" aria-label="Upcoming bills and reminders" hidden></div>
       </div>
     </aside>
 
@@ -201,6 +220,36 @@
             <span id="kpi-top-cat-amt" class="kpi-sub">No data yet</span>
           </article>
         </div>
+      </section>
+
+      <!-- Compact Credit Card Cycle & Monthly Recurring Strip (Inside Insights) -->
+      <section class="smart-trackers-grid" aria-label="Credit Card Cycle and Recurring Bills">
+        <article class="tracker-card">
+          <div class="tracker-card-top">
+            <div>
+              <span class="tracker-label">💳 Credit Card Cycle</span>
+              <strong id="cc-cycle-spent" class="tracker-value">₹0</strong>
+            </div>
+            <div class="tracker-actions">
+              <button type="button" id="cc-mark-paid-btn" class="mini-pill-btn is-accent" hidden>✓ Mark Paid</button>
+              <button type="button" id="open-cc-settings-btn" class="mini-pill-btn">Cycle Dates</button>
+            </div>
+          </div>
+          <p id="cc-cycle-meta" class="tracker-meta">Statement 15th • Due 5th</p>
+        </article>
+
+        <article class="tracker-card">
+          <div class="tracker-card-top">
+            <div>
+              <span class="tracker-label">🔁 Monthly Bills &amp; Subs</span>
+              <strong id="recurring-monthly-total" class="tracker-value">₹0/mo</strong>
+            </div>
+            <div class="tracker-actions">
+              <button type="button" id="open-recurring-btn" class="mini-pill-btn">Manage 🔁</button>
+            </div>
+          </div>
+          <p id="recurring-sub-meta" class="tracker-meta">Tip: type "15000 rent monthly" or toggle 🔁 on any entry</p>
+        </article>
       </section>
 
       <!-- Two-Column Analytics Grid on Desktop / Stacked on Mobile -->
@@ -460,6 +509,11 @@
           <input type="date" id="edit-date" name="date" required>
         </div>
 
+        <label class="recurring-check-row" for="edit-recurring">
+          <input type="checkbox" id="edit-recurring" name="recurring">
+          <span>🔁 Repeat this every month (Recurring Bill / Subscription / Income)</span>
+        </label>
+
         <div class="dialog-actions">
           <button type="submit" class="primary-btn">Save Changes</button>
           <button type="button" id="delete-expense-btn" class="danger-btn">Delete Entry</button>
@@ -468,6 +522,58 @@
     </div>
   </dialog>
 
-  <script type="module" src="./app.js"></script>
+  <!-- Recurring Bills, Subscriptions & Credit Card Cycle Modal (<dialog>) -->
+  <dialog id="recurring-dialog" class="app-dialog" closedby="any" aria-labelledby="recurring-dialog-title">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h1 id="recurring-dialog-title" class="dialog-title">🔁 Recurring Bills &amp; CC Cycle</h1>
+        <form method="dialog">
+          <button type="submit" class="icon-btn" aria-label="Close recurring dialog">✕</button>
+        </form>
+      </div>
+
+      <!-- Credit Card Billing Cycle Config -->
+      <form id="cc-cycle-form" class="cc-cycle-box" action="#" method="POST">
+        <div class="cc-cycle-header">
+          <h2 class="sub-heading">💳 Credit Card Billing Cycle</h2>
+          <button type="submit" class="mini-pill-btn is-accent">Save Dates</button>
+        </div>
+        <p class="field-hint">Tracks your unbilled Credit Card spend and alerts you 5 days before your bill due date.</p>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="cc-statement-day-input">Statement Day (1–28)</label>
+            <input type="number" id="cc-statement-day-input" min="1" max="28" value="15" required>
+          </div>
+          <div class="form-group">
+            <label for="cc-due-day-input">Bill Due Day (1–28)</label>
+            <input type="number" id="cc-due-day-input" min="1" max="28" value="5" required>
+          </div>
+        </div>
+      </form>
+
+      <hr class="dialog-divider">
+
+      <!-- Active Recurring Rules List -->
+      <div class="recurring-section">
+        <h2 class="sub-heading">🔁 Active Monthly Recurring Entries</h2>
+        <p class="field-hint">You can also add recurring items by typing <em>"15000 rent monthly"</em> in the main bar.</p>
+        <ul id="recurring-rules-list" class="recurring-rules-list"></ul>
+
+        <!-- Quick Add Recurring Rule -->
+        <form id="add-recurring-form" class="add-recurring-form" action="#" method="POST">
+          <input
+            type="text"
+            id="add-recurring-input"
+            placeholder="Add monthly item: e.g. 15000 rent, 199 netflix cc, +85k salary"
+            autocomplete="off"
+            required
+          >
+          <button type="submit" class="secondary-btn">Add 🔁</button>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="./app.js?v=15"></script>
 </body>
 </html>

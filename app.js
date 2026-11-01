@@ -12,7 +12,7 @@ import {
   parseExpenseMessage,
   PAYMENT_METHODS,
   toLocalISODate
-} from './parser.js';
+} from './parser.js?v=15';
 
 import {
   exportToCSV,
@@ -20,16 +20,18 @@ import {
   GOOGLE_APPS_SCRIPT_CODE,
   loadCachedUsageStats,
   loadExpenses,
+  loadRecurringRules,
   loadSettings,
   loadTombstones,
   normalizeEntryType,
   normalizePaymentMethod,
   saveExpenses,
+  saveRecurringRules,
   saveSettings,
   saveTombstones,
   syncWithGoogleSheets,
   trackAppUsage
-} from './sync.js';
+} from './sync.js?v=15';
 
 const DESIGN_DESCRIPTIONS = {
   spotlight: 'Hero input at top + minimal summary + last 5 entries',
@@ -56,6 +58,7 @@ function getInitialDesign() {
 // Application State
 const state = {
   expenses: loadExpenses(),
+  recurringRules: loadRecurringRules(),
   settings: loadSettings(),
   uiDesign: getInitialDesign(), // 'spotlight' | 'tabs' | 'chat' | 'pocket' | 'classic'
   activeView: 'log', // 'log' | 'insights' (used in 'tabs' design)
@@ -91,6 +94,15 @@ const els = {
   toggleInsightsLabel: document.getElementById('toggle-insights-label'),
   insightsContainer: document.getElementById('insights-container'),
   quickFillChips: document.querySelectorAll('.quick-fill-chip'),
+  quickOpenRecurringBtn: document.getElementById('quick-open-recurring-btn'),
+  dueRemindersBar: document.getElementById('due-reminders-bar'),
+  ccCycleSpent: document.getElementById('cc-cycle-spent'),
+  ccCycleMeta: document.getElementById('cc-cycle-meta'),
+  ccMarkPaidBtn: document.getElementById('cc-mark-paid-btn'),
+  openCcSettingsBtn: document.getElementById('open-cc-settings-btn'),
+  recurringMonthlyTotal: document.getElementById('recurring-monthly-total'),
+  recurringSubMeta: document.getElementById('recurring-sub-meta'),
+  openRecurringBtn: document.getElementById('open-recurring-btn'),
   feedHeading: document.getElementById('feed-heading'),
   feedFooter: document.getElementById('feed-footer'),
   showAllFeedBtn: document.getElementById('show-all-feed-btn'),
@@ -168,7 +180,15 @@ const els = {
   editCategory: document.getElementById('edit-category'),
   editPayment: document.getElementById('edit-payment'),
   editDate: document.getElementById('edit-date'),
-  deleteExpenseBtn: document.getElementById('delete-expense-btn')
+  editRecurring: document.getElementById('edit-recurring'),
+  deleteExpenseBtn: document.getElementById('delete-expense-btn'),
+  recurringDialog: document.getElementById('recurring-dialog'),
+  ccCycleForm: document.getElementById('cc-cycle-form'),
+  ccStatementDayInput: document.getElementById('cc-statement-day-input'),
+  ccDueDayInput: document.getElementById('cc-due-day-input'),
+  recurringRulesList: document.getElementById('recurring-rules-list'),
+  addRecurringForm: document.getElementById('add-recurring-form'),
+  addRecurringInput: document.getElementById('add-recurring-input')
 };
 
 function formatCurrency(amount) {
@@ -807,6 +827,13 @@ function renderExpenseList(periodExpenses) {
     dateSpan.textContent = formatReadableDate(item.date);
 
     metaP.append(catSpan, dot1, payBadge, dot2, dateSpan);
+    if (isItemRecurring(item)) {
+      const recSpan = document.createElement('span');
+      recSpan.className = 'expense-rec-tag';
+      recSpan.title = 'Repeats monthly';
+      recSpan.textContent = '• 🔁';
+      metaP.appendChild(recSpan);
+    }
     if (item.synced) {
       const syncSpan = document.createElement('span');
       syncSpan.className = 'expense-sync-tag';
@@ -845,8 +872,390 @@ function renderExpenseList(periodExpenses) {
 
 function isAnyDialogOpen() {
   return Boolean(
-    els.nameGateDialog?.open || els.syncDialog?.open || els.editDialog?.open
+    els.nameGateDialog?.open ||
+      els.syncDialog?.open ||
+      els.editDialog?.open ||
+      els.recurringDialog?.open
   );
+}
+
+function normalizeNoteKey(note) {
+  return String(note || '')
+    .toLowerCase()
+    .trim();
+}
+
+function isItemRecurring(item) {
+  if (item?.recurring) return true;
+  const key = normalizeNoteKey(item?.note);
+  if (!key) return false;
+  return state.recurringRules.some(
+    (r) => r.active !== false && normalizeNoteKey(r.note) === key
+  );
+}
+
+function upsertRecurringRuleFromEntry(entry) {
+  const key = normalizeNoteKey(entry.note);
+  if (!key) return;
+  const dayOfMonth = Math.min(28, Math.max(1, Number((entry.date || '').split('-')[2]) || 1));
+  const monthPrefix = (entry.date || toLocalISODate(new Date())).slice(0, 7);
+
+  const existingIdx = state.recurringRules.findIndex(
+    (r) => normalizeNoteKey(r.note) === key && r.type === normalizeEntryType(entry)
+  );
+
+  if (existingIdx !== -1) {
+    state.recurringRules[existingIdx] = {
+      ...state.recurringRules[existingIdx],
+      amount: Number(entry.amount) || state.recurringRules[existingIdx].amount,
+      category: entry.category,
+      paymentMethod: normalizePaymentMethod(entry),
+      dayOfMonth,
+      active: true,
+      lastLoggedMonth: monthPrefix
+    };
+  } else {
+    state.recurringRules.push({
+      id: `rec_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      type: normalizeEntryType(entry),
+      amount: Number(entry.amount) || 0,
+      note: entry.note,
+      category: entry.category,
+      paymentMethod: normalizePaymentMethod(entry),
+      dayOfMonth,
+      active: true,
+      lastLoggedMonth: monthPrefix
+    });
+  }
+  saveRecurringRules(state.recurringRules);
+}
+
+function removeRecurringRuleForEntry(entry) {
+  const key = normalizeNoteKey(entry.note);
+  state.recurringRules = state.recurringRules.filter(
+    (r) => !(normalizeNoteKey(r.note) === key && r.type === normalizeEntryType(entry))
+  );
+  saveRecurringRules(state.recurringRules);
+}
+
+function markMatchingRecurringRuleLogged(entry) {
+  const key = normalizeNoteKey(entry.note);
+  const monthPrefix = (entry.date || toLocalISODate(new Date())).slice(0, 7);
+  let changed = false;
+  for (const r of state.recurringRules) {
+    if (r.active !== false && normalizeNoteKey(r.note) === key) {
+      r.lastLoggedMonth = monthPrefix;
+      changed = true;
+    }
+  }
+  if (changed) {
+    saveRecurringRules(state.recurringRules);
+  }
+}
+
+function getDueRecurringRules() {
+  const now = new Date();
+  const currentMonth = toLocalISODate(now).slice(0, 7);
+  const todayDay = now.getDate();
+
+  return state.recurringRules.filter((rule) => {
+    if (rule.active === false) return false;
+    if (rule.lastLoggedMonth === currentMonth) return false;
+    // Check if an expense with the same note was already logged this month
+    const alreadyInExpenses = state.expenses.some(
+      (e) =>
+        e.date &&
+        e.date.startsWith(currentMonth) &&
+        normalizeNoteKey(e.note) === normalizeNoteKey(rule.note)
+    );
+    if (alreadyInExpenses) return false;
+    return todayDay >= (Number(rule.dayOfMonth) || 1);
+  });
+}
+
+function logRecurringRuleNow(rule) {
+  const todayIso = toLocalISODate(new Date());
+  const nowTs = Date.now();
+  const entryType = rule.type === 'income' ? 'income' : 'expense';
+  const newEntry = {
+    id: `${entryType === 'income' ? 'inc' : 'exp'}_${nowTs}_rec_${Math.random().toString(36).slice(2, 6)}`,
+    type: entryType,
+    date: todayIso,
+    amount: Number(rule.amount) || 0,
+    category: rule.category || (entryType === 'income' ? 'other_income' : 'bills'),
+    paymentMethod: rule.paymentMethod || state.settings.defaultPayment || 'upi',
+    note: rule.note,
+    raw: `${rule.amount} ${rule.note} monthly`,
+    recurring: true,
+    updatedAt: nowTs,
+    synced: false
+  };
+
+  rule.lastLoggedMonth = todayIso.slice(0, 7);
+  saveRecurringRules(state.recurringRules);
+
+  state.lastSavedIds = new Set([newEntry.id]);
+  state.expenses = [newEntry, ...state.expenses].sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return (b.updatedAt || 0) - (a.updatedAt || 0);
+  });
+  saveExpenses(state.expenses);
+  renderAll();
+  if (els.recurringDialog?.open) {
+    renderRecurringModalList();
+  }
+  showToast(`✅ Logged monthly ${rule.note} (${formatCurrency(rule.amount)})`);
+  triggerBackgroundSync(false);
+}
+
+function computeCreditCardCycleInfo() {
+  const now = new Date();
+  const stmtDay = Math.min(28, Math.max(1, Number(state.settings.ccStatementDay) || 15));
+  const dueDay = Math.min(28, Math.max(1, Number(state.settings.ccDueDay) || 5));
+
+  // Determine current unbilled cycle start & end dates
+  let cycleStart;
+  let cycleEnd;
+  if (now.getDate() >= stmtDay) {
+    cycleStart = new Date(now.getFullYear(), now.getMonth(), stmtDay);
+    cycleEnd = new Date(now.getFullYear(), now.getMonth() + 1, stmtDay - 1);
+  } else {
+    cycleStart = new Date(now.getFullYear(), now.getMonth() - 1, stmtDay);
+    cycleEnd = new Date(now.getFullYear(), now.getMonth(), stmtDay - 1);
+  }
+
+  const startIso = toLocalISODate(cycleStart);
+  const endIso = toLocalISODate(cycleEnd);
+
+  const ccItems = state.expenses.filter(
+    (e) =>
+      normalizeEntryType(e) !== 'income' &&
+      normalizePaymentMethod(e) === 'credit_card' &&
+      e.date >= startIso &&
+      e.date <= endIso
+  );
+  const currentCycleSpend = ccItems.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+  // Next due date calculation
+  let nextDueDate = new Date(now.getFullYear(), now.getMonth(), dueDay);
+  if (now.getDate() > dueDay) {
+    nextDueDate = new Date(now.getFullYear(), now.getMonth() + 1, dueDay);
+  }
+  const msPerDay = 86400000;
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const daysUntilDue = Math.round((nextDueDate - todayMidnight) / msPerDay);
+  const dueCycleKey = toLocalISODate(nextDueDate).slice(0, 7);
+  const isPaidThisCycle = state.settings.ccLastPaidCycle === dueCycleKey;
+
+  const rangeFmt = (d) =>
+    d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+  return {
+    stmtDay,
+    dueDay,
+    startIso,
+    endIso,
+    rangeLabel: `${rangeFmt(cycleStart)} – ${rangeFmt(cycleEnd)}`,
+    currentCycleSpend,
+    txCount: ccItems.length,
+    nextDueDateLabel: rangeFmt(nextDueDate),
+    daysUntilDue,
+    dueCycleKey,
+    isPaidThisCycle,
+    isDueSoon:
+      !isPaidThisCycle && currentCycleSpend > 0 && daysUntilDue >= 0 && daysUntilDue <= 5
+  };
+}
+
+function renderSmartTrackersAndReminders() {
+  const ccInfo = computeCreditCardCycleInfo();
+  const activeRules = state.recurringRules.filter((r) => r.active !== false);
+  const dueRules = getDueRecurringRules();
+
+  // 1. Update Insights Credit Card Tracker Card
+  if (els.ccCycleSpent) {
+    els.ccCycleSpent.textContent = formatCurrency(ccInfo.currentCycleSpend);
+  }
+  if (els.ccCycleMeta) {
+    const dueStatus = ccInfo.isPaidThisCycle
+      ? `✓ Paid for ${ccInfo.nextDueDateLabel}`
+      : ccInfo.daysUntilDue === 0
+        ? `⚠️ Due Today (${ccInfo.nextDueDateLabel})`
+        : `Due ${ccInfo.nextDueDateLabel} (in ${ccInfo.daysUntilDue}d)`;
+    els.ccCycleMeta.textContent = `${ccInfo.rangeLabel} • ${dueStatus}`;
+  }
+  if (els.ccMarkPaidBtn) {
+    els.ccMarkPaidBtn.hidden = ccInfo.isPaidThisCycle || ccInfo.currentCycleSpend <= 0;
+  }
+
+  // 2. Update Insights Recurring Bills Card
+  const monthlyExpenseTotal = activeRules
+    .filter((r) => r.type !== 'income')
+    .reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  if (els.recurringMonthlyTotal) {
+    els.recurringMonthlyTotal.textContent = `${formatCurrency(monthlyExpenseTotal)}/mo`;
+  }
+  if (els.recurringSubMeta) {
+    if (activeRules.length === 0) {
+      els.recurringSubMeta.textContent = 'Tip: type "15000 rent monthly" or toggle 🔁 on any entry';
+    } else if (dueRules.length > 0) {
+      els.recurringSubMeta.textContent = `${activeRules.length} active • ⚠️ ${dueRules.length} due this month`;
+    } else {
+      els.recurringSubMeta.textContent = `${activeRules.length} active monthly item${activeRules.length === 1 ? '' : 's'} • All logged for this month`;
+    }
+  }
+
+  // 2b. Update Quick Log chip label so user can open Recurring & Card Cycle right from Quick Log
+  if (els.quickOpenRecurringBtn) {
+    if (activeRules.length > 0 || ccInfo.currentCycleSpend > 0) {
+      els.quickOpenRecurringBtn.textContent = `🔁 Bills (${activeRules.length}) • 💳 ${formatCurrency(ccInfo.currentCycleSpend)}`;
+    } else {
+      els.quickOpenRecurringBtn.textContent = '🔁 Bills & Card';
+    }
+  }
+
+  // 3. Zero-Clutter Landing Page Due Banner (ONLY shown when something is due right now!)
+  if (!els.dueRemindersBar) return;
+  els.dueRemindersBar.replaceChildren();
+
+  if (dueRules.length === 0 && !ccInfo.isDueSoon) {
+    els.dueRemindersBar.hidden = true;
+    return;
+  }
+
+  els.dueRemindersBar.hidden = false;
+
+  // Render due recurring rules
+  for (const rule of dueRules.slice(0, 2)) {
+    const pill = document.createElement('div');
+    pill.className = 'due-reminder-item';
+
+    const textSpan = document.createElement('span');
+    textSpan.className = 'due-reminder-text';
+    textSpan.textContent = `🔁 Monthly due: ${rule.note} (${formatCurrency(rule.amount)})`;
+
+    const actionsWrap = document.createElement('div');
+    actionsWrap.className = 'due-reminder-actions';
+
+    const logBtn = document.createElement('button');
+    logBtn.type = 'button';
+    logBtn.className = 'mini-pill-btn is-accent';
+    logBtn.textContent = '✓ Log Now';
+    logBtn.addEventListener('click', () => logRecurringRuleNow(rule));
+
+    const skipBtn = document.createElement('button');
+    skipBtn.type = 'button';
+    skipBtn.className = 'mini-pill-btn';
+    skipBtn.textContent = 'Skip';
+    skipBtn.addEventListener('click', () => {
+      rule.lastLoggedMonth = toLocalISODate(new Date()).slice(0, 7);
+      saveRecurringRules(state.recurringRules);
+      renderAll();
+      showToast(`Skipped ${rule.note} for this month`);
+    });
+
+    actionsWrap.append(logBtn, skipBtn);
+    pill.append(textSpan, actionsWrap);
+    els.dueRemindersBar.appendChild(pill);
+  }
+
+  // Render CC due soon alert if within 5 days
+  if (ccInfo.isDueSoon) {
+    const ccPill = document.createElement('div');
+    ccPill.className = 'due-reminder-item is-cc-alert';
+
+    const textSpan = document.createElement('span');
+    textSpan.className = 'due-reminder-text';
+    const whenTxt = ccInfo.daysUntilDue === 0 ? 'Due Today' : `Due in ${ccInfo.daysUntilDue}d`;
+    textSpan.textContent = `💳 CC Bill (${formatCurrency(ccInfo.currentCycleSpend)}) • ${whenTxt}`;
+
+    const paidBtn = document.createElement('button');
+    paidBtn.type = 'button';
+    paidBtn.className = 'mini-pill-btn is-accent';
+    paidBtn.textContent = '✓ Mark Paid';
+    paidBtn.addEventListener('click', () => {
+      state.settings = saveSettings({ ccLastPaidCycle: ccInfo.dueCycleKey });
+      renderAll();
+      showToast('✅ Marked Credit Card bill as paid for this cycle');
+    });
+
+    ccPill.append(textSpan, paidBtn);
+    els.dueRemindersBar.appendChild(ccPill);
+  }
+}
+
+function renderRecurringModalList() {
+  if (!els.recurringRulesList) return;
+  els.recurringRulesList.replaceChildren();
+
+  if (state.recurringRules.length === 0) {
+    const emptyLi = document.createElement('li');
+    emptyLi.className = 'field-hint';
+    emptyLi.textContent = 'No monthly recurring items yet. Add one below or type "15000 rent monthly" in the main bar.';
+    els.recurringRulesList.appendChild(emptyLi);
+    return;
+  }
+
+  const currentMonth = toLocalISODate(new Date()).slice(0, 7);
+
+  for (const rule of state.recurringRules) {
+    const li = document.createElement('li');
+    li.className = 'recurring-rule-row';
+
+    const cat = getCategoryById(rule.category);
+    const pay = getPaymentMethodById(rule.paymentMethod || 'upi');
+    const isLoggedThisMonth = rule.lastLoggedMonth === currentMonth;
+
+    const info = document.createElement('div');
+    info.className = 'recurring-rule-info';
+
+    const title = document.createElement('strong');
+    title.textContent = `${cat.icon} ${rule.note} • ${rule.type === 'income' ? '+' : ''}${formatCurrency(rule.amount)}`;
+
+    const sub = document.createElement('span');
+    sub.className = 'field-hint';
+    sub.textContent = `Day ${rule.dayOfMonth || 1} of month • ${pay.shortName} • ${isLoggedThisMonth ? '✓ Logged this month' : 'Pending this month'}`;
+
+    info.append(title, sub);
+
+    const actions = document.createElement('div');
+    actions.className = 'recurring-rule-actions';
+
+    const logNowBtn = document.createElement('button');
+    logNowBtn.type = 'button';
+    logNowBtn.className = 'mini-pill-btn is-accent';
+    logNowBtn.textContent = '+ Log';
+    logNowBtn.title = 'Log this transaction today';
+    logNowBtn.addEventListener('click', () => logRecurringRuleNow(rule));
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'mini-pill-btn is-danger';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Remove recurring rule';
+    delBtn.addEventListener('click', () => {
+      state.recurringRules = state.recurringRules.filter((r) => r.id !== rule.id);
+      saveRecurringRules(state.recurringRules);
+      renderRecurringModalList();
+      renderAll();
+      showToast(`Removed recurring rule: ${rule.note}`);
+    });
+
+    actions.append(logNowBtn, delBtn);
+    li.append(info, actions);
+    els.recurringRulesList.appendChild(li);
+  }
+}
+
+function openRecurringModal() {
+  if (els.ccStatementDayInput) {
+    els.ccStatementDayInput.value = String(state.settings.ccStatementDay || 15);
+  }
+  if (els.ccDueDayInput) {
+    els.ccDueDayInput.value = String(state.settings.ccDueDay || 5);
+  }
+  renderRecurringModalList();
+  els.recurringDialog?.showModal();
 }
 
 function focusExpenseInput() {
@@ -854,7 +1263,7 @@ function focusExpenseInput() {
   if (state.uiDesign === 'tabs' && state.activeView === 'insights') return;
 
   try {
-    els.expenseInput.focus({ preventScroll: false });
+    els.expenseInput.focus({ preventScroll: true });
     const len = els.expenseInput.value.length;
     els.expenseInput.setSelectionRange(len, len);
   } catch {
@@ -965,6 +1374,7 @@ function renderAll() {
   updatePeriodHeader();
   const periodExpenses = getPeriodExpenses();
   renderKPIs(periodExpenses);
+  renderSmartTrackersAndReminders();
   renderCategories(periodExpenses);
   renderTrendChart(periodExpenses);
   renderExpenseList(periodExpenses);
@@ -1073,6 +1483,7 @@ function updateLivePreview({ resetOverrides = false } = {}) {
       note: overrides.note ? prev.note : item.note,
       date: overrides.date ? prev.date : item.date,
       dateLabel: overrides.date ? formatReadableDate(prev.date) : item.dateLabel,
+      recurring: overrides.recurring ? Boolean(prev.recurring) : Boolean(item.recurring),
       overrides
     };
   });
@@ -1300,7 +1711,24 @@ function renderParsePreviewDOM() {
     attachImeSafeEnterSubmit(dateInput);
     dateGroup.append(dateBadge, dateInput);
 
-    row.append(typeBtn, amtGroup, catGroup, payGroup, noteGroup, dateGroup);
+    // 5b. Recurring monthly toggle button
+    const recBtn = document.createElement('button');
+    recBtn.type = 'button';
+    recBtn.className = `preview-recurring-toggle ${draft.recurring ? 'is-active' : ''}`;
+    recBtn.textContent = draft.recurring ? '🔁 Monthly' : '🔁';
+    recBtn.title = draft.recurring
+      ? 'Repeats every month — click to turn off'
+      : 'Mark as monthly recurring bill / subscription / salary';
+    recBtn.setAttribute('aria-pressed', draft.recurring ? 'true' : 'false');
+    recBtn.addEventListener('click', () => {
+      draft.recurring = !draft.recurring;
+      draft.overrides = draft.overrides || {};
+      draft.overrides.recurring = true;
+      resetBtn.hidden = false;
+      renderParsePreviewDOM();
+    });
+
+    row.append(typeBtn, amtGroup, catGroup, payGroup, noteGroup, dateGroup, recBtn);
 
     // 6. Remove button when multiple items are staged
     if (state.draftItems.length > 1) {
@@ -1393,10 +1821,19 @@ function addExpenseFromMessage(messageText) {
       paymentMethod: item.paymentMethod || state.settings.defaultPayment || 'upi',
       note: cleanedNote,
       raw: item.raw || messageText.trim(),
+      recurring: Boolean(item.recurring),
       updatedAt: nowTs + idx,
       synced: false
     };
   });
+
+  for (const entry of newEntries) {
+    if (entry.recurring) {
+      upsertRecurringRuleFromEntry(entry);
+    } else {
+      markMatchingRecurringRuleLogged(entry);
+    }
+  }
 
   state.lastSavedIds = new Set(newEntries.map((e) => e.id));
   state.expenses = [...newEntries, ...state.expenses].sort((a, b) => {
@@ -1533,6 +1970,9 @@ function openEditModal(expense) {
     els.editPayment.value = normalizePaymentMethod(expense);
   }
   els.editDate.value = expense.date;
+  if (els.editRecurring) {
+    els.editRecurring.checked = isItemRecurring(expense);
+  }
   els.editDialog.showModal();
 }
 
@@ -1561,15 +2001,19 @@ function setupEventListeners() {
     // Ignore URL errors
   }
 
-  // Clicking anywhere on the composer card background/header focuses the input & opens keyboard
-  if (els.composerDock) {
-    els.composerDock.addEventListener('click', (e) => {
-      const interactive = e.target.closest('button, input, select, a, label');
-      if (!interactive) {
-        focusExpenseInput();
-      }
-    });
-  }
+  // Clicking or touching anywhere non-interactive on the Quick Log screen focuses input & opens mobile keyboard
+  const handleQuickLogSurfaceTap = (e) => {
+    if (isAnyDialogOpen()) return;
+    if (state.uiDesign === 'tabs' && state.activeView === 'insights') return;
+    const interactive = e.target.closest(
+      'button, input, select, textarea, a, label, dialog, .expense-item, .preview-edit-row'
+    );
+    if (!interactive) {
+      focusExpenseInput();
+    }
+  };
+  document.addEventListener('touchend', handleQuickLogSurfaceTap, { passive: true });
+  document.addEventListener('click', handleQuickLogSurfaceTap);
 
   // Re-focus input & open keyboard when returning to the app / tab
   window.addEventListener('pageshow', () => {
@@ -1587,6 +2031,74 @@ function setupEventListeners() {
   });
   els.syncDialog?.addEventListener('close', () => focusExpenseInput());
   els.editDialog?.addEventListener('close', () => focusExpenseInput());
+  els.recurringDialog?.addEventListener('close', () => focusExpenseInput());
+
+  // Recurring & Credit Card Cycle Manager triggers
+  els.openRecurringBtn?.addEventListener('click', openRecurringModal);
+  els.openCcSettingsBtn?.addEventListener('click', openRecurringModal);
+  els.quickOpenRecurringBtn?.addEventListener('click', openRecurringModal);
+
+  els.ccMarkPaidBtn?.addEventListener('click', () => {
+    const ccInfo = computeCreditCardCycleInfo();
+    state.settings = saveSettings({ ccLastPaidCycle: ccInfo.dueCycleKey });
+    renderAll();
+    showToast('✅ Marked credit card bill paid for this cycle');
+  });
+
+  els.ccCycleForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const stDay = Math.min(28, Math.max(1, Number(els.ccStatementDayInput?.value) || 15));
+    const dueDay = Math.min(28, Math.max(1, Number(els.ccDueDayInput?.value) || 5));
+    state.settings = saveSettings({
+      ccStatementDay: stDay,
+      ccDueDay: dueDay
+    });
+    renderAll();
+    showToast(`💳 Saved cycle: Statement ${formatOrdinal(stDay)} • Due ${formatOrdinal(dueDay)}`);
+  });
+
+  els.addRecurringForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const raw = (els.addRecurringInput?.value || '').trim();
+    if (!raw) return;
+    const defaultPayment = state.settings.defaultPayment || 'upi';
+    const parsed = parseDraftMessage(raw, new Date(), 'expense', defaultPayment);
+    const first = parsed[0];
+    if (!first || !(Number(first.amount) > 0)) {
+      showToast('Enter an amount and label, e.g. "15000 rent" or "649 netflix card"');
+      return;
+    }
+    const dayMatch = raw.match(/\b(?:on\s+)?(\d{1,2})(?:st|nd|rd|th)\b/i);
+    const parsedDay = dayMatch ? Math.min(28, Math.max(1, Number(dayMatch[1]))) : new Date().getDate();
+    const cleanedNote =
+      (first.note || '').replace(/\b(?:on\s+)?\d{1,2}(?:st|nd|rd|th)\b/gi, '').trim() ||
+      getCategoryById(first.category).name;
+    const key = normalizeNoteKey(cleanedNote);
+    const existingIdx = state.recurringRules.findIndex(
+      (r) => normalizeNoteKey(r.note) === key && r.type === (first.type || 'expense')
+    );
+    const ruleObj = {
+      id: existingIdx >= 0 ? state.recurringRules[existingIdx].id : `rec_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      type: first.type === 'income' ? 'income' : 'expense',
+      amount: Number(first.amount),
+      category: first.category || 'bills',
+      paymentMethod: first.paymentMethod || defaultPayment,
+      note: cleanedNote,
+      dayOfMonth: Math.min(28, Math.max(1, parsedDay)),
+      active: true,
+      lastLoggedMonth: existingIdx >= 0 ? state.recurringRules[existingIdx].lastLoggedMonth : ''
+    };
+    if (existingIdx >= 0) {
+      state.recurringRules[existingIdx] = ruleObj;
+    } else {
+      state.recurringRules.push(ruleObj);
+    }
+    saveRecurringRules(state.recurringRules);
+    els.addRecurringInput.value = '';
+    renderRecurringModalList();
+    renderAll();
+    showToast(`🔁 Added monthly rule: ${cleanedNote} (${formatCurrency(ruleObj.amount)})`);
+  });
 
   // Design Switcher Bar (Option 1–4 + Classic)
   els.designPills.forEach((pill) => {
@@ -1610,12 +2122,15 @@ function setupEventListeners() {
   els.viewTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
       state.activeView = tab.dataset.view || 'log';
-      if (state.activeView === 'insights') {
+      if (state.activeView === 'log') {
+        document.body.dataset.view = 'log';
+        focusExpenseInput();
+      } else if (state.activeView === 'insights') {
         state.showAllFeed = true;
       }
       renderAll();
       if (state.activeView === 'log') {
-        els.expenseInput?.focus();
+        focusExpenseInput();
       }
     });
   });
@@ -1649,6 +2164,7 @@ function setupEventListeners() {
     chip.addEventListener('click', () => {
       const token = (chip.dataset.fill || '').trim();
       if (!token) return;
+      focusExpenseInput();
       const current = els.expenseInput.value.trim();
       if (!current) {
         // Place keyword and position cursor at start so user can immediately type the amount, or after if they prefer
@@ -1656,8 +2172,8 @@ function setupEventListeners() {
       } else if (!current.toLowerCase().includes(token.toLowerCase())) {
         els.expenseInput.value = `${current} ${token}`;
       }
+      focusExpenseInput();
       updateLivePreview();
-      els.expenseInput.focus();
     });
   });
 
@@ -1874,11 +2390,14 @@ function setupEventListeners() {
     const payload = {
       exportedAt: new Date().toISOString(),
       expenses: state.expenses,
+      recurringRules: state.recurringRules,
       learnedKeywords: getLearnedKeywords(),
       settings: {
         currency: state.settings.currency || '₹',
         monthlyBudget: state.settings.monthlyBudget || 0,
-        defaultPayment: state.settings.defaultPayment || 'upi'
+        defaultPayment: state.settings.defaultPayment || 'upi',
+        ccStatementDay: state.settings.ccStatementDay || 15,
+        ccDueDay: state.settings.ccDueDay || 5
       }
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1905,11 +2424,17 @@ function setupEventListeners() {
         if (parsed.learnedKeywords) {
           mergeLearnedKeywords(parsed.learnedKeywords);
         }
+        if (Array.isArray(parsed.recurringRules)) {
+          state.recurringRules = parsed.recurringRules;
+          saveRecurringRules(state.recurringRules);
+        }
         if (parsed.settings) {
           state.settings = saveSettings({
             currency: parsed.settings.currency || state.settings.currency || '₹',
             monthlyBudget: Number(parsed.settings.monthlyBudget) || state.settings.monthlyBudget || 0,
-            defaultPayment: parsed.settings.defaultPayment || state.settings.defaultPayment || 'upi'
+            defaultPayment: parsed.settings.defaultPayment || state.settings.defaultPayment || 'upi',
+            ccStatementDay: Number(parsed.settings.ccStatementDay) || state.settings.ccStatementDay || 15,
+            ccDueDay: Number(parsed.settings.ccDueDay) || state.settings.ccDueDay || 5
           });
         }
       }
@@ -1963,6 +2488,7 @@ function setupEventListeners() {
       ? els.editPayment.value
       : normalizePaymentMethod(state.expenses[idx]);
     const newDate = els.editDate.value;
+    const isRecurring = Boolean(els.editRecurring?.checked);
 
     // Self-learning: remember note keywords for this category!
     learnFromNote(newNote, newCategory);
@@ -1975,9 +2501,16 @@ function setupEventListeners() {
       category: newCategory,
       paymentMethod: newPayment,
       date: newDate,
+      recurring: isRecurring,
       updatedAt: Date.now(),
       synced: false
     };
+
+    if (isRecurring) {
+      upsertRecurringRuleFromEntry(state.expenses[idx]);
+    } else {
+      removeRecurringRuleForEntry(state.expenses[idx]);
+    }
 
     saveExpenses(state.expenses);
     els.editDialog.close();
@@ -2033,7 +2566,10 @@ function init() {
   renderAll();
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    navigator.serviceWorker
+      .register('./sw.js?v=15')
+      .then((reg) => reg.update())
+      .catch(() => {});
   }
 
   if (state.settings.webhookUrl) {

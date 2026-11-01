@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dropspend-v12';
+const CACHE_NAME = 'dropspend-v15';
 const ASSETS = [
   './',
   './index.html',
@@ -40,7 +40,7 @@ self.addEventListener('fetch', (event) => {
 
   // Network-first with offline cache fallback so new git pushes appear immediately when online
   event.respondWith(
-    fetch(request)
+    fetch(request, { cache: 'no-cache' })
       .then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const copy = networkResponse.clone();

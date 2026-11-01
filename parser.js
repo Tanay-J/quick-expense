@@ -487,6 +487,18 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
   };
 }
 
+export function extractRecurring(text) {
+  const recRegex = /\b(every\s+month|monthly|recurring|autopay|auto-pay)\b/i;
+  const subRegex = /\b(subscription|netflix|spotify|icloud|google\s+one|youtube\s+premium|prime\s+video|chatgpt)\b/i;
+  const hasExplicitRec = recRegex.test(text);
+  const hasImplicitSub = subRegex.test(text);
+  if (!hasExplicitRec && !hasImplicitSub) {
+    return { recurring: false, cleanedText: text };
+  }
+  const cleanedText = text.replace(recRegex, ' ').replace(/\s+/g, ' ').trim();
+  return { recurring: true, cleanedText };
+}
+
 /**
  * Parse a single expense or income segment like:
  * - "200 fuel bike"
@@ -500,8 +512,11 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
 
   const explicitType = detectExplicitType(segment, defaultType);
 
+  // Extract recurring monthly keywords ("monthly", "every month", "recurring", "autopay")
+  const { recurring, cleanedText: recCleanedText } = extractRecurring(segment);
+
   // Extract date first so numbers in dates ("2 days ago", "15 oct") aren't confused with amounts
-  const { dateStr, cleanedText: dateCleanedText, dateLabel } = extractDate(segment, now);
+  const { dateStr, cleanedText: dateCleanedText, dateLabel } = extractDate(recCleanedText, now);
 
   // Extract payment method before category inference so "from cashback" or "cc" are stripped cleanly
   const {
@@ -582,6 +597,7 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
     note,
     category: finalCategoryId,
     paymentMethod: finalPaymentMethod,
+    recurring,
     date: dateStr,
     dateLabel,
     raw: segment.trim()
@@ -633,7 +649,8 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
     }
 
     const explicitType = detectExplicitType(seg, defaultType);
-    const { dateStr, cleanedText: dateCleanedText, dateLabel } = extractDate(seg, now);
+    const { recurring, cleanedText: recCleanedText } = extractRecurring(seg);
+    const { dateStr, cleanedText: dateCleanedText, dateLabel } = extractDate(recCleanedText, now);
     const {
       paymentMethod: extractedPayment,
       explicitPayment,
@@ -676,6 +693,7 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
       note,
       category: finalCategoryId,
       paymentMethod: finalPaymentMethod,
+      recurring,
       date: dateStr,
       dateLabel,
       raw: seg,
