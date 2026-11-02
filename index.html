@@ -6,23 +6,27 @@
   <meta name="theme-color" content="#0f172a">
   <title>DropSpend — Chat Expense Tracker</title>
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./styles.css?v=15">
+  <link rel="stylesheet" href="./styles.css?v=17">
 </head>
-<body data-design="tabs" data-view="log">
+<body data-design="spec" data-view="log" data-theme="clean">
   <!-- Live Design Option Switcher (hidden by default; append ?switcher=1 to URL to compare layouts) -->
   <nav id="design-switcher-bar" class="design-switcher" aria-label="Landing Page Design Options" hidden>
     <div class="design-switcher-inner">
       <span class="design-switcher-label">Layout Option:</span>
       <div class="design-switcher-pills" role="group" aria-label="Choose landing page design">
+        <button type="button" class="design-pill active" data-design="spec">✨ Mockup Spec UI</button>
         <button type="button" class="design-pill" data-design="spotlight">1. Spotlight Hero</button>
-        <button type="button" class="design-pill active" data-design="tabs">2. Two-Tab Zen</button>
+        <button type="button" class="design-pill" data-design="tabs">2. Two-Tab Zen</button>
         <button type="button" class="design-pill" data-design="chat">3. Chat Messenger</button>
         <button type="button" class="design-pill" data-design="pocket">4. Pocket Card</button>
         <button type="button" class="design-pill" data-design="classic">Classic</button>
       </div>
-      <span id="design-switcher-hint" class="design-switcher-hint">Two clean tabs: ⚡ Quick Log vs 📊 Insights &amp; History</span>
+      <span id="design-switcher-hint" class="design-switcher-hint">Exact 1:1 Clean Mobile UI from the 7 Spec Mockups</span>
     </div>
   </nav>
+
+  <!-- NEW 1:1 MOCKUP SPEC UI ROOT (Pages 0–7) -->
+  <div id="spec-app-root" class="spec-app-root"></div>
 
   <header class="app-header">
     <div class="header-inner">
@@ -45,6 +49,10 @@
       </div>
 
       <div class="header-actions">
+        <button type="button" id="theme-cycle-btn" class="icon-btn theme-pill" title="Switch Theme: Dark / Clean / Receipt" aria-label="Switch visual theme">
+          <span id="theme-cycle-icon" aria-hidden="true">🌙</span>
+          <span id="theme-cycle-label" class="btn-text-desktop">Dark</span>
+        </button>
         <button type="button" id="usage-stats-btn" class="usage-pill" title="Profile &amp; Settings" aria-label="Edit your name and settings">
           <span aria-hidden="true">👤</span>
           <span id="usage-stats-label">My Name</span>
@@ -66,30 +74,67 @@
   </header>
 
   <main class="app-main">
+    <!-- 6A: Monthly Wrapped Recap Banner (Shown on days 1–3 or when unwrapped month exists) -->
+    <section id="home-recap-banner" class="recap-home-banner" aria-label="Monthly Spending Recap" hidden>
+      <div class="recap-banner-main" id="home-recap-open-area" role="button" tabindex="0">
+        <span class="recap-kicker" id="home-recap-kicker">🎁 NEW · MONTHLY RECAP</span>
+        <strong class="recap-headline" id="home-recap-title">Your month is wrapped</strong>
+        <span class="recap-sub" id="home-recap-sub">Tap to watch your spending story ▶</span>
+        <div class="recap-color-strip" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+      <button type="button" id="home-recap-dismiss-btn" class="recap-dismiss-btn" aria-label="Dismiss recap card">✕</button>
+    </section>
+
     <!-- Minimalist Summary Strip / Pocket Card (Used in Options 1, 2, 3, 4) -->
     <section id="minimal-summary-bar" class="minimal-summary-bar" aria-label="Quick Spending Summary">
-      <div class="mini-stat-group">
-        <div class="mini-stat-primary">
-          <span id="mini-period-title" class="mini-stat-label">This Month</span>
-          <strong id="mini-month-spent" class="mini-stat-value">₹0</strong>
+      <div class="mini-summary-top">
+        <div class="mini-stat-group">
+          <div class="mini-stat-primary">
+            <span id="mini-period-title" class="mini-stat-label">This Month</span>
+            <strong id="mini-month-spent" class="mini-stat-value">₹0</strong>
+          </div>
+          <div class="mini-stat-divider" aria-hidden="true"></div>
+          <div class="mini-stat-secondary">
+            <span class="mini-stat-label">Today</span>
+            <strong id="mini-today-spent" class="mini-stat-subvalue">₹0</strong>
+          </div>
+          <div class="mini-stat-divider mini-net-divider" aria-hidden="true"></div>
+          <div class="mini-stat-secondary mini-net-item">
+            <span class="mini-stat-label">Net Cashflow</span>
+            <strong id="mini-month-net" class="mini-stat-subvalue">₹0</strong>
+          </div>
         </div>
-        <div class="mini-stat-divider" aria-hidden="true"></div>
-        <div class="mini-stat-secondary">
-          <span class="mini-stat-label">Today</span>
-          <strong id="mini-today-spent" class="mini-stat-subvalue">₹0</strong>
-        </div>
-        <div class="mini-stat-divider mini-net-divider" aria-hidden="true"></div>
-        <div class="mini-stat-secondary mini-net-item">
-          <span class="mini-stat-label">Net Cashflow</span>
-          <strong id="mini-month-net" class="mini-stat-subvalue">₹0</strong>
+
+        <div class="mini-summary-actions">
+          <button type="button" id="toggle-insights-btn" class="insights-toggle-btn" aria-expanded="false">
+            <span id="toggle-insights-icon" aria-hidden="true">📊</span>
+            <span id="toggle-insights-label">Insights &amp; Breakdown</span>
+          </button>
         </div>
       </div>
 
-      <div class="mini-summary-actions">
-        <button type="button" id="toggle-insights-btn" class="insights-toggle-btn" aria-expanded="false">
-          <span id="toggle-insights-icon" aria-hidden="true">📊</span>
-          <span id="toggle-insights-label">Insights &amp; Breakdown</span>
-        </button>
+      <!-- 1A: Smart Budget Pace Meter + Mini Category Distribution Bar -->
+      <div id="mini-pace-card" class="mini-pace-card" hidden>
+        <div class="mini-pace-meta">
+          <span id="mini-budget-left" class="mini-pace-left">₹0 left</span>
+          <span id="mini-budget-allowance" class="mini-pace-allowance">₹0/day · 0 days left</span>
+        </div>
+        <div class="mini-pace-track" aria-hidden="true">
+          <div id="mini-pace-fill" class="mini-pace-fill"></div>
+          <div id="mini-pace-tick" class="mini-pace-tick" title="Elapsed fraction of month"></div>
+        </div>
+        <div class="mini-pace-footer">
+          <span id="mini-pace-status" class="mini-pace-status" data-status="good">✓ On pace</span>
+          <span id="mini-span-delta" class="mini-span-delta"></span>
+        </div>
+      </div>
+
+      <!-- 1A: Mini Stacked Category Bar on Home (Tapping opens Insights) -->
+      <div id="mini-cat-strip" class="mini-cat-strip" role="button" tabindex="0" title="Tap to open full Insights breakdown" hidden>
+        <div id="mini-stacked-bar" class="stacked-bar mini-stacked-bar" aria-hidden="true"></div>
+        <div id="mini-cat-legend" class="mini-cat-legend"></div>
       </div>
     </section>
 
@@ -98,11 +143,17 @@
       <div class="composer-inner">
         <div class="spotlight-hero-header">
           <h2 class="spotlight-hero-title">What did you spend on?</h2>
-          <span class="spotlight-hero-hint">Just type amount &amp; item — press Enter to save</span>
+          <span class="spotlight-hero-hint">Log with an amount (`200 snacks upi #goa`), or ask a question without one (`food this month`)</span>
         </div>
 
         <!-- Interactive Parse Output & Quick-Edit Bar -->
         <div id="parse-preview" class="parse-preview" role="region" aria-label="Parsed transaction preview" aria-live="polite" hidden></div>
+
+        <!-- 1C: History Autocomplete ("FROM YOUR HISTORY") while typing -->
+        <div id="history-autocomplete" class="history-autocomplete" role="region" aria-label="Matching items from your history" hidden></div>
+
+        <!-- 1D: Natural Language Question Answer Card (when input has no amount) -->
+        <div id="question-answer-card" class="question-answer-card" role="region" aria-label="Instant answer to your spending question" aria-live="polite" hidden></div>
 
         <form id="expense-form" class="composer-form" action="#" method="POST">
           <button
@@ -116,14 +167,14 @@
             <span id="composer-type-icon" aria-hidden="true">−</span>
             <span id="composer-type-label" class="btn-text-desktop">Expense</span>
           </button>
-          <label for="expense-input" class="visually-hidden">Drop an expense or income message (e.g., 200 fuel bike or +50000 salary)</label>
+          <label for="expense-input" class="visually-hidden">Drop an expense or income message (e.g., 200 fuel bike or +50000 salary) or ask a question (e.g., food this month)</label>
           <input
             type="text"
             inputmode="text"
             id="expense-input"
             name="message"
             class="composer-input"
-            placeholder="e.g. 200 fuel upi, 150 coffee"
+            placeholder="Add 200 snacks upi · or ask: food this month"
             enterkeyhint="send"
             autocomplete="off"
             autofocus
@@ -152,7 +203,15 @@
           </button>
         </form>
 
-        <!-- Quick 1-Tap Category / Mode Chips for ultra-fast entry -->
+        <!-- 1B: "Your Usuals" (Top 6 frequent items in last 30d: 1-tap instant add, or ✎ to prefill) + Quick Shortcuts -->
+        <div id="usuals-container" class="usuals-container" aria-label="Your Usuals — 1-tap instant log" hidden>
+          <div class="usuals-header">
+            <span class="usuals-title">⚡ YOUR USUALS · TAP TO ADD INSTANTLY (OR ✎ TO EDIT)</span>
+          </div>
+          <div id="usuals-grid" class="usuals-grid"></div>
+        </div>
+
+        <!-- Quick 1-Tap Category / Mode / Ask Chips -->
         <div class="quick-fill-row" aria-label="Quick entry shortcuts">
           <span class="quick-fill-label">Quick tap:</span>
           <button type="button" class="quick-fill-chip" data-fill="fuel upi">⛽ Fuel</button>
@@ -161,6 +220,7 @@
           <button type="button" class="quick-fill-chip" data-fill="groceries ">🛒 Groceries</button>
           <button type="button" class="quick-fill-chip" data-fill="uber ">🚕 Cab</button>
           <button type="button" class="quick-fill-chip" data-fill="cc">💳 Card</button>
+          <button type="button" class="quick-fill-chip is-ask-chip" data-ask="food this month" title="Try asking a natural language question!">🔍 Ask: Food this month</button>
           <button type="button" id="quick-open-recurring-btn" class="quick-fill-chip is-tracker-chip" title="Manage Monthly Recurring Bills, Subscriptions &amp; Credit Card Cycle">🔁 Bills &amp; Card</button>
         </div>
 
@@ -171,13 +231,23 @@
 
     <!-- Insights & Analytics Container (Collapsible / Tab-controlled in minimal layouts) -->
     <div id="insights-container" class="insights-container">
-      <!-- Period Navigation Bar -->
-      <section class="period-bar" aria-label="Time Period Filter">
+      <!-- Period Navigation Bar + Insights Sub-Tabs (Overview | Calendar & Patterns | Explore & Compare | Recaps) -->
+      <section class="period-bar" aria-label="Time Period Filter and Insights Navigation">
         <div class="month-selector">
           <button type="button" id="prev-month-btn" class="nav-btn" aria-label="Previous month">‹</button>
-          <span id="current-period-label" class="period-label">October 2026</span>
+          <span id="current-period-label" class="period-label">November 2026</span>
           <button type="button" id="next-month-btn" class="nav-btn" aria-label="Next month">›</button>
         </div>
+
+        <div class="insights-subtabs" role="tablist" aria-label="Insights sections">
+          <button type="button" role="tab" class="insights-subtab active" data-subtab="overview" aria-selected="true">Overview</button>
+          <button type="button" role="tab" class="insights-subtab" data-subtab="calendar" aria-selected="false">Calendar &amp; Patterns</button>
+          <button type="button" role="tab" class="insights-subtab" data-subtab="explore" aria-selected="false">Explore &amp; Compare</button>
+          <button type="button" role="tab" class="insights-subtab" data-subtab="recaps" aria-selected="false">
+            Recaps <span id="recap-unseen-dot" class="recap-dot" hidden></span>
+          </button>
+        </div>
+
         <div class="period-modes" role="group" aria-label="Period range">
           <button type="button" class="mode-chip active" data-mode="month">Month</button>
           <button type="button" class="mode-chip" data-mode="7d">Last 7D</button>
@@ -185,97 +255,296 @@
         </div>
       </section>
 
-      <!-- KPI Summary Cards -->
-      <section class="kpi-section" aria-labelledby="kpi-heading">
-        <h2 id="kpi-heading" class="visually-hidden">Cashflow &amp; Spending Overview</h2>
-        <div class="kpi-grid">
-          <article class="kpi-card kpi-primary">
-            <span class="kpi-title">Total Spent</span>
-            <strong id="kpi-total" class="kpi-value">₹0</strong>
-            <div id="budget-progress-wrap" class="budget-wrap" hidden>
-              <div class="budget-meta">
-                <span id="budget-status-text">0% of budget</span>
+      <!-- ====================================================================
+           SUB-TAB 1: OVERVIEW (KPIs, Running Total Chart, Categories + 4B Drill-down, 4C Fun Facts)
+           ==================================================================== -->
+      <div id="subtab-overview" class="insights-subview">
+        <!-- KPI Summary Cards -->
+        <section class="kpi-section" aria-labelledby="kpi-heading">
+          <h2 id="kpi-heading" class="visually-hidden">Cashflow &amp; Spending Overview</h2>
+          <div class="kpi-grid">
+            <article class="kpi-card kpi-primary">
+              <div class="kpi-card-top">
+                <span class="kpi-title">Total Spent</span>
+                <span id="kpi-span-delta" class="kpi-delta-badge" hidden></span>
               </div>
-              <progress id="budget-progress" class="budget-bar" value="0" max="100"></progress>
-            </div>
-            <span id="kpi-sub-count" class="kpi-sub">0 expenses • ₹0/day</span>
-          </article>
-
-          <article class="kpi-card kpi-income-card">
-            <span class="kpi-title">Total Income</span>
-            <strong id="kpi-income" class="kpi-value kpi-value-income">+₹0</strong>
-            <span id="kpi-income-sub" class="kpi-sub">0 income entries</span>
-          </article>
-
-          <article class="kpi-card">
-            <span class="kpi-title">Net Cashflow</span>
-            <strong id="kpi-net" class="kpi-value">₹0</strong>
-            <span id="kpi-avg" class="kpi-sub" hidden>Daily avg: ₹0</span>
-            <span id="kpi-projected" class="kpi-sub">Month pace: ₹0</span>
-          </article>
-
-          <article class="kpi-card">
-            <span class="kpi-title">Top Category</span>
-            <strong id="kpi-top-cat" class="kpi-value">—</strong>
-            <span id="kpi-top-cat-amt" class="kpi-sub">No data yet</span>
-          </article>
-        </div>
-      </section>
-
-      <!-- Compact Credit Card Cycle & Monthly Recurring Strip (Inside Insights) -->
-      <section class="smart-trackers-grid" aria-label="Credit Card Cycle and Recurring Bills">
-        <article class="tracker-card">
-          <div class="tracker-card-top">
-            <div>
-              <span class="tracker-label">💳 Credit Card Cycle</span>
-              <strong id="cc-cycle-spent" class="tracker-value">₹0</strong>
-            </div>
-            <div class="tracker-actions">
-              <button type="button" id="cc-mark-paid-btn" class="mini-pill-btn is-accent" hidden>✓ Mark Paid</button>
-              <button type="button" id="open-cc-settings-btn" class="mini-pill-btn">Cycle Dates</button>
-            </div>
-          </div>
-          <p id="cc-cycle-meta" class="tracker-meta">Statement 15th • Due 5th</p>
-        </article>
-
-        <article class="tracker-card">
-          <div class="tracker-card-top">
-            <div>
-              <span class="tracker-label">🔁 Monthly Bills &amp; Subs</span>
-              <strong id="recurring-monthly-total" class="tracker-value">₹0/mo</strong>
-            </div>
-            <div class="tracker-actions">
-              <button type="button" id="open-recurring-btn" class="mini-pill-btn">Manage 🔁</button>
-            </div>
-          </div>
-          <p id="recurring-sub-meta" class="tracker-meta">Tip: type "15000 rent monthly" or toggle 🔁 on any entry</p>
-        </article>
-      </section>
-
-      <!-- Two-Column Analytics Grid on Desktop / Stacked on Mobile -->
-      <div class="analytics-grid">
-        <section class="panel" aria-labelledby="cat-heading">
-          <div class="panel-header">
-            <h2 id="cat-heading" class="panel-title">Breakdown</h2>
-            <div class="panel-header-actions">
-              <div class="mini-modes" role="group" aria-label="Breakdown mode">
-                <button type="button" class="mini-chip active" data-cat-type="expense">Expenses</button>
-                <button type="button" class="mini-chip" data-cat-type="income">Income</button>
-                <button type="button" class="mini-chip" data-cat-type="payment">Payment Mode</button>
+              <strong id="kpi-total" class="kpi-value">₹0</strong>
+              <div id="budget-progress-wrap" class="budget-wrap" hidden>
+                <div class="budget-meta">
+                  <span id="budget-status-text">0% of budget</span>
+                  <span id="budget-pace-pill" class="budget-pace-pill"></span>
+                </div>
+                <div class="budget-track-custom">
+                  <progress id="budget-progress" class="budget-bar" value="0" max="100"></progress>
+                  <div id="kpi-pace-tick" class="kpi-pace-tick" title="Elapsed fraction of month"></div>
+                </div>
               </div>
-              <button type="button" id="clear-cat-filter-btn" class="text-btn" hidden>Clear filter</button>
-            </div>
+              <span id="kpi-sub-count" class="kpi-sub">0 expenses • ₹0/day</span>
+            </article>
+
+            <article class="kpi-card kpi-income-card">
+              <span class="kpi-title">Total Income</span>
+              <strong id="kpi-income" class="kpi-value kpi-value-income">+₹0</strong>
+              <span id="kpi-income-sub" class="kpi-sub">0 income entries</span>
+            </article>
+
+            <article class="kpi-card">
+              <span class="kpi-title">Net Cashflow</span>
+              <strong id="kpi-net" class="kpi-value">₹0</strong>
+              <span id="kpi-avg" class="kpi-sub" hidden>Daily avg: ₹0</span>
+              <span id="kpi-projected" class="kpi-sub">Month pace: ₹0</span>
+            </article>
+
+            <article class="kpi-card">
+              <span class="kpi-title">Top Category</span>
+              <strong id="kpi-top-cat" class="kpi-value">—</strong>
+              <span id="kpi-top-cat-amt" class="kpi-sub">No data yet</span>
+            </article>
           </div>
-          <div id="category-stacked-bar" class="stacked-bar" aria-hidden="true"></div>
-          <ul id="category-list" class="category-list"></ul>
         </section>
 
-        <section class="panel" aria-labelledby="trend-heading">
-          <div class="panel-header">
-            <h2 id="trend-heading" class="panel-title">Daily Activity</h2>
-            <span id="trend-subtitle" class="panel-subtitle">Last 14 days</span>
+        <!-- Compact Credit Card Cycle & Monthly Recurring Strip (Inside Insights) -->
+        <section class="smart-trackers-grid" aria-label="Credit Card Cycle and Recurring Bills">
+          <article class="tracker-card">
+            <div class="tracker-card-top">
+              <div>
+                <span class="tracker-label">💳 Credit Card Cycle</span>
+                <strong id="cc-cycle-spent" class="tracker-value">₹0</strong>
+              </div>
+              <div class="tracker-actions">
+                <button type="button" id="cc-mark-paid-btn" class="mini-pill-btn is-accent" hidden>✓ Mark Paid</button>
+                <button type="button" id="open-cc-settings-btn" class="mini-pill-btn">Cycle Dates</button>
+              </div>
+            </div>
+            <p id="cc-cycle-meta" class="tracker-meta">Statement 15th • Due 5th</p>
+          </article>
+
+          <article class="tracker-card">
+            <div class="tracker-card-top">
+              <div>
+                <span class="tracker-label">🔁 Monthly Bills &amp; Subs</span>
+                <strong id="recurring-monthly-total" class="tracker-value">₹0/mo</strong>
+              </div>
+              <div class="tracker-actions">
+                <button type="button" id="open-recurring-btn" class="mini-pill-btn">Manage 🔁</button>
+              </div>
+            </div>
+            <p id="recurring-sub-meta" class="tracker-meta">Tip: type "15000 rent monthly" or toggle 🔁 on any entry</p>
+          </article>
+        </section>
+
+        <!-- Two-Column Analytics Grid on Desktop / Stacked on Mobile -->
+        <div class="analytics-grid">
+          <section class="panel" aria-labelledby="cat-heading">
+            <div class="panel-header">
+              <div>
+                <h2 id="cat-heading" class="panel-title">Categories &amp; Modes</h2>
+                <span class="panel-subtitle">Tap a row to filter, or <strong>Drill in ▸</strong> for 5-month history</span>
+              </div>
+              <div class="panel-header-actions">
+                <div class="mini-modes" role="group" aria-label="Breakdown mode">
+                  <button type="button" class="mini-chip active" data-cat-type="expense">Expenses</button>
+                  <button type="button" class="mini-chip" data-cat-type="income">Income</button>
+                  <button type="button" class="mini-chip" data-cat-type="payment">Payment Mode</button>
+                </div>
+                <button type="button" id="toggle-cat-table-btn" class="table-toggle-btn" title="Swap between visual bars and table view">⇄ Table</button>
+                <button type="button" id="clear-cat-filter-btn" class="text-btn" hidden>Clear filter</button>
+              </div>
+            </div>
+            <div id="category-stacked-bar" class="stacked-bar" aria-hidden="true"></div>
+            <ul id="category-list" class="category-list"></ul>
+            <div id="category-table-wrap" class="chart-table-wrap" hidden></div>
+
+            <!-- 4B: Inline Category Drill-Down View (Appears when drilling into a category) -->
+            <div id="cat-drilldown-panel" class="cat-drilldown-panel" hidden></div>
+          </section>
+
+          <div class="overview-right-stack">
+            <!-- 4A: Cumulative Running Total Chart (Current Month vs Previous Month) -->
+            <section class="panel" aria-labelledby="running-total-heading">
+              <div class="panel-header">
+                <div>
+                  <h2 id="running-total-heading" class="panel-title">Running Total</h2>
+                  <span id="running-total-subtitle" class="panel-subtitle">Day 1 → 31 vs previous month</span>
+                </div>
+                <button type="button" id="toggle-running-table-btn" class="table-toggle-btn">⇄ Table</button>
+              </div>
+              <div id="running-total-chart" class="running-total-chart"></div>
+              <div id="running-total-table" class="chart-table-wrap" hidden></div>
+            </section>
+
+            <!-- Daily Activity (14-Day Bar Chart) -->
+            <section class="panel" aria-labelledby="trend-heading">
+              <div class="panel-header">
+                <h2 id="trend-heading" class="panel-title">Daily Activity</h2>
+                <span id="trend-subtitle" class="panel-subtitle">Last 14 days</span>
+              </div>
+              <div id="trend-chart" class="trend-chart" role="img" aria-label="Bar chart of daily spending and income"></div>
+            </section>
           </div>
-          <div id="trend-chart" class="trend-chart" role="img" aria-label="Bar chart of daily spending and income"></div>
+        </div>
+
+        <!-- 4C & 7.1: Threshold-Gated Deterministic Fun Facts -->
+        <section id="fun-facts-panel" class="panel fun-facts-panel" aria-labelledby="fun-facts-heading">
+          <div class="panel-header">
+            <div>
+              <h2 id="fun-facts-heading" class="panel-title">✨ Smart Fun Facts</h2>
+              <span id="fun-facts-subtitle" class="panel-subtitle">Only facts that clear their threshold appear</span>
+            </div>
+            <button type="button" id="toggle-all-facts-btn" class="mini-pill-btn">Show all facts ▾</button>
+          </div>
+          <div id="fun-facts-grid" class="fun-facts-grid"></div>
+        </section>
+      </div>
+
+      <!-- ====================================================================
+           SUB-TAB 2: CALENDAR HEATMAP & 90-DAY BEHAVIORAL PATTERNS (5A & 5B)
+           ==================================================================== -->
+      <div id="subtab-calendar" class="insights-subview" hidden>
+        <div class="analytics-grid">
+          <!-- 5A: Monthly Spend Calendar Heatmap -->
+          <section class="panel" aria-labelledby="cal-heading">
+            <div class="panel-header">
+              <div>
+                <h2 id="cal-heading" class="panel-title">📅 Daily Spend Heatmap</h2>
+                <span class="panel-subtitle">Tap any day to filter transactions below · 🌱 = ₹0 no-spend day</span>
+              </div>
+              <button type="button" id="clear-cal-date-btn" class="text-btn" hidden>Clear day filter</button>
+            </div>
+
+            <div class="cal-weekdays" aria-hidden="true">
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+            <div id="calendar-grid" class="calendar-grid"></div>
+
+            <div class="cal-legend">
+              <span class="cal-legend-item"><i class="cal-swatch tier-0">🌱</i> ₹0 No-spend</span>
+              <span class="cal-legend-item"><i class="cal-swatch tier-1"></i> &lt;₹300</span>
+              <span class="cal-legend-item"><i class="cal-swatch tier-2"></i> &lt;₹700</span>
+              <span class="cal-legend-item"><i class="cal-swatch tier-3"></i> &lt;₹1.2k</span>
+              <span class="cal-legend-item"><i class="cal-swatch tier-4"></i> &lt;₹2k</span>
+              <span class="cal-legend-item"><i class="cal-swatch tier-5"></i> ≥₹2k</span>
+            </div>
+
+            <div class="cal-summary-tiles">
+              <div class="cal-tile">
+                <span class="cal-tile-label">Month Spend</span>
+                <strong id="cal-month-total" class="cal-tile-val">₹0</strong>
+                <span id="cal-daily-avg" class="cal-tile-sub">₹0/day avg</span>
+              </div>
+              <div class="cal-tile">
+                <span class="cal-tile-label">Heavy · No-Spend</span>
+                <strong id="cal-heavy-nospend" class="cal-tile-val">0 · 0 🌱</strong>
+                <span class="cal-tile-sub">days ≥ ₹1,200 · days at ₹0</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- 5B: 90-Day Patterns, Streaks & Auto-Detected Habits -->
+          <section class="panel" aria-labelledby="patterns-heading">
+            <div class="panel-header">
+              <div>
+                <h2 id="patterns-heading" class="panel-title">🧭 90-Day Patterns &amp; Habits</h2>
+                <span id="patterns-weekday-callout" class="panel-subtitle">Your weekday &amp; time-of-day rhythm</span>
+              </div>
+            </div>
+
+            <h3 class="sub-card-title">Your Week (Avg per weekday)</h3>
+            <div id="patterns-weekday-chart" class="patterns-bar-chart"></div>
+
+            <h3 class="sub-card-title">Your Day (Spend by time of day)</h3>
+            <div id="patterns-hour-chart" class="patterns-bar-chart"></div>
+
+            <div class="streaks-row">
+              <div class="streak-card">
+                <span class="cal-tile-label">Light-Day Streak (&lt;₹300)</span>
+                <strong id="streak-light-days" class="cal-tile-val">0 days</strong>
+                <span class="cal-tile-sub">in a row under ₹300</span>
+              </div>
+              <div class="streak-card">
+                <span class="cal-tile-label">Best No-Spend Run 🌱</span>
+                <strong id="streak-best-nospend" class="cal-tile-val">0 days</strong>
+                <span class="cal-tile-sub">in last 90 days</span>
+              </div>
+            </div>
+
+            <h3 class="sub-card-title">Habits We Noticed (Auto-detected)</h3>
+            <ul id="habits-list" class="habits-list"></ul>
+          </section>
+        </div>
+      </div>
+
+      <!-- ====================================================================
+           SUB-TAB 3: EXPLORE & COMPARE (5C & 5D)
+           ==================================================================== -->
+      <div id="subtab-explore" class="insights-subview" hidden>
+        <div class="analytics-grid">
+          <!-- 5C: Explore Query & Group-By Engine -->
+          <section class="panel" aria-labelledby="explore-heading">
+            <div class="panel-header">
+              <div>
+                <h2 id="explore-heading" class="panel-title">🔍 Explore &amp; Group By</h2>
+                <span class="panel-subtitle">Ask anything: <em>"food this month"</em>, <em>"swiggy"</em>, <em>"upi last week"</em>, <em>"#goa"</em></span>
+              </div>
+            </div>
+
+            <div class="explore-search-wrap">
+              <input
+                type="search"
+                id="explore-query-input"
+                class="explore-query-input"
+                placeholder="e.g. food this month, swiggy, #goa, upi last week..."
+                autocomplete="off"
+              >
+            </div>
+
+            <div class="explore-groupby-bar" role="group" aria-label="Group results by">
+              <span class="quick-fill-label">Group by:</span>
+              <button type="button" class="mini-chip active" data-explore-group="item">Item</button>
+              <button type="button" class="mini-chip" data-explore-group="category">Category</button>
+              <button type="button" class="mini-chip" data-explore-group="payment">Payment Mode</button>
+              <button type="button" class="mini-chip" data-explore-group="weekday">Weekday</button>
+              <button type="button" class="mini-chip" data-explore-group="tag">#Tag</button>
+            </div>
+
+            <div id="explore-summary-tiles" class="cal-summary-tiles"></div>
+            <div id="explore-bars-list" class="explore-bars-list"></div>
+          </section>
+
+          <!-- 5D: Period-over-Period Diverging Compare & "What Changed" -->
+          <section class="panel" aria-labelledby="compare-heading">
+            <div class="panel-header">
+              <div>
+                <h2 id="compare-heading" class="panel-title">⚖️ Period Compare</h2>
+                <span id="compare-span-subtitle" class="panel-subtitle">Current span vs same span last month</span>
+              </div>
+            </div>
+
+            <div id="compare-hero-box" class="compare-hero-box"></div>
+
+            <div class="compare-legend">
+              <span class="compare-leg-less">◀ Spent less (Blue)</span>
+              <span class="compare-leg-more">Spent more (Red) ▶</span>
+            </div>
+            <div id="compare-diverging-chart" class="compare-diverging-chart"></div>
+
+            <div id="compare-what-changed" class="what-changed-card"></div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ====================================================================
+           SUB-TAB 4: MONTHLY WRAPPED RECAPS (6B & 6C)
+           ==================================================================== -->
+      <div id="subtab-recaps" class="insights-subview" hidden>
+        <section class="panel" aria-labelledby="recaps-heading">
+          <div class="panel-header">
+            <div>
+              <h2 id="recaps-heading" class="panel-title">🎁 Monthly Wrapped Recaps</h2>
+              <span class="panel-subtitle">Full-screen interactive story of your month's spending, habits &amp; #tags</span>
+            </div>
+          </div>
+          <div id="recaps-tab-content" class="recaps-tab-content"></div>
         </section>
       </div>
     </div>
@@ -416,7 +685,37 @@
           </div>
           <div class="form-group">
             <label for="budget-input">Monthly Budget (Optional)</label>
-            <input type="text" id="budget-input" name="monthlyBudget" inputmode="numeric" placeholder="e.g. 25000">
+            <input type="text" id="budget-input" name="monthlyBudget" inputmode="numeric" placeholder="e.g. 30000">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="ui-design-select-input">UI Experience &amp; Layout</label>
+          <select id="ui-design-select-input" name="uiDesign">
+            <option value="spec">✨ Mockup Spec UI (Clean Mobile Mockup from Images)</option>
+            <option value="tabs">⚡ Two-Tab Zen (Classic V1)</option>
+            <option value="spotlight">🎯 Spotlight Hero (Classic V1)</option>
+            <option value="chat">💬 Chat Messenger (Classic V1)</option>
+            <option value="pocket">💳 Pocket Card (Classic V1)</option>
+            <option value="classic">📊 Full Dashboard (Classic V1)</option>
+          </select>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="theme-select-input">Look &amp; Theme</label>
+            <select id="theme-select-input" name="theme">
+              <option value="clean">☀️ Clean (Warm Paper)</option>
+              <option value="receipt">🧾 Receipt (Thermal Ledger)</option>
+              <option value="dark">🌙 Dark (Emerald Slate)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="always-tables-input">Chart Display</label>
+            <select id="always-tables-input" name="alwaysTables">
+              <option value="false">📊 Visual Charts (Default)</option>
+              <option value="true">📋 Always Show Tables</option>
+            </select>
           </div>
         </div>
 
@@ -459,11 +758,11 @@
     </div>
   </dialog>
 
-  <!-- Edit Transaction Modal (<dialog>) -->
-  <dialog id="edit-dialog" class="app-dialog" closedby="any" aria-labelledby="edit-dialog-title">
+  <!-- 3B: Edit Transaction Bottom Sheet / Modal (<dialog>) -->
+  <dialog id="edit-dialog" class="app-dialog edit-sheet-dialog" closedby="any" aria-labelledby="edit-dialog-title">
     <div class="dialog-content">
       <div class="dialog-header">
-        <h1 id="edit-dialog-title" class="dialog-title">Edit Transaction</h1>
+        <h1 id="edit-dialog-title" class="dialog-title">Edit Entry</h1>
         <form method="dialog">
           <button type="submit" class="icon-btn" aria-label="Close edit dialog">✕</button>
         </form>
@@ -483,25 +782,34 @@
 
           <div class="form-group">
             <label for="edit-amount">Amount</label>
-            <input type="text" id="edit-amount" name="amount" inputmode="decimal" required>
+            <input type="text" id="edit-amount" name="amount" class="edit-hero-amount" inputmode="decimal" required>
           </div>
-        </div>
-
-        <div class="form-group">
-          <label for="edit-note">Description / Note</label>
-          <input type="text" id="edit-note" name="note" required>
         </div>
 
         <div class="form-row-2">
           <div class="form-group">
-            <label for="edit-category">Category (Teaches DropSpend!)</label>
-            <select id="edit-category" name="category"></select>
+            <label for="edit-note">Description / Note</label>
+            <input type="text" id="edit-note" name="note" required>
           </div>
 
           <div class="form-group">
-            <label for="edit-payment">Payment Mode</label>
-            <select id="edit-payment" name="paymentMethod"></select>
+            <label for="edit-tags">#Tags (Trip / Event)</label>
+            <input type="text" id="edit-tags" name="tags" placeholder="e.g. #goa #office">
           </div>
+        </div>
+
+        <!-- 3B: Visual Category Grid (1-tap selection) + native select fallback -->
+        <div class="form-group">
+          <label for="edit-category">Category</label>
+          <div id="edit-category-grid" class="edit-category-grid" role="group" aria-label="Choose category"></div>
+          <select id="edit-category" name="category" class="visually-hidden"></select>
+        </div>
+
+        <!-- 3B: Segmented Payment Mode Bar + native select fallback -->
+        <div class="form-group">
+          <label for="edit-payment">Payment Mode</label>
+          <div id="edit-payment-pills" class="edit-payment-pills" role="group" aria-label="Choose payment mode"></div>
+          <select id="edit-payment" name="paymentMethod" class="visually-hidden"></select>
         </div>
 
         <div class="form-group">
@@ -509,14 +817,20 @@
           <input type="date" id="edit-date" name="date" required>
         </div>
 
+        <!-- 3B: Explicit "Always file '<note>' as <Category>" toggle -->
+        <label class="recurring-check-row" for="edit-learn-toggle">
+          <input type="checkbox" id="edit-learn-toggle" checked>
+          <span id="edit-learn-label">🧠 Always file this note under selected category</span>
+        </label>
+
         <label class="recurring-check-row" for="edit-recurring">
           <input type="checkbox" id="edit-recurring" name="recurring">
           <span>🔁 Repeat this every month (Recurring Bill / Subscription / Income)</span>
         </label>
 
         <div class="dialog-actions">
-          <button type="submit" class="primary-btn">Save Changes</button>
-          <button type="button" id="delete-expense-btn" class="danger-btn">Delete Entry</button>
+          <button type="button" id="delete-expense-btn" class="danger-btn">Delete</button>
+          <button type="submit" class="primary-btn">Save</button>
         </div>
       </form>
     </div>
@@ -574,6 +888,24 @@
     </div>
   </dialog>
 
-  <script type="module" src="./app.js?v=15"></script>
+  <!-- 6C: Full-Screen Monthly Wrapped Story Dialog (<dialog>) -->
+  <dialog id="story-dialog" class="story-dialog" closedby="any" aria-label="Monthly Wrapped Story">
+    <div id="story-card-surface" class="story-card-surface">
+      <div class="story-top-bar">
+        <div id="story-progress-bars" class="story-progress-bars"></div>
+        <form method="dialog">
+          <button type="submit" class="story-close-btn" aria-label="Close story">✕</button>
+        </form>
+      </div>
+      <div id="story-slide-body" class="story-slide-body"></div>
+      <div class="story-nav-Controls">
+        <button type="button" id="story-prev-btn" class="story-nav-btn" aria-label="Previous story slide">‹ Prev</button>
+        <span id="story-counter" class="story-counter">1 / 6</span>
+        <button type="button" id="story-next-btn" class="story-nav-btn" aria-label="Next story slide">Next ›</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="./app.js?v=17"></script>
 </body>
 </html>

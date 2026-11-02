@@ -62,19 +62,43 @@ When you deploy DropSpend publicly (e.g., on GitHub Pages, Cloudflare Pages, or 
 
 ---
 
-## 3. Project Structure
+## 3. Project Structure & Dual UI/UX Architecture
 
 ```text
 /Users/tanayjoshi/Projects/quick-expense/
-├── index.html              # Semantic HTML5 app shell, dashboard, and native <dialog> modals
-├── styles.css              # Responsive dark-slate & emerald UI, mobile-first sticky input dock
-├── app.js                  # UI controller, KPI stats, category filters, 14-day chart, IME-safe input
-├── parser.js               # Natural language amount/date/category parser + self-learning engine
+├── index.html              # App shell for both 1:1 Spec UI (#spec-app-root) and Classic/Zen UIs
+├── styles.css              # Design tokens & styles for Classic/Zen UIs + 1:1 Spec UI (.spec-*)
+├── spec-ui.js              # 1:1 Mockup Spec UI controller (Pages 0–7: 1A–1D, 3A–3D, 4A–4D, 5A–5D, 6A–6D)
+├── app.js                  # Classic / Two-Tab Zen / Spotlight / Chat / Pocket UI controller & state bridge
+├── parser.js               # Natural language expense parser + 2.4 Question Grammar engine + self-learning
+├── insights.js             # Deterministic analytics engine (Pace, Running Total, Calendar, Explore, Compare, Fun Facts, Recaps)
 ├── sync.js                 # Offline-first queue, 2-way Google Sheets sync, CSV & JSON backup
 ├── google-apps-script.js   # Ready-to-paste Google Apps Script for your Google Sheet
 ├── manifest.json           # PWA install manifest for iOS / Android / Desktop
-└── sw.js                   # Offline Service Worker cache
+└── sw.js                   # Offline Service Worker cache (dropspend-v17)
 ```
+
+### Switching Between UI Experiences (Saved in Settings `qe_settings_v1.uiDesign`)
+DropSpend preserves **all UI/UX paradigms** on top of the exact same local transaction store (`sync.js`), parser (`parser.js`), and analytics engine (`insights.js`). You can switch anytime in **Settings (`⚙`) → App Layout / UI Experience**:
+
+1. **`spec` — ✨ Mockup Spec UI (Pages 0–7, Default)** (`spec-ui.js`):
+   - **`1A · Home`**: Date header, circular Stats (`◔`), History (`🔍`), and Settings (`⚙`) actions, big month-to-date hero (`₹21,609`), **Pace card** (`₹left`, `₹/day · N days`, blue progress meter with black vertical tick at `budget × elapsedFraction`, fixed-order category stacked bar + legend), Today/Yesterday cards, and sticky dark bottom pill **`"What did you spend on? [+]"`**.
+   - **`1B, 1C, 1D, 3A · Full-Screen Add / Ask Palette`**:
+     - `1B` Empty state: `YOUR USUALS · TAP TO ADD` 2×3 grid (1-tap logs with `[Undo]` toast; `✎` pre-fills input).
+     - `1C` Typing state: Live `₹` preview, note, interactive chips (`[ • Category ⌄ ]`, `[ UPI default ⌄ ]`, `[ Today ⌄ ]` with `"will remember"` learning) + `FROM YOUR HISTORY` prefix autocomplete.
+     - `1D` Question state: Typing without an amount (`food this month`, `swiggy`, `upi last week`, `#goa`) shows a live Answer Card with total, entries, avg, same-elapsed-span `Δ%`, top 4 item bars, and `Open in Stats → Explore ›`.
+     - `3A` Keypad mode: 3×4 numeric keypad, horizontal usuals strip, `UPI | Cash | Card | Bank` selector, and `⌨ Switch to typing` toggle.
+   - **`3B · Edit Sheet` & `3C · History` & `3D · Settings`**: Bottom-sheet editor with `#tags` and `"Always file '<note>' as <Category>"` rule toggle; natural-language filterable History screen; iOS-style grouped Settings with UI switcher, `Clean | Receipt | Dark` theme toggle, and 1-tap sample data loader.
+   - **`4A–4D · Stats Overview, Category Drill-Down, All Fun Facts & Table View`**: `Week | Month | Year` switch, same-elapsed-span hero KPI, SVG Running Total chart (solid blue vs gray dashed previous period), Category drill-down (`4B`: Last 5 months, Top items, Which day), All Fun Facts (`4C`), and `⊞ Table` toggle (`4D`) on every chart card.
+   - **`5A–5D · Calendar Heatmap, Patterns, Explore & Compare`**: Monday-first 5-step blue heatmap (`#cde2fb..#0d366b`) with `🌱` no-spend days, Patterns (`5B`: weekday, hourly 6am–10pm, streaks, habits), Explore (`5C`: group by Category/Item/Mode/Weekday/Tag), and Compare (`5D`: diverging bars + `💬 What changed`).
+   - **`6A–6D · Monthly Recaps, Full-Screen Story & Receipt Theme`**: Home recap banner (`6A`), Recaps tab (`6B`), multi-slide Story modal (`6C`), and serrated thermal Receipt ledger theme (`6D`).
+
+2. **Earlier Classic & Zen UI/UX Modes (`app.js` + `index.html`)**:
+   - **`zen` — Two-Tab Zen (Home + Insights)**: Dark-slate & emerald mobile-first view with sticky bottom composer (`"200 fuel bike upi"`), interactive staging preview bar, recurring & credit card cycle pill (`💳 Recurring & CC`), and 4-tab Insights Hub (`Overview`, `Calendar`, `Explore`, `Recaps`).
+   - **`spotlight` — Spotlight Command Palette**: Top command bar with instant history search and compact summary strip.
+   - **`chat` — WhatsApp / Chat Stream**: Conversational bubble stream with bottom message bar.
+   - **`pocket` — Apple Card / Pocket Cards**: Elevated summary card with inline visual breakdown.
+   - **`classic` — Classic Dashboard**: Full multi-card KPI dashboard with 14-day daily bar chart and category breakdown always visible.
 
 ---
 

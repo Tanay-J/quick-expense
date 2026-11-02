@@ -11,24 +11,24 @@
  */
 
 export const EXPENSE_CATEGORIES = [
-  { id: 'food', name: 'Food & Dining', icon: '🍔', hue: '24', type: 'expense' },
-  { id: 'groceries', name: 'Groceries', icon: '🛒', hue: '142', type: 'expense' },
-  { id: 'transport', name: 'Transport & Fuel', icon: '⛽', hue: '210', type: 'expense' },
-  { id: 'bills', name: 'Bills & Utilities', icon: '💡', hue: '45', type: 'expense' },
-  { id: 'shopping', name: 'Shopping', icon: '🛍️', hue: '280', type: 'expense' },
-  { id: 'health', name: 'Health & Fitness', icon: '💊', hue: '340', type: 'expense' },
-  { id: 'entertainment', name: 'Entertainment', icon: '🎬', hue: '190', type: 'expense' },
-  { id: 'personal', name: 'Personal & Home', icon: '🏠', hue: '165', type: 'expense' },
-  { id: 'other', name: 'Other Expense', icon: '📌', hue: '220', type: 'expense' }
+  { id: 'food', name: 'Food & Dining', shortName: 'Food', icon: '🍔', hue: '24', color: '#2a78d6', type: 'expense' },
+  { id: 'transport', name: 'Transport & Fuel', shortName: 'Transport', icon: '⛽', hue: '210', color: '#eb6834', type: 'expense' },
+  { id: 'groceries', name: 'Groceries', shortName: 'Groceries', icon: '🛒', hue: '142', color: '#1baf7a', type: 'expense' },
+  { id: 'bills', name: 'Bills & Utilities', shortName: 'Bills', icon: '💡', hue: '45', color: '#eda100', type: 'expense' },
+  { id: 'shopping', name: 'Shopping', shortName: 'Shopping', icon: '🛍️', hue: '280', color: '#e87ba4', type: 'expense' },
+  { id: 'health', name: 'Health & Fitness', shortName: 'Health', icon: '💊', hue: '340', color: '#008300', type: 'expense' },
+  { id: 'entertainment', name: 'Entertainment', shortName: 'Fun', icon: '🎬', hue: '190', color: '#4a3aa7', type: 'expense' },
+  { id: 'personal', name: 'Personal & Home', shortName: 'Personal', icon: '🏠', hue: '165', color: '#0d9488', type: 'expense' },
+  { id: 'other', name: 'Other Expense', shortName: 'Other', icon: '📌', hue: '220', color: '#898781', type: 'expense' }
 ];
 
 export const INCOME_CATEGORIES = [
-  { id: 'salary', name: 'Salary & Paycheck', icon: '💰', hue: '152', type: 'income' },
-  { id: 'freelance', name: 'Freelance & Business', icon: '💼', hue: '172', type: 'income' },
-  { id: 'investments', name: 'Investments & Returns', icon: '📈', hue: '135', type: 'income' },
-  { id: 'refunds', name: 'Refunds & Cashback', icon: '🔄', hue: '195', type: 'income' },
-  { id: 'gifts_in', name: 'Gifts & Splitwise', icon: '🎁', hue: '310', type: 'income' },
-  { id: 'other_income', name: 'Other Income', icon: '💵', hue: '160', type: 'income' }
+  { id: 'salary', name: 'Salary & Paycheck', shortName: 'Salary', icon: '💰', hue: '152', color: '#10b981', type: 'income' },
+  { id: 'freelance', name: 'Freelance & Business', shortName: 'Freelance', icon: '💼', hue: '172', color: '#14b8a6', type: 'income' },
+  { id: 'investments', name: 'Investments & Returns', shortName: 'Investments', icon: '📈', hue: '135', color: '#22c55e', type: 'income' },
+  { id: 'refunds', name: 'Refunds & Cashback', shortName: 'Refunds', icon: '🔄', hue: '195', color: '#06b6d4', type: 'income' },
+  { id: 'gifts_in', name: 'Gifts & Splitwise', shortName: 'Gifts', icon: '🎁', hue: '310', color: '#ec4899', type: 'income' },
+  { id: 'other_income', name: 'Other Income', shortName: 'Other Income', icon: '💵', hue: '160', color: '#10b981', type: 'income' }
 ];
 
 export const CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
@@ -487,6 +487,24 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
   };
 }
 
+export function extractTags(text) {
+  if (!text) return { tags: [], cleanedText: '' };
+  const tags = [];
+  const seen = new Set();
+  const cleanedText = String(text)
+    .replace(/(?:^|\s)#([a-zA-Z0-9_-]{1,32})\b/g, (full, tag) => {
+      const normalized = tag.toLowerCase();
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        tags.push(normalized);
+      }
+      return ' ';
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { tags, cleanedText };
+}
+
 export function extractRecurring(text) {
   const recRegex = /\b(every\s+month|monthly|recurring|autopay|auto-pay)\b/i;
   const subRegex = /\b(subscription|netflix|spotify|icloud|google\s+one|youtube\s+premium|prime\s+video|chatgpt)\b/i;
@@ -502,7 +520,7 @@ export function extractRecurring(text) {
 /**
  * Parse a single expense or income segment like:
  * - "200 fuel bike"
- * - "1500 shoes myntra cc"
+ * - "1500 shoes myntra cc #goa"
  * - "250 coffee from cashback"
  * - "+50000 salary"
  * - "received 450 cashback yesterday"
@@ -512,8 +530,11 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
 
   const explicitType = detectExplicitType(segment, defaultType);
 
+  // Extract #tags first ("450 dinner #goa")
+  const { tags, cleanedText: tagCleanedText } = extractTags(segment);
+
   // Extract recurring monthly keywords ("monthly", "every month", "recurring", "autopay")
-  const { recurring, cleanedText: recCleanedText } = extractRecurring(segment);
+  const { recurring, cleanedText: recCleanedText } = extractRecurring(tagCleanedText);
 
   // Extract date first so numbers in dates ("2 days ago", "15 oct") aren't confused with amounts
   const { dateStr, cleanedText: dateCleanedText, dateLabel } = extractDate(recCleanedText, now);
@@ -597,6 +618,8 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
     note,
     category: finalCategoryId,
     paymentMethod: finalPaymentMethod,
+    explicitPayment,
+    tags,
     recurring,
     date: dateStr,
     dateLabel,
@@ -649,7 +672,8 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
     }
 
     const explicitType = detectExplicitType(seg, defaultType);
-    const { recurring, cleanedText: recCleanedText } = extractRecurring(seg);
+    const { tags, cleanedText: tagCleanedText } = extractTags(seg);
+    const { recurring, cleanedText: recCleanedText } = extractRecurring(tagCleanedText);
     const { dateStr, cleanedText: dateCleanedText, dateLabel } = extractDate(recCleanedText, now);
     const {
       paymentMethod: extractedPayment,
@@ -693,6 +717,8 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
       note,
       category: finalCategoryId,
       paymentMethod: finalPaymentMethod,
+      explicitPayment,
+      tags,
       recurring,
       date: dateStr,
       dateLabel,
@@ -703,3 +729,251 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
 
   return drafts;
 }
+
+/**
+ * Deterministic Natural-Language Question Parser (Pages 1D, 2.4, 5C)
+ * Rule: If input has NO amount, treat it as a question / query!
+ * Examples:
+ * - "food this month"
+ * - "swiggy"
+ * - "upi last week"
+ * - "#goa"
+ * - "transport october"
+ * - "how much on coffee this month?"
+ */
+export function parseQuestionQuery(input, now = new Date()) {
+  if (!input || !input.trim()) return null;
+  const trimmed = input.trim();
+
+  // If any segment parses as a valid amount expense, it's an entry, not a question
+  const asExpenses = parseExpenseMessage(trimmed, now);
+  if (asExpenses.length > 0) return null;
+  // Also if it contains standalone digits (like user is mid-typing "200"), not a question
+  if (/\d/.test(trimmed.replace(/#[a-zA-Z0-9_-]+/g, ''))) return null;
+
+  let working = trimmed
+    .toLowerCase()
+    .replace(/[?!.,]+$/g, '')
+    .replace(
+      /^(?:how\s+much\s+(?:did\s+i\s+spend|spent|on|for)|what\s+(?:did\s+i\s+spend|was\s+my\s+spend)|show\s+(?:me\s+)?|total\s+(?:spent\s+)?(?:on|for)?|spent\s+on)\s+/i,
+      ''
+    )
+    .trim();
+
+  if (!working) return null;
+
+  // 1. Extract #tag filter
+  const { tags, cleanedText: afterTags } = extractTags(working);
+  working = afterTags;
+
+  // 2. Extract time period filter (default: 'this_month')
+  let periodType = 'this_month';
+  let periodLabel = '';
+  let startDate = '';
+  let endDate = '';
+  let prevStartDate = '';
+  let prevEndDate = '';
+  let prevLabel = '';
+
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const todayDate = now.getDate();
+  const monthShortNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const setMonthToDateSpan = (y, m, maxDay = 31) => {
+    const daysInTarget = new Date(y, m + 1, 0).getDate();
+    const spanDay = Math.min(maxDay, daysInTarget);
+    const start = new Date(y, m, 1);
+    const end = new Date(y, m, spanDay);
+    const prevM = m === 0 ? 11 : m - 1;
+    const prevY = m === 0 ? y - 1 : y;
+    const daysInPrev = new Date(prevY, prevM + 1, 0).getDate();
+    const prevSpanDay = Math.min(spanDay, daysInPrev);
+    const pStart = new Date(prevY, prevM, 1);
+    const pEnd = new Date(prevY, prevM, prevSpanDay);
+
+    startDate = toLocalISODate(start);
+    endDate = toLocalISODate(end);
+    prevStartDate = toLocalISODate(pStart);
+    prevEndDate = toLocalISODate(pEnd);
+    periodLabel = `${monthShortNames[m]} 1–${spanDay}`;
+    prevLabel = `${monthShortNames[prevM]} 1–${prevSpanDay}`;
+  };
+
+  // Default to current month-to-date vs previous month same span
+  setMonthToDateSpan(year, month, todayDate);
+
+  if (/\b(today|aaj)\b/i.test(working)) {
+    periodType = 'today';
+    working = working.replace(/\b(today|aaj)\b/i, ' ');
+    startDate = toLocalISODate(now);
+    endDate = startDate;
+    const yest = new Date(now);
+    yest.setDate(yest.getDate() - 1);
+    prevStartDate = toLocalISODate(yest);
+    prevEndDate = prevStartDate;
+    periodLabel = 'Today';
+    prevLabel = 'Yesterday';
+  } else if (/\b(yesterday|kal)\b/i.test(working)) {
+    periodType = 'yesterday';
+    working = working.replace(/\b(yesterday|kal)\b/i, ' ');
+    const yest = new Date(now);
+    yest.setDate(yest.getDate() - 1);
+    startDate = toLocalISODate(yest);
+    endDate = startDate;
+    const dby = new Date(now);
+    dby.setDate(dby.getDate() - 2);
+    prevStartDate = toLocalISODate(dby);
+    prevEndDate = prevStartDate;
+    periodLabel = 'Yesterday';
+    prevLabel = '2 days ago';
+  } else if (/\b(this\s+week|week)\b/i.test(working) && !/\blast\s+week\b/i.test(working)) {
+    periodType = 'this_week';
+    working = working.replace(/\b(this\s+week|week)\b/i, ' ');
+    const dayOfWeek = (now.getDay() + 6) % 7; // Mon=0..Sun=6
+    const mon = new Date(now);
+    mon.setDate(now.getDate() - dayOfWeek);
+    startDate = toLocalISODate(mon);
+    endDate = toLocalISODate(now);
+    const pMon = new Date(mon);
+    pMon.setDate(mon.getDate() - 7);
+    const pEnd = new Date(now);
+    pEnd.setDate(now.getDate() - 7);
+    prevStartDate = toLocalISODate(pMon);
+    prevEndDate = toLocalISODate(pEnd);
+    periodLabel = 'This week';
+    prevLabel = 'Last week (same span)';
+  } else if (/\blast\s+week\b/i.test(working)) {
+    periodType = 'last_week';
+    working = working.replace(/\blast\s+week\b/i, ' ');
+    const dayOfWeek = (now.getDay() + 6) % 7;
+    const thisMon = new Date(now);
+    thisMon.setDate(now.getDate() - dayOfWeek);
+    const lastMon = new Date(thisMon);
+    lastMon.setDate(thisMon.getDate() - 7);
+    const lastSun = new Date(thisMon);
+    lastSun.setDate(thisMon.getDate() - 1);
+    const prevMon = new Date(lastMon);
+    prevMon.setDate(lastMon.getDate() - 7);
+    const prevSun = new Date(lastSun);
+    prevSun.setDate(lastSun.getDate() - 7);
+    startDate = toLocalISODate(lastMon);
+    endDate = toLocalISODate(lastSun);
+    prevStartDate = toLocalISODate(prevMon);
+    prevEndDate = toLocalISODate(prevSun);
+    periodLabel = 'Last week';
+    prevLabel = '2 weeks ago';
+  } else if (/\blast\s+month\b/i.test(working)) {
+    periodType = 'last_month';
+    working = working.replace(/\blast\s+month\b/i, ' ');
+    const lm = month === 0 ? 11 : month - 1;
+    const ly = month === 0 ? year - 1 : year;
+    setMonthToDateSpan(ly, lm, 31);
+    periodLabel = `${monthShortNames[lm]} ${ly}`;
+  } else if (/\b(this\s+month|month)\b/i.test(working)) {
+    periodType = 'this_month';
+    working = working.replace(/\b(this\s+month|month)\b/i, ' ');
+    setMonthToDateSpan(year, month, todayDate);
+  } else if (/\b(this\s+year|year|all\s+time|all)\b/i.test(working)) {
+    periodType = 'this_year';
+    working = working.replace(/\b(this\s+year|year|all\s+time|all)\b/i, ' ');
+    startDate = `${year}-01-01`;
+    endDate = toLocalISODate(now);
+    prevStartDate = `${year - 1}-01-01`;
+    prevEndDate = `${year - 1}-${String(month + 1).padStart(2, '0')}-${String(todayDate).padStart(2, '0')}`;
+    periodLabel = `${year} YTD`;
+    prevLabel = `${year - 1} YTD`;
+  } else {
+    // Check explicit month name ("october", "oct", "sep")
+    const monthRegex = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i;
+    const mMatch = working.match(monthRegex);
+    if (mMatch) {
+      const token = mMatch[1].toLowerCase().slice(0, 3);
+      const mIdx = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(token);
+      if (mIdx !== -1) {
+        working = working.replace(monthRegex, ' ');
+        const targetY = mIdx > month ? year - 1 : year;
+        const isCurrentM = targetY === year && mIdx === month;
+        setMonthToDateSpan(targetY, mIdx, isCurrentM ? todayDate : 31);
+        if (!isCurrentM) {
+          periodLabel = `${monthShortNames[mIdx]} ${targetY}`;
+        }
+      }
+    }
+  }
+
+  // 3. Extract payment method filter if explicitly mentioned
+  const { paymentMethod, explicitPayment, cleanedText: afterPay } = extractPaymentMethod(working, 'upi');
+  const filterPayment = explicitPayment ? paymentMethod : null;
+  if (explicitPayment) {
+    working = afterPay;
+  }
+
+  // Clean filler prepositions
+  working = working
+    .replace(/\b(in|on|for|by|via|from|during|of|the|spend|spending|expenses?)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // 4. Check if working text matches a Category name directly (e.g. "food", "transport", "groceries", "bills", "shopping", "health", "fun", "entertainment", "personal")
+  const catAliases = {
+    food: 'food',
+    dining: 'food',
+    transport: 'transport',
+    travel: 'transport',
+    groceries: 'groceries',
+    grocery: 'groceries',
+    bills: 'bills',
+    utilities: 'bills',
+    shopping: 'shopping',
+    health: 'health',
+    fitness: 'health',
+    fun: 'entertainment',
+    entertainment: 'entertainment',
+    personal: 'personal',
+    home: 'personal',
+    other: 'other',
+    salary: 'salary',
+    income: 'income_all'
+  };
+
+  let filterCategory = null;
+  let itemQuery = '';
+
+  const tokens = working.split(/\s+/).filter(Boolean);
+  const remainingTokens = [];
+  for (const t of tokens) {
+    if (!filterCategory && catAliases[t]) {
+      filterCategory = catAliases[t];
+    } else {
+      remainingTokens.push(t);
+    }
+  }
+
+  itemQuery = remainingTokens.join(' ').trim();
+
+  const isSpecific = Boolean(
+    filterCategory ||
+      filterPayment ||
+      tags.length > 0 ||
+      itemQuery.length >= 2 ||
+      periodType !== 'this_month'
+  );
+
+  return {
+    raw: trimmed,
+    isSpecific,
+    filterCategory,
+    filterPayment,
+    tags,
+    itemQuery,
+    periodType,
+    periodLabel,
+    startDate,
+    endDate,
+    prevStartDate,
+    prevEndDate,
+    prevLabel
+  };
+}
+

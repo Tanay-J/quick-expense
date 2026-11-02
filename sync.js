@@ -1,4 +1,4 @@
-import { getPaymentMethodById, isIncomeCategory } from './parser.js';
+import { extractTags, getPaymentMethodById, isIncomeCategory } from './parser.js';
 
 const STORAGE_KEY = 'qe_expenses_v1';
 const TOMBSTONES_KEY = 'qe_tombstones_v1';
@@ -155,6 +155,14 @@ export function normalizePaymentMethod(item) {
   return 'upi';
 }
 
+export function normalizeTags(item) {
+  if (Array.isArray(item?.tags) && item.tags.length > 0) {
+    return item.tags.map((t) => String(t).replace(/^#/, '').toLowerCase().trim()).filter(Boolean);
+  }
+  const fromRaw = extractTags(`${item?.note || ''} ${item?.raw || ''}`).tags;
+  return fromRaw;
+}
+
 export function loadExpenses() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -163,7 +171,8 @@ export function loadExpenses() {
       ? list.map((item) => ({
           ...item,
           type: normalizeEntryType(item),
-          paymentMethod: normalizePaymentMethod(item)
+          paymentMethod: normalizePaymentMethod(item),
+          tags: normalizeTags(item)
         }))
       : [];
   } catch {
@@ -224,10 +233,17 @@ export function loadSettings() {
       telemetryUrl: parsed.telemetryUrl || DEFAULT_TELEMETRY_WEBHOOK_URL || '',
       currency: parsed.currency || '₹',
       defaultPayment: parsed.defaultPayment || 'upi',
-      monthlyBudget: Number(parsed.monthlyBudget) || 0,
+      inputStyle: parsed.inputStyle || 'keyboard',
+      openToAdd: Boolean(parsed.openToAdd),
+      usualsCount: Number(parsed.usualsCount) || 6,
+      recapCard: parsed.recapCard !== undefined ? Boolean(parsed.recapCard) : true,
+      monthlyBudget: parsed.monthlyBudget !== undefined ? Number(parsed.monthlyBudget) : 30000,
       ccStatementDay: Number(parsed.ccStatementDay) || 15,
       ccDueDay: Number(parsed.ccDueDay) || 5,
       ccLastPaidCycle: parsed.ccLastPaidCycle || '',
+      theme: parsed.theme || 'clean',
+      alwaysTables: Boolean(parsed.alwaysTables),
+      recapSeen: parsed.recapSeen && typeof parsed.recapSeen === 'object' ? parsed.recapSeen : {},
       lastSyncAt: parsed.lastSyncAt || null
     };
   } catch {
@@ -237,10 +253,17 @@ export function loadSettings() {
       telemetryUrl: DEFAULT_TELEMETRY_WEBHOOK_URL || '',
       currency: '₹',
       defaultPayment: 'upi',
-      monthlyBudget: 0,
+      inputStyle: 'keyboard',
+      openToAdd: false,
+      usualsCount: 6,
+      recapCard: true,
+      monthlyBudget: 30000,
       ccStatementDay: 15,
       ccDueDay: 5,
       ccLastPaidCycle: '',
+      theme: 'clean',
+      alwaysTables: false,
+      recapSeen: {},
       lastSyncAt: null
     };
   }
@@ -527,7 +550,7 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
 }
 
 export function exportToCSV(expenses) {
-  const headers = ['Date', 'Type', 'Amount', 'Category', 'Payment Mode', 'Item / Note', 'Original Message'];
+  const headers = ['Date', 'Type', 'Amount', 'Category', 'Payment Mode', 'Item / Note', 'Tags', 'Original Message'];
   const escapeCSV = (val) => {
     const str = String(val ?? '');
     if (/[",\n]/.test(str)) {
@@ -543,6 +566,7 @@ export function exportToCSV(expenses) {
     e.category,
     getPaymentMethodById(normalizePaymentMethod(e)).name,
     e.note,
+    normalizeTags(e).map((t) => `#${t}`).join(' '),
     e.raw || ''
   ]);
 

@@ -1,11 +1,13 @@
-const CACHE_NAME = 'dropspend-v15';
+const CACHE_NAME = 'dropspend-v17';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './spec-ui.js',
   './parser.js',
   './sync.js',
+  './insights.js',
   './manifest.json'
 ];
 
