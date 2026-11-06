@@ -6188,6 +6188,18 @@ body[data-design="spec"][data-theme="receipt"] {
 /* Faster SPA View Transitions via State Caching (content-visibility: hidden + inert) */
 .spa-view {
   outline: none;
+  width: 100%;
+  flex: 1 1 100%;
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .spec-phone-container,
+  .spec-receipt-container {
+    max-width: 100%;
+    width: 100%;
+  }
 }
 
 .spa-view.inactive {
