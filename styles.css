@@ -6658,3 +6658,135 @@ textarea {
   color: #34d399;
   font-weight: 600;
 }
+
+/* ==========================================================================
+   OPTION 2: 1-LINE ACCORDION STACK HOME SCREEN (Minimalist Landing Page)
+   ========================================================================== */
+
+.spec-hero-kicker {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--spec-muted);
+  margin-bottom: 0.15rem;
+}
+
+.spec-accordion-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+}
+
+.spec-accordion-card {
+  background: var(--spec-card);
+  border: 1px solid var(--spec-hairline);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.spec-accordion-summary {
+  width: 100%;
+  padding: 0.85rem 0.95rem;
+  border: none;
+  background: transparent;
+  color: var(--spec-ink);
+  font-size: 0.86rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.spec-accordion-summary:active {
+  background: rgba(0, 0, 0, 0.025);
+}
+
+.spec-acc-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.spec-acc-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.spec-acc-sub {
+  font-size: 0.79rem;
+  font-weight: 500;
+  color: var(--spec-muted);
+}
+
+.spec-acc-dot {
+  font-style: normal;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.spec-acc-dot.is-good {
+  color: var(--spec-good);
+}
+
+.spec-acc-dot.is-warn {
+  color: var(--spec-warn);
+}
+
+.spec-acc-chev {
+  font-size: 0.78rem;
+  color: var(--spec-muted);
+  transition: transform 0.16s ease;
+  display: inline-block;
+}
+
+.spec-accordion-card.is-open .spec-acc-chev {
+  transform: rotate(180deg);
+}
+
+.spec-accordion-body {
+  display: none;
+  padding: 0.75rem 0.95rem 0.9rem;
+  border-top: 1px solid var(--spec-hairline);
+}
+
+.spec-accordion-body.is-entries-body {
+  padding: 0.15rem 0.95rem 0.25rem;
+}
+
+.spec-accordion-card.is-open .spec-accordion-body {
+  display: block;
+}
+
+.spec-pace-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.spec-inline-link-btn {
+  border: none;
+  background: transparent;
+  color: var(--spec-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.2rem 0.35rem;
+  cursor: pointer;
+}
+
+.spec-acc-empty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0;
+  font-size: 0.8rem;
+  color: var(--spec-muted);
+}

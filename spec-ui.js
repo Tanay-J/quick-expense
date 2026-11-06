@@ -139,6 +139,12 @@ export function createSpecController(ctx) {
     overrideDate: null,
     historyQuery: '',
     exploreFromQuestion: null,
+    homeAccordions: {
+      pace: false,
+      today: true,
+      yesterday: false,
+      earlier: false
+    },
     tables: {} // keyed by chart id
   };
 
@@ -382,62 +388,41 @@ export function createSpecController(ctx) {
       prevRecap.entryCount > 0 &&
       now.getDate() <= 5;
 
-    // Group recent entries by day (Today, Yesterday, plus recent days)
-    const byDate = new Map();
-    for (const e of monthExpenses) {
-      const list = byDate.get(e.date) || [];
-      list.push(e);
-      byDate.set(e.date, list);
-    }
-    const sortedDates = Array.from(byDate.keys()).sort((a, b) => b.localeCompare(a)).slice(0, 5);
+    // Group recent entries by day (Today, Yesterday, plus earlier in month)
+    const todayItems = monthExpenses.filter((e) => e.date === todayIso);
+    const yesterdayItems = monthExpenses.filter((e) => e.date === yesterdayIso);
+    const earlierItems = monthExpenses.filter((e) => e.date !== todayIso && e.date !== yesterdayIso);
+    const yesterdayTotal = yesterdayItems.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const earlierTotal = earlierItems.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const leftPct = budget > 0 ? Math.max(0, Math.min(100, Math.round((leftAmt / budget) * 100))) : 0;
+    const isExpandedHome = settings.homeStyle === 'expanded';
 
-    const dayGroupsHtml =
-      sortedDates.length === 0
-        ? `<div class="spec-card spec-empty-home">
-             <p>No expenses logged in ${FULL_MONTHS[ctx.state.selectedMonth]} yet.</p>
-             <div class="spec-empty-actions">
-               <button type="button" class="spec-btn-primary" id="spec-open-add-empty">+ Log your first expense</button>
-               <button type="button" class="spec-btn-ghost" id="spec-seed-demo-btn">✨ Load mockup demo data</button>
-             </div>
-           </div>`
-        : sortedDates
-            .map((iso) => {
-              const items = byDate.get(iso) || [];
-              const daySum = items.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-              const groupLabel = formatDayGroupHeader(iso, todayIso, yesterdayIso);
-              const rows = items
-                .map((item, idx) => {
-                  const cat = getCategoryById(item.category);
-                  const pay = getPaymentMethodById(normalizePaymentMethod(item));
-                  const tags = normalizeTags(item);
-                  const tagsHtml = tags
-                    .map((t) => `<span class="spec-inline-tag">#${esc(t)}</span>`)
-                    .join(' ');
-                  return `
-                    <div class="spec-entry-row" data-edit-id="${esc(item.id)}">
-                      <div class="spec-entry-icon" style="background:${cat.color}18">${cat.icon}</div>
-                      <div class="spec-entry-mid">
-                        <div class="spec-entry-note">${esc(item.note)} ${tagsHtml}</div>
-                        <div class="spec-entry-sub">${esc(cat.shortName || cat.name)} · ${esc(pay.shortName)} · ${formatTime12h(item.updatedAt, idx)}</div>
-                      </div>
-                      <div class="spec-entry-amt">${ctx.formatCurrency(item.amount)}</div>
-                    </div>
-                  `;
-                })
-                .join('');
-              return `
-                <div class="spec-day-group">
-                  <div class="spec-day-header">
-                    <span>${esc(groupLabel)}</span>
-                    <span>${ctx.formatCurrency(daySum)}</span>
-                  </div>
-                  <div class="spec-card spec-entries-card">
-                    ${rows}
-                  </div>
-                </div>
-              `;
-            })
-            .join('');
+    const renderEntryRows = (items) =>
+      items
+        .map((item, idx) => {
+          const cat = getCategoryById(item.category);
+          const pay = getPaymentMethodById(normalizePaymentMethod(item));
+          const tags = normalizeTags(item);
+          const tagsHtml = tags
+            .map((t) => `<span class="spec-inline-tag">#${esc(t)}</span>`)
+            .join(' ');
+          return `
+            <div class="spec-entry-row" data-edit-id="${esc(item.id)}">
+              <div class="spec-entry-icon" style="background:${cat.color}18">${cat.icon}</div>
+              <div class="spec-entry-mid">
+                <div class="spec-entry-note">${esc(item.note)} ${tagsHtml}</div>
+                <div class="spec-entry-sub">${esc(cat.shortName || cat.name)} · ${esc(pay.shortName)} · ${formatTime12h(item.updatedAt, idx)}</div>
+              </div>
+              <div class="spec-entry-amt">${ctx.formatCurrency(item.amount)}</div>
+            </div>
+          `;
+        })
+        .join('');
+
+    const paceOpen = isExpandedHome || Boolean(specState.homeAccordions.pace);
+    const todayOpen = isExpandedHome || Boolean(specState.homeAccordions.today);
+    const yestOpen = isExpandedHome || Boolean(specState.homeAccordions.yesterday);
+    const earlierOpen = isExpandedHome || Boolean(specState.homeAccordions.earlier);
 
     root.innerHTML = `
       <div class="spec-phone-container">
@@ -474,47 +459,123 @@ export function createSpecController(ctx) {
         }
 
         <section class="spec-hero-block">
+          <div class="spec-hero-kicker">Spent in ${FULL_MONTHS[ctx.state.selectedMonth]}</div>
           <h1 class="spec-hero-amount">${ctx.formatCurrency(monthTotal)}</h1>
-          <p class="spec-hero-sub">spent in ${FULL_MONTHS[ctx.state.selectedMonth]} · ${ctx.formatCurrency(todayTotal)} today</p>
         </section>
 
-        <section class="spec-card spec-pace-card" data-nav="stats" title="Tap to open Stats">
-          <div class="spec-pace-top">
-            <div class="spec-pace-left"><strong>${ctx.formatCurrency(leftAmt)}</strong> left</div>
-            <div class="spec-pace-right"><strong>${ctx.formatCurrency(perDayAllowance)}</strong>/day · ${remDays} days</div>
-          </div>
-          <div class="spec-pace-bar-track">
-            <div class="spec-pace-bar-fill" style="width:${fillPct}%"></div>
-            <div class="spec-pace-bar-tick" style="left:${tickPct}%" title="Elapsed month pace marker"></div>
-          </div>
-          <div class="spec-pace-status ${isOverPace ? 'is-warn' : 'is-good'}">
-            ${
-              isOverPace
-                ? `▲ ${ctx.formatCurrency(Math.abs(paceDiff))} over pace`
-                : `✓ On pace · ${ctx.formatCurrency(Math.abs(paceDiff))} under`
-            }
-          </div>
+        <div class="spec-accordion-stack">
+          <!-- Accordion 1: Budget Pace & Categories (1-line summary by default) -->
+          <section class="spec-accordion-card ${paceOpen ? 'is-open' : ''}" data-acc-key="pace">
+            <button type="button" class="spec-accordion-summary" data-acc-toggle="pace">
+              <span class="spec-acc-left">
+                <i class="spec-acc-dot ${isOverPace ? 'is-warn' : 'is-good'}">●</i>
+                <strong>Budget Pace</strong>
+                <span class="spec-acc-sub">· ${ctx.formatCurrency(perDayAllowance)}/day safe</span>
+              </span>
+              <span class="spec-acc-right">
+                <span class="spec-acc-sub">${leftPct}% left</span>
+                <span class="spec-acc-chev">▾</span>
+              </span>
+            </button>
+            <div class="spec-accordion-body">
+              <div class="spec-pace-top">
+                <div class="spec-pace-left"><strong>${ctx.formatCurrency(leftAmt)}</strong> left of ${ctx.formatCurrency(budget)}</div>
+                <div class="spec-pace-right"><strong>${ctx.formatCurrency(perDayAllowance)}</strong>/day · ${remDays}d</div>
+              </div>
+              <div class="spec-pace-bar-track">
+                <div class="spec-pace-bar-fill" style="width:${fillPct}%"></div>
+                <div class="spec-pace-bar-tick" style="left:${tickPct}%" title="Elapsed month pace marker"></div>
+              </div>
+              <div class="spec-pace-status-row">
+                <span class="spec-pace-status ${isOverPace ? 'is-warn' : 'is-good'}">
+                  ${
+                    isOverPace
+                      ? `▲ ${ctx.formatCurrency(Math.abs(paceDiff))} over pace`
+                      : `✓ On pace · ${ctx.formatCurrency(Math.abs(paceDiff))} under`
+                  }
+                </span>
+                <button type="button" class="spec-inline-link-btn" data-nav="stats">Full Stats ›</button>
+              </div>
+              ${
+                monthTotal > 0
+                  ? `<div class="spec-cat-strip-wrap">
+                       <div class="spec-cat-stacked-bar">${catSegmentsHtml}</div>
+                       <div class="spec-cat-legend-line">${catLegendHtml}</div>
+                     </div>`
+                  : ''
+              }
+            </div>
+          </section>
+
+          <!-- Accordion 2: Today -->
+          <section class="spec-accordion-card ${todayOpen ? 'is-open' : ''}" data-acc-key="today">
+            <button type="button" class="spec-accordion-summary" data-acc-toggle="today">
+              <span class="spec-acc-left">
+                <strong>Today</strong>
+                <span class="spec-acc-sub">· ${todayItems.length} ${todayItems.length === 1 ? 'entry' : 'entries'}</span>
+              </span>
+              <span class="spec-acc-right">
+                <strong>${ctx.formatCurrency(todayTotal)}</strong>
+                <span class="spec-acc-chev">▾</span>
+              </span>
+            </button>
+            <div class="spec-accordion-body is-entries-body">
+              ${
+                todayItems.length > 0
+                  ? renderEntryRows(todayItems)
+                  : `<div class="spec-acc-empty-row">
+                       <span>No expenses logged today yet.</span>
+                       <button type="button" class="spec-inline-link-btn" id="spec-open-add-empty">+ Add now</button>
+                     </div>`
+              }
+            </div>
+          </section>
+
+          <!-- Accordion 3: Yesterday (1-line summary by default) -->
+          <section class="spec-accordion-card ${yestOpen ? 'is-open' : ''}" data-acc-key="yesterday">
+            <button type="button" class="spec-accordion-summary" data-acc-toggle="yesterday">
+              <span class="spec-acc-left">
+                <strong>Yesterday</strong>
+                <span class="spec-acc-sub">· ${yesterdayItems.length} ${yesterdayItems.length === 1 ? 'entry' : 'entries'}</span>
+              </span>
+              <span class="spec-acc-right">
+                <span class="spec-acc-sub">${ctx.formatCurrency(yesterdayTotal)}</span>
+                <span class="spec-acc-chev">▾</span>
+              </span>
+            </button>
+            <div class="spec-accordion-body is-entries-body">
+              ${
+                yesterdayItems.length > 0
+                  ? renderEntryRows(yesterdayItems)
+                  : `<div class="spec-acc-empty-row"><span>No expenses logged yesterday.</span></div>`
+              }
+            </div>
+          </section>
+
           ${
-            monthTotal > 0
-              ? `<div class="spec-cat-strip-wrap">
-                   <div class="spec-cat-stacked-bar">${catSegmentsHtml}</div>
-                   <div class="spec-cat-legend-line">${catLegendHtml}</div>
-                 </div>`
+            earlierItems.length > 0
+              ? `<!-- Accordion 4: Earlier this month -->
+                 <section class="spec-accordion-card ${earlierOpen ? 'is-open' : ''}" data-acc-key="earlier">
+                   <button type="button" class="spec-accordion-summary" data-acc-toggle="earlier">
+                     <span class="spec-acc-left">
+                       <strong>Earlier in ${esc(SHORT_MONTHS[ctx.state.selectedMonth])}</strong>
+                       <span class="spec-acc-sub">· ${earlierItems.length} ${earlierItems.length === 1 ? 'entry' : 'entries'}</span>
+                     </span>
+                     <span class="spec-acc-right">
+                       <span class="spec-acc-sub">${ctx.formatCurrency(earlierTotal)}</span>
+                       <span class="spec-acc-chev">▾</span>
+                     </span>
+                   </button>
+                   <div class="spec-accordion-body is-entries-body">
+                     ${renderEntryRows(earlierItems.slice(0, 12))}
+                     <div style="padding: 0.55rem 0.85rem; text-align:center;">
+                       <button type="button" class="spec-btn-ghost" data-nav="history" style="width:100%;">View full History &amp; Search (${monthExpenses.length} entries) ›</button>
+                     </div>
+                   </div>
+                 </section>`
               : ''
           }
-        </section>
-
-        <div class="spec-days-feed">
-          ${dayGroupsHtml}
         </div>
-
-        ${
-          monthExpenses.length > 0
-            ? `<div class="spec-see-all-wrap">
-                 <button type="button" class="spec-btn-ghost" data-nav="history">View full History & Search (${monthExpenses.length} entries) ›</button>
-               </div>`
-            : ''
-        }
 
         <div class="spec-bottom-pill-dock">
           <button type="button" class="spec-bottom-add-pill" id="spec-open-add-pill">
@@ -525,12 +586,20 @@ export function createSpecController(ctx) {
       </div>
     `;
 
+    root.querySelectorAll('[data-acc-toggle]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.accToggle;
+        const card = btn.closest('.spec-accordion-card');
+        if (!card || !key) return;
+        const nextOpen = !card.classList.contains('is-open');
+        specState.homeAccordions[key] = nextOpen;
+        card.classList.toggle('is-open', nextOpen);
+        triggerHaptic('light');
+      });
+    });
+
     root.querySelector('#spec-open-add-pill')?.addEventListener('click', () => openAddPalette(''));
     root.querySelector('#spec-open-add-empty')?.addEventListener('click', () => openAddPalette(''));
-    root.querySelector('#spec-seed-demo-btn')?.addEventListener('click', () => {
-      ctx.seedDemoData();
-      render();
-    });
     root.querySelector('#spec-dismiss-recap-btn')?.addEventListener('click', (e) => {
       e.stopPropagation();
       ctx.dismissRecap(prevRecap.monthKey);
@@ -2315,6 +2384,16 @@ export function createSpecController(ctx) {
           <div class="spec-section-kicker">LOOK</div>
           <div class="spec-card spec-settings-card">
             <div class="spec-setting-row">
+              <div>
+                <strong>Home screen density</strong>
+                <div class="spec-muted-sm">1-line collapsible accordions vs all cards open</div>
+              </div>
+              <div class="spec-pill-switch">
+                <button type="button" class="${settings.homeStyle !== 'expanded' ? 'active' : ''}" data-set-homestyle="accordions">Accordions</button>
+                <button type="button" class="${settings.homeStyle === 'expanded' ? 'active' : ''}" data-set-homestyle="expanded">Expanded</button>
+              </div>
+            </div>
+            <div class="spec-setting-row">
               <div><strong>Theme</strong></div>
               <div class="spec-pill-switch">
                 <button type="button" class="${curTheme === 'clean' ? 'active' : ''}" data-set-theme="clean">Clean</button>
@@ -2442,6 +2521,12 @@ export function createSpecController(ctx) {
     });
     root.querySelector('#spec-open-recurring-modal')?.addEventListener('click', () => {
       ctx.openRecurringModal();
+    });
+    root.querySelectorAll('[data-set-homestyle]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        ctx.updateSettings({ homeStyle: btn.dataset.setHomestyle });
+        render();
+      });
     });
     root.querySelectorAll('[data-set-theme]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -2589,7 +2674,7 @@ export function createSpecController(ctx) {
       // Only rebuild Home DOM if data, month, or theme changed; otherwise reveal cached DOM in <0.5ms!
       const topId = expenses[0]?.id || '';
       const topUpd = expenses[0]?.updatedAt || 0;
-      const homeSig = `${expenses.length}:${topId}:${topUpd}:${spanComp.curTotal}:${settings.monthlyBudget}:${settings.theme}:${settings.recapCard}:${ctx.state.selectedYear}-${ctx.state.selectedMonth}`;
+      const homeSig = `${expenses.length}:${topId}:${topUpd}:${spanComp.curTotal}:${settings.monthlyBudget}:${settings.theme}:${settings.homeStyle}:${settings.recapCard}:${ctx.state.selectedYear}-${ctx.state.selectedMonth}`;
       if (homeSig !== lastHomeSignature || !views.home.firstElementChild) {
         renderHomeScreen(views.home, expenses, settings, spanComp);
         lastHomeSignature = homeSig;

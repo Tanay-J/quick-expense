@@ -49,13 +49,13 @@ import {
   filterExpensesByQuery
 } from './insights.js?v=17';
 
-import { createSpecController } from './spec-ui.js?v=19';
+import { createSpecController } from './spec-ui.js?v=20';
 import {
   initNativeBridge,
   requestSoftKeyboard,
   syncWidgetSnapshot,
   triggerHaptic
-} from './native-bridge.js?v=19';
+} from './native-bridge.js?v=20';
 
 const DESIGN_DESCRIPTIONS = {
   spec: 'Exact 1:1 Clean Mobile UI from the 7 Spec Mockups',
