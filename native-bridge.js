@@ -33,6 +33,40 @@ export function isNativeAndroidApp() {
 }
 
 /**
+ * Focus an input element and explicitly request the Android/mobile soft keyboard to open
+ */
+export function requestSoftKeyboard(inputEl) {
+  if (!inputEl) return;
+  try {
+    inputEl.focus({ preventScroll: true });
+    const len = (inputEl.value || '').length;
+    if (typeof inputEl.setSelectionRange === 'function') {
+      inputEl.setSelectionRange(len, len);
+    }
+  } catch {
+    try {
+      inputEl.focus();
+    } catch {
+      // Ignore
+    }
+  }
+  try {
+    if ('virtualKeyboard' in navigator && navigator.virtualKeyboard?.show) {
+      navigator.virtualKeyboard.show();
+    }
+  } catch {
+    // Ignore
+  }
+  try {
+    if (window.DropSpendNative?.showKeyboard) {
+      window.DropSpendNative.showKeyboard();
+    }
+  } catch {
+    // Ignore
+  }
+}
+
+/**
  * Trigger physical haptic feedback on Android (native bridge or Web Vibration API fallback)
  * @param {'light'|'medium'|'heavy'|'success'|'warning'} style
  */
@@ -473,10 +507,17 @@ function handleHardwareOrBrowserBack(ctx, fromPopState = false) {
     return true;
   }
 
-  // 3. Close any open <dialog> modal first
+  // 3. Close any open <dialog> modal first (except mandatory name gate if name is empty)
   const openDialogs = Array.from(document.querySelectorAll('dialog[open]'));
   if (openDialogs.length > 0) {
     const topDialog = openDialogs[openDialogs.length - 1];
+    if (topDialog.id === 'name-gate-dialog') {
+      const hasName = Boolean((ctx?.getSettings?.()?.userName || '').trim());
+      if (!hasName) {
+        requestSoftKeyboard(document.getElementById('quick-name-input'));
+        return true;
+      }
+    }
     topDialog.close();
     triggerHaptic('light');
     return true;

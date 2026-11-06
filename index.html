@@ -8,7 +8,7 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=18">
+  <link rel="stylesheet" href="./styles.css?v=19">
 </head>
 <body data-design="spec" data-view="log" data-theme="clean">
   <!-- Live Design Option Switcher (hidden by default; append ?switcher=1 to URL to compare layouts) -->
@@ -51,6 +51,10 @@
       </div>
 
       <div class="header-actions">
+        <button type="button" id="quick-switch-spec-btn" class="usage-pill" title="Switch back to Clean Mockup Spec UI" aria-label="Switch to Clean Mockup Spec UI">
+          <span aria-hidden="true">✨</span>
+          <span>Clean UI</span>
+        </button>
         <button type="button" id="theme-cycle-btn" class="icon-btn theme-pill" title="Switch Theme: Dark / Clean / Receipt" aria-label="Switch visual theme">
           <span id="theme-cycle-icon" aria-hidden="true">🌙</span>
           <span id="theme-cycle-label" class="btn-text-desktop">Dark</span>
@@ -62,6 +66,9 @@
         <button type="button" id="sync-status-btn" class="sync-pill" aria-label="Configure Google Sheets Cloud Sync">
           <span id="sync-dot" class="sync-dot" data-state="local" aria-hidden="true"></span>
           <span id="sync-label">Backup: Local</span>
+        </button>
+        <button type="button" id="header-settings-btn" class="icon-btn" title="Settings &amp; UI Layout" aria-label="Open Settings">
+          <span aria-hidden="true">⚙</span>
         </button>
         <button type="button" id="export-csv-btn" class="icon-btn" aria-label="Export CSV">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -908,6 +915,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="./app.js?v=18"></script>
+  <script type="module" src="./app.js?v=19"></script>
 </body>
 </html>

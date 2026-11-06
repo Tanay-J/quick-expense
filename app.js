@@ -49,12 +49,13 @@ import {
   filterExpensesByQuery
 } from './insights.js?v=17';
 
-import { createSpecController } from './spec-ui.js?v=18';
+import { createSpecController } from './spec-ui.js?v=19';
 import {
   initNativeBridge,
+  requestSoftKeyboard,
   syncWidgetSnapshot,
   triggerHaptic
-} from './native-bridge.js?v=18';
+} from './native-bridge.js?v=19';
 
 const DESIGN_DESCRIPTIONS = {
   spec: 'Exact 1:1 Clean Mobile UI from the 7 Spec Mockups',
@@ -339,7 +340,7 @@ function formatReadableDate(isoDate) {
 
 function showToast(text, actions = []) {
   els.toastRegion.replaceChildren();
-  const timeoutMs = actions.length > 0 ? 6500 : 3200;
+  const timeoutMs = actions.length > 0 ? 2200 : 1400;
 
   const toast = document.createElement('div');
   toast.className = 'toast';
@@ -2333,23 +2334,7 @@ function openRecurringModal() {
 function focusExpenseInput() {
   if (!els.expenseInput || isAnyDialogOpen()) return;
   if (state.uiDesign === 'tabs' && state.activeView === 'insights') return;
-
-  try {
-    els.expenseInput.focus({ preventScroll: true });
-    const len = els.expenseInput.value.length;
-    els.expenseInput.setSelectionRange(len, len);
-  } catch {
-    els.expenseInput.focus();
-  }
-
-  // Trigger on-screen mobile keyboard via VirtualKeyboard API where supported
-  try {
-    if ('virtualKeyboard' in navigator && navigator.virtualKeyboard?.show) {
-      navigator.virtualKeyboard.show();
-    }
-  } catch {
-    // Ignore if browser requires gesture
-  }
+  requestSoftKeyboard(els.expenseInput);
 }
 
 function ensureUserNameGate() {
@@ -2358,7 +2343,7 @@ function ensureUserNameGate() {
     if (!els.nameGateDialog.open) {
       els.nameGateDialog.showModal();
     }
-    setTimeout(() => els.quickNameInput?.focus(), 50);
+    setTimeout(() => requestSoftKeyboard(els.quickNameInput), 40);
     return false;
   }
   return true;
@@ -3946,7 +3931,7 @@ function setupEventListeners() {
       e.preventDefault();
       const enteredName = (els.quickNameInput?.value || '').trim();
       if (!enteredName) {
-        els.quickNameInput?.focus();
+        requestSoftKeyboard(els.quickNameInput);
         return;
       }
       state.settings = saveSettings({ userName: enteredName });
@@ -3954,8 +3939,15 @@ function setupEventListeners() {
         els.nameGateDialog.close();
       }
       updateUsageTrackerUI();
+      renderAll();
       showToast(`👋 Welcome, ${enteredName}!`);
-      els.expenseInput?.focus();
+      if (state.uiDesign === 'spec') {
+        if (state.settings.openToAdd !== false) {
+          specController.openAddPalette('');
+        }
+      } else {
+        focusExpenseInput();
+      }
       trackAppUsage({ onLaunch: true }).then((stats) => {
         state.usageStats = stats;
         updateUsageTrackerUI();
@@ -4083,11 +4075,21 @@ function setupEventListeners() {
     showToast('Downloaded CSV file');
   });
 
-  // Cloud Sync & Usage Stats Dialog
+  // Cloud Sync, Settings & 1-Tap Switch Back to Mockup Spec UI
   els.syncStatusBtn.addEventListener('click', openSyncAndSettingsModal);
   if (els.usageStatsBtn) {
     els.usageStatsBtn.addEventListener('click', openSyncAndSettingsModal);
   }
+  document.getElementById('header-settings-btn')?.addEventListener('click', openSyncAndSettingsModal);
+  document.getElementById('quick-switch-spec-btn')?.addEventListener('click', () => {
+    setUiDesign('spec');
+  });
+  els.uiDesignSelectInput?.addEventListener('change', (e) => {
+    if (e.target.value) {
+      setUiDesign(e.target.value);
+      els.syncDialog?.close();
+    }
+  });
 
   els.settingsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -4380,11 +4382,19 @@ function init() {
   els.gasCodeBlock.textContent = GOOGLE_APPS_SCRIPT_CODE;
   setupEventListeners();
 
-  // Auto-seed realistic mockup data if local storage has 0 entries so all screens match the 7 images immediately
+  // One-time cleanup: purge any previously auto-seeded demo_* entries so only real user expenses remain
   try {
-    if (state.expenses.length === 0 && !localStorage.getItem('qe_demo_seeded_v17')) {
-      localStorage.setItem('qe_demo_seeded_v17', '1');
-      seedDemoData();
+    if (!localStorage.getItem('qe_purged_auto_demo_v19')) {
+      localStorage.setItem('qe_purged_auto_demo_v19', '1');
+      const cleaned = state.expenses.filter((e) => !String(e.id || '').startsWith('demo_'));
+      if (cleaned.length !== state.expenses.length) {
+        state.expenses = cleaned;
+        saveExpenses(state.expenses);
+      }
+    }
+    if (!localStorage.getItem('qe_open_to_add_default_v19')) {
+      localStorage.setItem('qe_open_to_add_default_v19', '1');
+      state.settings = saveSettings({ openToAdd: true });
     }
   } catch {
     // Ignore storage errors
@@ -4401,18 +4411,9 @@ function init() {
     handleSpecBack: () => specController.handleBackGesture?.()
   });
 
-  try {
-    const params = new URLSearchParams(window.location.search);
-    if (state.uiDesign === 'spec' && (params.has('add') || state.settings.openToAdd)) {
-      specController.openAddPalette('');
-    }
-  } catch {
-    // Ignore URL errors
-  }
-
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker
-      .register('./sw.js?v=18')
+      .register('./sw.js?v=19')
       .then((reg) => reg.update())
       .catch(() => {});
   }
@@ -4421,11 +4422,23 @@ function init() {
     triggerBackgroundSync(false);
   }
 
-  // Require user name before using the app; if already set, record launch
-  if (state.uiDesign !== 'spec' && ensureUserNameGate()) {
-    focusExpenseInput();
-    requestAnimationFrame(() => focusExpenseInput());
-    setTimeout(() => focusExpenseInput(), 80);
+  // Always prompt for user name on first launch; once name is set, auto-open keyboard input
+  const hasName = ensureUserNameGate();
+  if (hasName) {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (state.uiDesign === 'spec') {
+        if (params.has('add') || params.has('quickadd') || state.settings.openToAdd !== false) {
+          specController.openAddPalette('');
+        }
+      } else {
+        focusExpenseInput();
+        requestAnimationFrame(() => focusExpenseInput());
+        setTimeout(() => focusExpenseInput(), 80);
+      }
+    } catch {
+      // Ignore URL errors
+    }
     trackAppUsage({ onLaunch: true }).then((stats) => {
       state.usageStats = stats;
       updateUsageTrackerUI();

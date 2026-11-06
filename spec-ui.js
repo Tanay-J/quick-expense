@@ -50,9 +50,10 @@ import {
   getOtaMeta,
   openFloatingQuickAddSimulator,
   pushNavigationGuard,
+  requestSoftKeyboard,
   toggleWidgetSimulator,
   triggerHaptic
-} from './native-bridge.js?v=18';
+} from './native-bridge.js?v=19';
 
 const FULL_MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -163,14 +164,13 @@ export function createSpecController(ctx) {
     pushNavigationGuard();
     triggerHaptic('light');
     renderAddOverlay(ctx.state.expenses, ctx.getSettings());
-    requestAnimationFrame(() => {
-      const inp = document.getElementById('spec-add-input');
-      if (inp) {
-        inp.focus();
-        const len = inp.value.length;
-        inp.setSelectionRange(len, len);
-      }
-    });
+    const focusNow = () => {
+      const inp = document.getElementById('spec-add-input') || document.getElementById('spec-kp-note-input');
+      if (inp) requestSoftKeyboard(inp);
+    };
+    focusNow();
+    requestAnimationFrame(focusNow);
+    setTimeout(focusNow, 60);
   }
 
   function closeAddPalette() {
@@ -2222,8 +2222,15 @@ export function createSpecController(ctx) {
         </header>
 
         <div class="spec-settings-group">
-          <div class="spec-section-kicker">UI DESIGN & EXPERIENCE</div>
+          <div class="spec-section-kicker">PROFILE &amp; UI LAYOUT</div>
           <div class="spec-card spec-settings-card">
+            <div class="spec-setting-row">
+              <div>
+                <strong>Your Name</strong>
+                <div class="spec-muted-sm">Personalizes your expense tracker</div>
+              </div>
+              <input type="text" id="spec-set-username" class="spec-inline-num" style="width:130px; text-align:right;" placeholder="Your name" value="${esc(settings.userName || '')}" />
+            </div>
             <div class="spec-setting-row">
               <div>
                 <strong>App UI Layout</strong>
@@ -2271,9 +2278,9 @@ export function createSpecController(ctx) {
             <div class="spec-setting-row">
               <div>
                 <strong>Open straight to Add</strong>
-                <div class="spec-muted-sm">App launches directly into the Add palette</div>
+                <div class="spec-muted-sm">App launches directly into the Add palette with keyboard open</div>
               </div>
-              <input type="checkbox" id="spec-set-open-add" class="spec-ios-switch" ${settings.openToAdd ? 'checked' : ''} />
+              <input type="checkbox" id="spec-set-open-add" class="spec-ios-switch" ${settings.openToAdd !== false ? 'checked' : ''} />
             </div>
 
             <div class="spec-setting-row">
@@ -2400,6 +2407,12 @@ export function createSpecController(ctx) {
       </div>
     `;
 
+    root.querySelector('#spec-set-username')?.addEventListener('change', (e) => {
+      const val = e.target.value.trim();
+      if (val) {
+        ctx.updateSettings({ userName: val });
+      }
+    });
     root.querySelector('#spec-ui-design-select')?.addEventListener('change', (e) => {
       ctx.setUiDesign(e.target.value);
     });

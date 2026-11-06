@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.view.HapticFeedbackConstants
+import android.view.inputmethod.InputMethodManager
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -58,15 +59,18 @@ class MainActivity : Activity() {
 
         webView = WebView(this).apply {
             setBackgroundColor(Color.parseColor("#F6F5F2"))
+            isFocusable = true
+            isFocusableInTouchMode = true
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
                 databaseEnabled = true
                 allowFileAccess = false
                 allowContentAccess = true
+                mediaPlaybackRequiresUserGesture = false
                 cacheMode = WebSettings.LOAD_DEFAULT
                 textZoom = 100
-                userAgentString = "$userAgentString DropSpendAndroid/1.8"
+                userAgentString = "$userAgentString DropSpendAndroid/1.9"
             }
         }
         setContentView(webView)
@@ -97,6 +101,15 @@ class MainActivity : Activity() {
                 request: WebResourceRequest
             ): WebResourceResponse? {
                 return assetLoader.shouldInterceptRequest(request.url)
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                webView.postDelayed({
+                    webView.requestFocus()
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                    imm?.showSoftInput(webView, InputMethodManager.SHOW_IMPLICIT)
+                }, 120)
             }
 
             override fun shouldOverrideUrlLoading(
@@ -312,6 +325,15 @@ class MainActivity : Activity() {
         fun openQuickAddSheet() {
             runOnUiThread {
                 startActivity(Intent(this@MainActivity, QuickAddActivity::class.java))
+            }
+        }
+
+        @JavascriptInterface
+        fun showKeyboard() {
+            runOnUiThread {
+                webView.requestFocus()
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                imm?.showSoftInput(webView, InputMethodManager.SHOW_IMPLICIT)
             }
         }
 
