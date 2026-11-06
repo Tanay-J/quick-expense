@@ -6161,3 +6161,481 @@ body[data-design="spec"][data-theme="receipt"] {
   color: var(--spec-ink-2);
   cursor: pointer;
 }
+
+/* ==========================================================================
+   NATIVE ANDROID UX, SPA VIEW CACHING & LOCAL WIDGET SIMULATOR (v18)
+   ========================================================================== */
+
+/* Faster SPA View Transitions via State Caching (content-visibility: hidden + inert) */
+.spa-view {
+  outline: none;
+}
+
+.spa-view.inactive {
+  content-visibility: hidden;
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@supports not (content-visibility: hidden) {
+  .spa-view.inactive {
+    display: none;
+  }
+}
+
+/* Zero-Delay Touch Physics & Springy Active Feedback */
+button,
+[role="button"],
+input,
+select,
+label,
+.spec-day-item,
+.spec-cat-row,
+.spec-setting-row {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+}
+
+.spec-numpad-key,
+.spec-usual-tile-main,
+.spec-circle-btn,
+.spec-seg-btn,
+.spec-bottom-add-pill,
+.spec-preview-chip,
+.spec-kp-usual-chip,
+.spec-kp-submit-btn,
+.spec-return-btn {
+  transition: transform 0.09s cubic-bezier(0.2, 0.9, 0.2, 1), background-color 0.12s ease, opacity 0.12s ease;
+}
+
+.spec-numpad-key:active,
+.spec-usual-tile-main:active,
+.spec-circle-btn:active,
+.spec-seg-btn:active,
+.spec-preview-chip:active,
+.spec-kp-usual-chip:active {
+  transform: scale(0.95);
+}
+
+.spec-bottom-add-pill:active,
+.spec-kp-submit-btn:active,
+.spec-return-btn:active {
+  transform: scale(0.975);
+}
+
+/* Top Swipe-Down Drag Handle Pill on Sheets */
+.spec-sheet-drag-pill {
+  width: 38px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--spec-hairline);
+  margin: 0.4rem auto 0.1rem;
+  flex-shrink: 0;
+}
+
+/* Desktop/Local Mac Floating Launcher Pill for Android Widget Simulator */
+.android-widget-sim-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 18px;
+  z-index: 950;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.28);
+  cursor: pointer;
+}
+
+.android-widget-sim-fab:hover {
+  background: #1e293b;
+}
+
+@media (max-width: 640px) {
+  .android-widget-sim-fab {
+    display: none;
+  }
+}
+
+/* Android Home Screen Widget & Floating Quick-Add Simulator Modal */
+.android-widget-sim-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.android-widget-sim-overlay[hidden] {
+  display: none !important;
+}
+
+.android-sim-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.62);
+  backdrop-filter: blur(4px);
+}
+
+.android-sim-phone {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 390px;
+  border-radius: 28px;
+  overflow: hidden;
+  border: 3px solid #1e293b;
+  background: #0b1120;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+}
+
+.android-sim-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.android-sim-close-btn {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.android-sim-wallpaper {
+  position: relative;
+  padding: 1.15rem 1rem 1.35rem;
+  min-height: 470px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: radial-gradient(circle at 20% 15%, #1e3a8a 0%, #0f172a 55%, #090d16 100%);
+}
+
+.android-sim-date-at-glance {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: rgba(248, 250, 252, 0.9);
+  padding: 0.15rem 0.25rem;
+}
+
+/* 4x2 Native Android Home Screen Widget Card */
+.dropspend-native-widget {
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  padding: 0.95rem;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dnw-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.dnw-brand-col {
+  cursor: pointer;
+  flex: 1;
+}
+
+.dnw-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  margin-bottom: 0.2rem;
+}
+
+.dnw-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.dnw-hero-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.dnw-month-val {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.dnw-today-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+
+.widget-sim-add-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 52px;
+  border-radius: 16px;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
+.widget-sim-add-btn span {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.widget-sim-add-btn small {
+  font-size: 0.58rem;
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+.dnw-pace-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.dnw-pace-bar {
+  position: relative;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: visible;
+}
+
+.dnw-pace-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #3b82f6;
+}
+
+.dnw-pace-fill.is-over {
+  background: #f59e0b;
+}
+
+.dnw-pace-tick {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 13px;
+  background: #ffffff;
+  border-radius: 2px;
+}
+
+.dnw-pace-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.dnw-pace-meta .is-over {
+  color: #fbbf24;
+}
+
+.dnw-pace-meta .is-under {
+  color: #34d399;
+}
+
+.dnw-usuals-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+}
+
+.widget-sim-usual-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding: 0.42rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  font-size: 0.7rem;
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+}
+
+.widget-sim-usual-btn:active {
+  transform: scale(0.95);
+  background: rgba(59, 130, 246, 0.25);
+}
+
+.widget-sim-usual-btn .w-u-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  color: #cbd5e1;
+}
+
+.widget-sim-usual-btn strong {
+  font-size: 0.74rem;
+  color: #ffffff;
+}
+
+.widget-sim-empty-hint {
+  grid-column: 1 / -1;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-align: center;
+  padding: 0.25rem;
+}
+
+.android-sim-explainer {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.73rem;
+  color: #cbd5e1;
+}
+
+.android-sim-explainer ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* Native Floating Quick-Add Sheet inside Simulator */
+.android-floating-quickadd {
+  margin-top: auto;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  padding: 0.65rem 0.85rem 0.85rem;
+  box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.35);
+}
+
+.android-floating-quickadd.is-open {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35), 0 -10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.afq-handle {
+  width: 32px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  margin: 0 auto 0.45rem;
+}
+
+.afq-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.afq-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.afq-sub {
+  font-size: 0.66rem;
+  color: #94a3b8;
+}
+
+.afq-input-row {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.afq-input-row input {
+  flex: 1;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.afq-input-row input:focus {
+  border-color: #3b82f6;
+}
+
+.afq-save-btn {
+  padding: 0.55rem 0.9rem;
+  border-radius: 12px;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.afq-toast {
+  margin-top: 0.45rem;
+  font-size: 0.72rem;
+  color: #34d399;
+  font-weight: 600;
+}

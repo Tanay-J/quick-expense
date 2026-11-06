@@ -49,7 +49,12 @@ import {
   filterExpensesByQuery
 } from './insights.js?v=17';
 
-import { createSpecController } from './spec-ui.js?v=17';
+import { createSpecController } from './spec-ui.js?v=18';
+import {
+  initNativeBridge,
+  syncWidgetSnapshot,
+  triggerHaptic
+} from './native-bridge.js?v=18';
 
 const DESIGN_DESCRIPTIONS = {
   spec: 'Exact 1:1 Clean Mobile UI from the 7 Spec Mockups',
@@ -2574,6 +2579,58 @@ function setUiDesign(nextDesign) {
   showToast(`Switched layout to ${label}`);
 }
 
+function quickAddExpense(text, overrideCat, overrideMode, overrideDate) {
+  const defaultPay = state.settings.defaultPayment || 'upi';
+  const drafts = parseDraftMessage(text, new Date(), 'expense', defaultPay);
+  if (!drafts.length || !(Number(drafts[0].amount) > 0)) return;
+  const nowTs = Date.now();
+  const newEntries = drafts
+    .filter((d) => Number(d.amount) > 0)
+    .map((d, idx) => {
+      const finalCat = overrideCat || d.category || 'other';
+      const cleanedNote = (d.note || '').trim() || getCategoryById(finalCat).name;
+      if (overrideCat) {
+        learnFromNote(cleanedNote, finalCat);
+      }
+      return {
+        id: `exp_${nowTs}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
+        type: d.type === 'income' ? 'income' : 'expense',
+        date: overrideDate || d.date || toLocalISODate(new Date()),
+        amount: Number(d.amount),
+        category: finalCat,
+        paymentMethod: overrideMode || d.paymentMethod || defaultPay,
+        note: cleanedNote,
+        tags: Array.isArray(d.tags) ? d.tags : [],
+        raw: text.trim(),
+        recurring: Boolean(d.recurring),
+        updatedAt: nowTs + idx,
+        synced: false
+      };
+    });
+
+  state.expenses = [...newEntries, ...state.expenses].sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return (b.updatedAt || 0) - (a.updatedAt || 0);
+  });
+  saveExpenses(state.expenses);
+  renderAll();
+
+  const first = newEntries[0];
+  const cat = getCategoryById(first.category);
+  showToast(`Added ${formatCurrency(first.amount)} · ${cat.icon} ${first.note.toLowerCase()}`, [
+    {
+      label: 'Undo',
+      onClick: () => {
+        const ids = new Set(newEntries.map((e) => e.id));
+        state.expenses = state.expenses.filter((e) => !ids.has(e.id));
+        saveExpenses(state.expenses);
+        renderAll();
+      }
+    }
+  ]);
+  triggerBackgroundSync(false);
+}
+
 const specController = createSpecController({
   state,
   getSettings: () => state.settings,
@@ -2595,57 +2652,7 @@ const specController = createSpecController({
     }
     state.selectedCalendarDate = null;
   },
-  QuickAdd: (text, overrideCat, overrideMode, overrideDate) => {
-    const defaultPay = state.settings.defaultPayment || 'upi';
-    const drafts = parseDraftMessage(text, new Date(), 'expense', defaultPay);
-    if (!drafts.length || !(Number(drafts[0].amount) > 0)) return;
-    const nowTs = Date.now();
-    const newEntries = drafts
-      .filter((d) => Number(d.amount) > 0)
-      .map((d, idx) => {
-        const finalCat = overrideCat || d.category || 'other';
-        const cleanedNote = (d.note || '').trim() || getCategoryById(finalCat).name;
-        if (overrideCat) {
-          learnFromNote(cleanedNote, finalCat);
-        }
-        return {
-          id: `exp_${nowTs}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
-          type: d.type === 'income' ? 'income' : 'expense',
-          date: overrideDate || d.date || toLocalISODate(new Date()),
-          amount: Number(d.amount),
-          category: finalCat,
-          paymentMethod: overrideMode || d.paymentMethod || defaultPay,
-          note: cleanedNote,
-          tags: Array.isArray(d.tags) ? d.tags : [],
-          raw: text.trim(),
-          recurring: Boolean(d.recurring),
-          updatedAt: nowTs + idx,
-          synced: false
-        };
-      });
-
-    state.expenses = [...newEntries, ...state.expenses].sort((a, b) => {
-      if (a.date !== b.date) return b.date.localeCompare(a.date);
-      return (b.updatedAt || 0) - (a.updatedAt || 0);
-    });
-    saveExpenses(state.expenses);
-    renderAll();
-
-    const first = newEntries[0];
-    const cat = getCategoryById(first.category);
-    showToast(`Added ${formatCurrency(first.amount)} · ${cat.icon} ${first.note.toLowerCase()}`, [
-      {
-        label: 'Undo',
-        onClick: () => {
-          const ids = new Set(newEntries.map((e) => e.id));
-          state.expenses = state.expenses.filter((e) => !ids.has(e.id));
-          saveExpenses(state.expenses);
-          renderAll();
-        }
-      }
-    ]);
-    triggerBackgroundSync(false);
-  },
+  QuickAdd: quickAddExpense,
   openEditModal: (exp) => openEditModal(exp),
   openStoryModal: (recap) => openStoryModal(recap),
   openRecurringModal: () => openRecurringModal(),
@@ -2664,6 +2671,7 @@ const specController = createSpecController({
 function renderAll() {
   updateDesignAndViewDOM();
   specController.render();
+  syncWidgetSnapshot(state.expenses, state.settings);
   if (state.uiDesign === 'spec') {
     updateSyncStatusUI();
     updateUsageTrackerUI();
@@ -4384,6 +4392,15 @@ function init() {
 
   renderAll();
 
+  initNativeBridge({
+    getExpenses: () => state.expenses,
+    getSettings: () => state.settings,
+    QuickAdd: quickAddExpense,
+    openSpecAddPalette: (prefill) => specController.openAddPalette(prefill || ''),
+    navigateSpecScreen: (scr) => specController.navigateScreen?.(scr),
+    handleSpecBack: () => specController.handleBackGesture?.()
+  });
+
   try {
     const params = new URLSearchParams(window.location.search);
     if (state.uiDesign === 'spec' && (params.has('add') || state.settings.openToAdd)) {
@@ -4395,7 +4412,7 @@ function init() {
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker
-      .register('./sw.js?v=17')
+      .register('./sw.js?v=18')
       .then((reg) => reg.update())
       .catch(() => {});
   }

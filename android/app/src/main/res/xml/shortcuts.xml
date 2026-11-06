@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher"
+        android:shortcutId="quick_add_floating"
+        android:shortcutLongLabel="@string/shortcut_quick_add_long"
+        android:shortcutShortLabel="@string/shortcut_quick_add_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="app.dropspend.tracker.QuickAddActivity"
+            android:targetPackage="app.dropspend.tracker" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher"
+        android:shortcutId="open_stats"
+        android:shortcutLongLabel="@string/shortcut_stats_long"
+        android:shortcutShortLabel="@string/shortcut_stats_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="app.dropspend.tracker.MainActivity"
+            android:targetPackage="app.dropspend.tracker">
+            <extra
+                android:name="start_screen"
+                android:value="stats" />
+        </intent>
+    </shortcut>
+</shortcuts>

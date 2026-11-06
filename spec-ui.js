@@ -44,6 +44,16 @@ import {
   filterExpensesByQuery
 } from './insights.js?v=16';
 
+import {
+  attachSwipeToDismiss,
+  checkAndApplyOtaUpdate,
+  getOtaMeta,
+  openFloatingQuickAddSimulator,
+  pushNavigationGuard,
+  toggleWidgetSimulator,
+  triggerHaptic
+} from './native-bridge.js?v=18';
+
 const FULL_MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -150,24 +160,28 @@ export function createSpecController(ctx) {
     specState.overrideMode = null;
     specState.overrideDate = null;
     specState.addInputStyle = ctx.getSettings().inputStyle || 'keyboard';
-    render();
-    setTimeout(() => {
+    pushNavigationGuard();
+    triggerHaptic('light');
+    renderAddOverlay(ctx.state.expenses, ctx.getSettings());
+    requestAnimationFrame(() => {
       const inp = document.getElementById('spec-add-input');
       if (inp) {
         inp.focus();
         const len = inp.value.length;
         inp.setSelectionRange(len, len);
       }
-    }, 30);
+    });
   }
 
   function closeAddPalette() {
+    if (!specState.addOpen) return;
     specState.addOpen = false;
     specState.addText = '';
     specState.overrideCategory = null;
     specState.overrideMode = null;
     specState.overrideDate = null;
-    render();
+    const overlay = document.getElementById('spec-add-overlay');
+    if (overlay) overlay.hidden = true;
   }
 
   function buildReceiptViewHTML(expenses, settings, spanComp, todayIso, yesterdayIso) {
@@ -548,135 +562,182 @@ export function createSpecController(ctx) {
     const usualsCount = Number(settings.usualsCount) || 6;
     const usuals = computeUsuals(expenses, usualsCount);
 
-    // 3A: KEYPAD MODE
+    // 3A: KEYPAD MODE (Zero-Rebuild In-Place Updates for <0.2ms Key Taps)
     if (specState.addInputStyle === 'keypad') {
-      const amtNum = parseFloat(specState.keypadAmountStr) || 0;
-      const catObj = getCategoryById(specState.keypadCategory || 'food');
       const modes = ['upi', 'cash', 'card', 'bank'];
 
-      overlay.innerHTML = `
-        <div class="spec-add-sheet is-keypad-mode">
-          <header class="spec-add-header">
-            <span class="spec-add-title">Add · keypad</span>
-            <button type="button" class="spec-circle-btn" id="spec-close-add-btn">✕</button>
-          </header>
+      function syncKeypadDom() {
+        const amtNum = parseFloat(specState.keypadAmountStr) || 0;
+        const catObj = getCategoryById(specState.keypadCategory || 'food');
+        const digitsEl = overlay.querySelector('.spec-kp-digits');
+        if (digitsEl) digitsEl.textContent = specState.keypadAmountStr || '0';
 
-          <div class="spec-keypad-hero">
-            <span class="spec-kp-sym">₹</span><span class="spec-kp-digits">${esc(specState.keypadAmountStr || '0')}</span>
-          </div>
-
-          <div class="spec-kp-note-row">
-            <input type="text" id="spec-kp-note-input" class="spec-kp-note-input" placeholder="Note (e.g. auto, chai, lunch)" value="${esc(specState.keypadNote)}" autocomplete="off" />
-            <button type="button" class="spec-kp-cat-pill" id="spec-kp-cat-cycle">${catObj.icon} ${esc(catObj.shortName || catObj.name)} ⌄</button>
-          </div>
-
-          <div class="spec-kp-usuals-strip">
-            ${usuals
-              .map((u) => {
-                const c = getCategoryById(u.category);
-                const isAct = specState.keypadNote.toLowerCase() === u.note.toLowerCase();
-                return `<button type="button" class="spec-kp-usual-chip ${isAct ? 'active' : ''}" data-kp-note="${esc(u.note)}" data-kp-amt="${u.amount}" data-kp-cat="${u.category}" data-kp-mode="${u.paymentMethod}">${c.icon} ${esc(u.note)} ⌄</button>`;
-              })
-              .join('')}
-          </div>
-
-          <div class="spec-segmented-4">
-            ${modes
-              .map((m) => {
-                const pm = getPaymentMethodById(m);
-                return `<button type="button" class="spec-seg-btn ${specState.keypadMode === m ? 'active' : ''}" data-kp-mode-btn="${m}">${esc(pm.shortName)}</button>`;
-              })
-              .join('')}
-          </div>
-
-          <div class="spec-numpad-grid">
-            ${['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫']
-              .map(
-                (key) =>
-                  `<button type="button" class="spec-numpad-key" data-kp-key="${key}">${key}</button>`
-              )
-              .join('')}
-          </div>
-
-          <button type="button" class="spec-kp-submit-btn" id="spec-kp-submit-btn">
-            Add ${ctx.formatCurrency(amtNum)} · ${catObj.icon} ${esc(specState.keypadNote || catObj.shortName || 'expense')}
-          </button>
-
-          <button type="button" class="spec-kp-switch-link" id="spec-switch-to-keyboard">
-            ⌨ Switch to typing · set your default in Settings
-          </button>
-        </div>
-      `;
-
-      overlay.querySelector('#spec-close-add-btn')?.addEventListener('click', closeAddPalette);
-      overlay.querySelector('#spec-switch-to-keyboard')?.addEventListener('click', () => {
-        specState.addInputStyle = 'keyboard';
-        renderAddOverlay(expenses, settings);
-      });
-      overlay.querySelector('#spec-kp-note-input')?.addEventListener('input', (e) => {
-        specState.keypadNote = e.target.value;
-        const inferred = inferCategory(specState.keypadNote, 'expense');
-        if (inferred) specState.keypadCategory = inferred;
-        renderAddOverlay(expenses, settings);
-        const inp = document.getElementById('spec-kp-note-input');
-        if (inp) {
-          inp.focus();
-          inp.setSelectionRange(inp.value.length, inp.value.length);
+        const catPill = overlay.querySelector('#spec-kp-cat-cycle');
+        if (catPill) {
+          catPill.textContent = `${catObj.icon} ${catObj.shortName || catObj.name} ⌄`;
         }
-      });
-      overlay.querySelector('#spec-kp-cat-cycle')?.addEventListener('click', () => {
-        const idx = EXPENSE_CATEGORIES.findIndex((c) => c.id === specState.keypadCategory);
-        const next = EXPENSE_CATEGORIES[(idx + 1) % EXPENSE_CATEGORIES.length];
-        specState.keypadCategory = next.id;
-        if (specState.keypadNote.trim()) {
-          learnFromNote(specState.keypadNote.trim(), next.id);
+
+        const noteInp = overlay.querySelector('#spec-kp-note-input');
+        if (noteInp && noteInp !== document.activeElement && noteInp.value !== specState.keypadNote) {
+          noteInp.value = specState.keypadNote;
         }
-        renderAddOverlay(expenses, settings);
-      });
-      overlay.querySelectorAll('[data-kp-usual-chip], .spec-kp-usual-chip').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          specState.keypadNote = btn.dataset.kpNote || '';
-          if (!specState.keypadAmountStr) {
-            specState.keypadAmountStr = String(btn.dataset.kpAmt || '');
+
+        overlay.querySelectorAll('.spec-kp-usual-chip').forEach((chip) => {
+          const isAct =
+            specState.keypadNote.trim().toLowerCase() ===
+            (chip.dataset.kpNote || '').trim().toLowerCase();
+          chip.classList.toggle('active', isAct);
+        });
+
+        overlay.querySelectorAll('[data-kp-mode-btn]').forEach((btn) => {
+          btn.classList.toggle('active', btn.dataset.kpModeBtn === specState.keypadMode);
+        });
+
+        const submitBtn = overlay.querySelector('#spec-kp-submit-btn');
+        if (submitBtn) {
+          submitBtn.textContent = `Add ${ctx.formatCurrency(amtNum)} · ${catObj.icon} ${
+            specState.keypadNote || catObj.shortName || 'expense'
+          }`;
+        }
+      }
+
+      if (!overlay.querySelector('.spec-add-sheet.is-keypad-mode')) {
+        const catObj = getCategoryById(specState.keypadCategory || 'food');
+        const amtNum = parseFloat(specState.keypadAmountStr) || 0;
+
+        overlay.innerHTML = `
+          <div class="spec-add-sheet is-keypad-mode">
+            <div class="spec-sheet-drag-pill" aria-hidden="true"></div>
+            <header class="spec-add-header">
+              <span class="spec-add-title">Add · keypad</span>
+              <button type="button" class="spec-circle-btn" id="spec-close-add-btn">✕</button>
+            </header>
+
+            <div class="spec-keypad-hero">
+              <span class="spec-kp-sym">₹</span><span class="spec-kp-digits">${esc(specState.keypadAmountStr || '0')}</span>
+            </div>
+
+            <div class="spec-kp-note-row">
+              <input type="text" id="spec-kp-note-input" class="spec-kp-note-input" placeholder="Note (e.g. auto, chai, lunch)" value="${esc(specState.keypadNote)}" autocomplete="off" />
+              <button type="button" class="spec-kp-cat-pill" id="spec-kp-cat-cycle">${catObj.icon} ${esc(catObj.shortName || catObj.name)} ⌄</button>
+            </div>
+
+            <div class="spec-kp-usuals-strip">
+              ${usuals
+                .map((u) => {
+                  const c = getCategoryById(u.category);
+                  const isAct = specState.keypadNote.toLowerCase() === u.note.toLowerCase();
+                  return `<button type="button" class="spec-kp-usual-chip ${isAct ? 'active' : ''}" data-kp-note="${esc(u.note)}" data-kp-amt="${u.amount}" data-kp-cat="${u.category}" data-kp-mode="${u.paymentMethod}">${c.icon} ${esc(u.note)} ⌄</button>`;
+                })
+                .join('')}
+            </div>
+
+            <div class="spec-segmented-4">
+              ${modes
+                .map((m) => {
+                  const pm = getPaymentMethodById(m);
+                  return `<button type="button" class="spec-seg-btn ${specState.keypadMode === m ? 'active' : ''}" data-kp-mode-btn="${m}">${esc(pm.shortName)}</button>`;
+                })
+                .join('')}
+            </div>
+
+            <div class="spec-numpad-grid">
+              ${['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫']
+                .map(
+                  (key) =>
+                    `<button type="button" class="spec-numpad-key" data-kp-key="${key}">${key}</button>`
+                )
+                .join('')}
+            </div>
+
+            <button type="button" class="spec-kp-submit-btn" id="spec-kp-submit-btn">
+              Add ${ctx.formatCurrency(amtNum)} · ${catObj.icon} ${esc(specState.keypadNote || catObj.shortName || 'expense')}
+            </button>
+
+            <button type="button" class="spec-kp-switch-link" id="spec-switch-to-keyboard">
+              ⌨ Switch to typing · set your default in Settings
+            </button>
+          </div>
+        `;
+
+        const sheetEl = overlay.querySelector('.spec-add-sheet');
+        attachSwipeToDismiss(sheetEl, '.spec-add-header, .spec-sheet-drag-pill', closeAddPalette);
+
+        overlay.querySelector('#spec-close-add-btn')?.addEventListener('click', closeAddPalette);
+        overlay.querySelector('#spec-switch-to-keyboard')?.addEventListener('click', () => {
+          specState.addInputStyle = 'keyboard';
+          overlay.replaceChildren();
+          renderAddOverlay(ctx.state.expenses, ctx.getSettings());
+        });
+        overlay.querySelector('#spec-kp-note-input')?.addEventListener('input', (e) => {
+          specState.keypadNote = e.target.value;
+          const inferred = inferCategory(specState.keypadNote, 'expense');
+          if (inferred) specState.keypadCategory = inferred;
+          syncKeypadDom();
+        });
+        overlay.querySelector('#spec-kp-cat-cycle')?.addEventListener('click', () => {
+          const idx = EXPENSE_CATEGORIES.findIndex((c) => c.id === specState.keypadCategory);
+          const next = EXPENSE_CATEGORIES[(idx + 1) % EXPENSE_CATEGORIES.length];
+          specState.keypadCategory = next.id;
+          if (specState.keypadNote.trim()) {
+            learnFromNote(specState.keypadNote.trim(), next.id);
           }
-          specState.keypadCategory = btn.dataset.kpCat || 'food';
-          specState.keypadMode = btn.dataset.kpMode || 'upi';
-          renderAddOverlay(expenses, settings);
+          syncKeypadDom();
         });
-      });
-      overlay.querySelectorAll('[data-kp-mode-btn]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          specState.keypadMode = btn.dataset.kpModeBtn || 'upi';
-          renderAddOverlay(expenses, settings);
-        });
-      });
-      overlay.querySelectorAll('[data-kp-key]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const k = btn.dataset.kpKey;
-          let cur = specState.keypadAmountStr;
-          if (k === '⌫') {
-            cur = cur.slice(0, -1);
-          } else if (k === '.') {
-            if (!cur.includes('.')) cur = (cur || '0') + '.';
-          } else {
-            const parts = cur.split('.');
-            if (parts[0].length < 7 && (!parts[1] || parts[1].length < 2)) {
-              cur = cur === '0' ? k : cur + k;
+        overlay.querySelectorAll('.spec-kp-usual-chip').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            specState.keypadNote = btn.dataset.kpNote || '';
+            if (!specState.keypadAmountStr) {
+              specState.keypadAmountStr = String(btn.dataset.kpAmt || '');
             }
-          }
-          specState.keypadAmountStr = cur;
-          renderAddOverlay(expenses, settings);
+            specState.keypadCategory = btn.dataset.kpCat || 'food';
+            specState.keypadMode = btn.dataset.kpMode || 'upi';
+            syncKeypadDom();
+          });
         });
-      });
-      overlay.querySelector('#spec-kp-submit-btn')?.addEventListener('click', () => {
-        const amt = parseFloat(specState.keypadAmountStr);
-        if (!(amt > 0)) return;
-        const msg = `${amt} ${specState.keypadNote || getCategoryById(specState.keypadCategory).name} ${specState.keypadMode}`;
-        ctx.QuickAdd(msg, specState.keypadCategory);
-        specState.keypadAmountStr = '';
-        specState.keypadNote = '';
-        closeAddPalette();
-      });
+        overlay.querySelectorAll('[data-kp-mode-btn]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            specState.keypadMode = btn.dataset.kpModeBtn || 'upi';
+            syncKeypadDom();
+          });
+        });
+        overlay.querySelectorAll('[data-kp-key]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const k = btn.dataset.kpKey;
+            let cur = specState.keypadAmountStr;
+            if (k === '⌫') {
+              cur = cur.slice(0, -1);
+            } else if (k === '.') {
+              if (!cur.includes('.')) cur = (cur || '0') + '.';
+            } else {
+              const parts = cur.split('.');
+              if (parts[0].length < 7 && (!parts[1] || parts[1].length < 2)) {
+                cur = cur === '0' ? k : cur + k;
+              }
+            }
+            specState.keypadAmountStr = cur;
+            syncKeypadDom();
+          });
+        });
+        overlay.querySelector('#spec-kp-submit-btn')?.addEventListener('click', () => {
+          const amt = parseFloat(specState.keypadAmountStr);
+          if (!(amt > 0)) {
+            triggerHaptic('warning');
+            const hero = overlay.querySelector('.spec-keypad-hero');
+            hero?.classList.add('spec-shake');
+            setTimeout(() => hero?.classList.remove('spec-shake'), 380);
+            return;
+          }
+          triggerHaptic('success');
+          const msg = `${amt} ${specState.keypadNote || getCategoryById(specState.keypadCategory).name} ${specState.keypadMode}`;
+          ctx.QuickAdd(msg, specState.keypadCategory);
+          specState.keypadAmountStr = '';
+          specState.keypadNote = '';
+          closeAddPalette();
+        });
+      } else {
+        syncKeypadDom();
+      }
       return;
     }
 
@@ -830,6 +891,7 @@ export function createSpecController(ctx) {
     if (!existingInput) {
       overlay.innerHTML = `
         <div class="spec-add-sheet">
+          <div class="spec-sheet-drag-pill" aria-hidden="true"></div>
           <header class="spec-add-header">
             <span class="spec-add-title">Add or ask</span>
             <div class="spec-icon-pair">
@@ -847,6 +909,9 @@ export function createSpecController(ctx) {
           </div>
         </div>
       `;
+
+      const sheetEl = overlay.querySelector('.spec-add-sheet');
+      attachSwipeToDismiss(sheetEl, '.spec-add-header, .spec-sheet-drag-pill', closeAddPalette);
 
       overlay.querySelector('#spec-close-add-btn')?.addEventListener('click', closeAddPalette);
       overlay.querySelector('#spec-switch-to-keypad')?.addEventListener('click', () => {
@@ -2262,11 +2327,55 @@ export function createSpecController(ctx) {
         </div>
 
         <div class="spec-settings-group">
-          <div class="spec-section-kicker">DATA & BACKUP</div>
+          <div class="spec-section-kicker">ANDROID APP, WIDGET &amp; OTA</div>
+          <div class="spec-card spec-settings-card">
+            <div class="spec-setting-row" id="spec-open-widget-sim" style="cursor:pointer">
+              <div>
+                <strong>📱 Preview Android Home Screen Widget</strong>
+                <div class="spec-muted-sm">Test the 4×2 live widget &amp; 0ms floating Quick-Add sheet right here</div>
+              </div>
+              <span>▶</span>
+            </div>
+            <div class="spec-setting-row" id="spec-open-floating-qa" style="cursor:pointer">
+              <div>
+                <strong>⚡ Test Floating Quick-Add Popup</strong>
+                <div class="spec-muted-sm">Opens the instant overlay sheet without loading the full app</div>
+              </div>
+              <span>+</span>
+            </div>
+            <div class="spec-setting-row" id="spec-check-ota-btn" style="cursor:pointer">
+              <div>
+                <strong>↻ Push-to-Publish OTA Update</strong>
+                <div class="spec-muted-sm" id="spec-ota-status-line">${
+                  getOtaMeta()?.sha
+                    ? `Live build ${esc(getOtaMeta().sha)} · Tap to pull latest GitHub push`
+                    : 'Pulls latest GitHub main code without reinstalling APK'
+                }</div>
+              </div>
+              <span>↻</span>
+            </div>
+            <a
+              class="spec-setting-row"
+              href="https://github.com/Tanay-J/quick-expense/releases/latest/download/DropSpend.apk"
+              target="_blank"
+              rel="noopener"
+              style="text-decoration:none; color:inherit;"
+            >
+              <div>
+                <strong>📦 Download Android APK (~2.2 MB)</strong>
+                <div class="spec-muted-sm">Auto-compiled on GitHub Actions from your main branch</div>
+              </div>
+              <span>⬇</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="spec-settings-group">
+          <div class="spec-section-kicker">DATA &amp; BACKUP</div>
           <div class="spec-card spec-settings-card">
             <div class="spec-setting-row" id="spec-open-cloud-sync" style="cursor:pointer">
               <div>
-                <strong>Google Sheets backup & sync</strong>
+                <strong>Google Sheets backup &amp; sync</strong>
                 <div class="spec-muted-sm">${settings.webhookUrl ? '● Connected — tap to sync or configure' : 'Optional cloud backup — tap to setup'}</div>
               </div>
               <span>›</span>
@@ -2281,7 +2390,7 @@ export function createSpecController(ctx) {
             <div class="spec-setting-row" id="spec-seed-demo-settings" style="cursor:pointer">
               <div>
                 <strong>Load realistic sample data (from mockups)</strong>
-                <div class="spec-muted-sm">Populate November & October entries + #goa trip to preview all charts</div>
+                <div class="spec-muted-sm">Populate November &amp; October entries + #goa trip to preview all charts</div>
               </div>
               <span>✨</span>
             </div>
@@ -2334,6 +2443,21 @@ export function createSpecController(ctx) {
       ctx.updateSettings({ alwaysTables: e.target.checked });
       render();
     });
+    root.querySelector('#spec-open-widget-sim')?.addEventListener('click', () => {
+      toggleWidgetSimulator(true);
+    });
+    root.querySelector('#spec-open-floating-qa')?.addEventListener('click', () => {
+      openFloatingQuickAddSimulator('');
+    });
+    root.querySelector('#spec-check-ota-btn')?.addEventListener('click', () => {
+      const statusEl = root.querySelector('#spec-ota-status-line');
+      checkAndApplyOtaUpdate({
+        manual: true,
+        onStatus: (msg) => {
+          if (statusEl) statusEl.textContent = msg;
+        }
+      });
+    });
     root.querySelector('#spec-open-cloud-sync')?.addEventListener('click', () => {
       ctx.openSyncAndSettingsModal();
     });
@@ -2353,10 +2477,16 @@ export function createSpecController(ctx) {
     root.querySelectorAll('[data-nav]').forEach((el) => {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        specState.screen = el.dataset.nav;
+        const nextScreen = el.dataset.nav;
+        if (nextScreen !== 'home') {
+          pushNavigationGuard();
+        }
+        specState.screen = nextScreen;
         specState.statsSubscreen = null;
         render();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (nextScreen !== 'home') {
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        }
       });
     });
 
@@ -2364,8 +2494,48 @@ export function createSpecController(ctx) {
       row.addEventListener('click', () => {
         const id = row.dataset.editId;
         const exp = ctx.state.expenses.find((e) => e.id === id);
-        if (exp) ctx.openEditModal(exp);
+        if (exp) {
+          pushNavigationGuard();
+          ctx.openEditModal(exp);
+        }
       });
+    });
+  }
+
+  // SPA View Caching (faster-spa-view-transitions pattern: content-visibility: hidden + inert)
+  let lastHomeSignature = '';
+
+  function ensureViewContainers(root) {
+    let homeEl = root.querySelector('#spec-view-home');
+    if (!homeEl) {
+      root.innerHTML = `
+        <div id="spec-view-home" class="spa-view" tabindex="-1"></div>
+        <div id="spec-view-stats" class="spa-view inactive" aria-hidden="true" inert tabindex="-1"></div>
+        <div id="spec-view-history" class="spa-view inactive" aria-hidden="true" inert tabindex="-1"></div>
+        <div id="spec-view-settings" class="spa-view inactive" aria-hidden="true" inert tabindex="-1"></div>
+      `;
+      lastHomeSignature = '';
+    }
+    return {
+      home: root.querySelector('#spec-view-home'),
+      stats: root.querySelector('#spec-view-stats'),
+      history: root.querySelector('#spec-view-history'),
+      settings: root.querySelector('#spec-view-settings')
+    };
+  }
+
+  function activateCachedView(views, activeKey) {
+    Object.entries(views).forEach(([key, el]) => {
+      if (!el) return;
+      if (key === activeKey) {
+        el.classList.remove('inactive');
+        el.setAttribute('aria-hidden', 'false');
+        el.removeAttribute('inert');
+      } else {
+        el.classList.add('inactive');
+        el.setAttribute('aria-hidden', 'true');
+        el.setAttribute('inert', 'inert');
+      }
     });
   }
 
@@ -2391,23 +2561,70 @@ export function createSpecController(ctx) {
       new Date()
     );
 
-    if (specState.screen === 'stats') {
-      renderStatsScreen(root, expenses, settings, spanComp);
-    } else if (specState.screen === 'history') {
-      renderHistoryScreen(root, expenses);
-    } else if (specState.screen === 'settings') {
-      renderSettingsScreen(root, expenses, settings);
+    const views = ensureViewContainers(root);
+    const activeKey = ['stats', 'history', 'settings'].includes(specState.screen)
+      ? specState.screen
+      : 'home';
+
+    if (activeKey === 'stats') {
+      renderStatsScreen(views.stats, expenses, settings, spanComp);
+    } else if (activeKey === 'history') {
+      renderHistoryScreen(views.history, expenses);
+    } else if (activeKey === 'settings') {
+      renderSettingsScreen(views.settings, expenses, settings);
     } else {
-      renderHomeScreen(root, expenses, settings, spanComp);
+      // Only rebuild Home DOM if data, month, or theme changed; otherwise reveal cached DOM in <0.5ms!
+      const topId = expenses[0]?.id || '';
+      const topUpd = expenses[0]?.updatedAt || 0;
+      const homeSig = `${expenses.length}:${topId}:${topUpd}:${spanComp.curTotal}:${settings.monthlyBudget}:${settings.theme}:${settings.recapCard}:${ctx.state.selectedYear}-${ctx.state.selectedMonth}`;
+      if (homeSig !== lastHomeSignature || !views.home.firstElementChild) {
+        renderHomeScreen(views.home, expenses, settings, spanComp);
+        lastHomeSignature = homeSig;
+      }
     }
 
+    activateCachedView(views, activeKey);
     renderAddOverlay(expenses, settings);
+  }
+
+  /**
+   * Unwind navigation stack on Android Back swipe or Browser Back button
+   * Returns true if back navigation was handled inside the app.
+   */
+  function handleBackGesture() {
+    if (specState.addOpen) {
+      closeAddPalette();
+      return true;
+    }
+    if (specState.screen === 'stats' && specState.statsSubscreen) {
+      specState.statsSubscreen = null;
+      render();
+      return true;
+    }
+    if (specState.screen !== 'home') {
+      specState.screen = 'home';
+      specState.statsSubscreen = null;
+      render();
+      return true;
+    }
+    return false;
+  }
+
+  function navigateScreen(screenName) {
+    if (screenName && screenName !== specState.screen) {
+      if (screenName !== 'home') pushNavigationGuard();
+      specState.screen = screenName;
+      specState.statsSubscreen = null;
+      render();
+    }
   }
 
   return {
     render,
     openAddPalette,
     closeAddPalette,
+    handleBackGesture,
+    navigateScreen,
     specState
   };
 }

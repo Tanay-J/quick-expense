@@ -1,14 +1,17 @@
-const CACHE_NAME = 'dropspend-v17';
+const CACHE_NAME = 'dropspend-v18';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './spec-ui.js',
+  './native-bridge.js',
   './parser.js',
   './sync.js',
   './insights.js',
-  './manifest.json'
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -35,7 +38,9 @@ self.addEventListener('fetch', (event) => {
   if (
     request.url.includes('script.google.com') ||
     request.url.includes('googleusercontent.com') ||
-    request.url.includes('counterapi.dev')
+    request.url.includes('counterapi.dev') ||
+    request.url.includes('api.github.com') ||
+    request.url.includes('raw.githubusercontent.com')
   ) {
     return;
   }

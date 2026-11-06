@@ -1,0 +1,81 @@
+name: Build Android APK & Publish OTA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-apk:
+    name: Build Lightweight Android APK (~2.2 MB)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Ensure signing keystore exists
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v \
+              -keystore ~/.android/debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=DropSpend,OU=Mobile,O=DropSpend,L=IN,S=IN,C=IN"
+          fi
+
+      - name: Build Signed Release APK
+        working-directory: ./android
+        run: gradle assembleRelease --no-daemon
+
+      - name: Copy APK to DropSpend.apk
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk ./DropSpend.apk
+          ls -lh ./DropSpend.apk
+
+      - name: Upload DropSpend.apk Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DropSpend-Android-APK
+          path: ./DropSpend.apk
+          if-no-files-found: error
+
+      - name: Publish to GitHub Release (latest)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="latest"
+          COMMIT_SHORT=$(git rev-parse --short HEAD)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" ./DropSpend.apk --clobber
+            gh release edit "$TAG" \
+              --title "DropSpend Android APK (Build $COMMIT_SHORT)" \
+              --notes "Automated lightweight Android APK (~2.2 MB) with Native Home Screen Widget, 0ms Floating Quick-Add sheet, and Push-to-Publish OTA live updates. Built from commit \`$COMMIT_SHORT\`."
+          else
+            gh release create "$TAG" ./DropSpend.apk \
+              --title "DropSpend Android APK (Build $COMMIT_SHORT)" \
+              --notes "Automated lightweight Android APK (~2.2 MB) with Native Home Screen Widget, 0ms Floating Quick-Add sheet, and Push-to-Publish OTA live updates. Built from commit \`$COMMIT_SHORT\`." \
+              --latest
+          fi

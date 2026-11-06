@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DropSpend</string>
+    <string name="widget_name">DropSpend · Pace &amp; Quick Add</string>
+    <string name="shortcut_quick_add_short">Quick Add</string>
+    <string name="shortcut_quick_add_long">⚡ Quick Add Expense</string>
+    <string name="shortcut_stats_short">Stats</string>
+    <string name="shortcut_stats_long">📊 Monthly Stats &amp; Pace</string>
+</resources>

@@ -1,0 +1,16 @@
+{
+  "name": "dropspend-quick-expense",
+  "version": "1.8.0",
+  "description": "Zero-friction natural language expense tracker with Google Sheets sync, Capacitor & Native Android Home Screen Widget",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8090",
+    "dev": "python3 -m http.server 8090",
+    "widget-preview": "python3 -m http.server 8090"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tanay-J/quick-expense.git"
+  }
+}
