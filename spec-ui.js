@@ -2540,8 +2540,15 @@ export function createSpecController(ctx) {
         </div>
 
         <div class="spec-settings-group">
-          <div class="spec-section-kicker">ANDROID APP &amp; WIDGET</div>
+          <div class="spec-section-kicker">ANDROID APP &amp; NOTIFICATIONS</div>
           <div class="spec-card spec-settings-card">
+            <div class="spec-setting-row" id="spec-toggle-notif-access" style="cursor:pointer">
+              <div>
+                <strong>🔔 Auto-Sync UPI / Bank Notifications</strong>
+                <div class="spec-muted-sm">Reads payments &amp; syncs 4x daily to Google Sheet</div>
+              </div>
+              <span class="spec-muted-sm" id="spec-notif-perm-status">Enable ›</span>
+            </div>
             <div class="spec-setting-row" id="spec-open-widget-sim" style="cursor:pointer">
               <div>
                 <strong>📱 Preview Android Home Widget</strong>
@@ -2644,6 +2651,21 @@ export function createSpecController(ctx) {
     root.querySelector('#spec-set-always-tables')?.addEventListener('change', (e) => {
       ctx.updateSettings({ alwaysTables: e.target.checked });
       render();
+    });
+    const permLabel = root.querySelector('#spec-notif-perm-status');
+    if (window.DropSpendNative?.isNotificationListenerEnabled) {
+      const isEnabled = window.DropSpendNative.isNotificationListenerEnabled();
+      if (permLabel) {
+        permLabel.textContent = isEnabled ? 'Active ✓' : 'Enable ›';
+        permLabel.style.color = isEnabled ? 'var(--spec-primary)' : 'var(--spec-muted)';
+      }
+    }
+    root.querySelector('#spec-toggle-notif-access')?.addEventListener('click', () => {
+      if (window.DropSpendNative?.openNotificationListenerSettings) {
+        window.DropSpendNative.openNotificationListenerSettings();
+      } else {
+        alert('Notification auto-sync requires the DropSpend Android APK. On web, expenses sync directly via Google Sheets.');
+      }
     });
     root.querySelector('#spec-open-widget-sim')?.addEventListener('click', () => {
       toggleWidgetSimulator(true);

@@ -154,8 +154,33 @@ class MainActivity : Activity() {
         val startQuery = buildStartQuery(intent)
         webView.loadUrl("https://appassets.androidplatform.net/assets/public/index.html$startQuery")
 
+        // Schedule periodic sync (4 times a day = every 6 hours)
+        schedulePeriodicNotificationSync()
+
         // Pull any latest git push from GitHub main silently in background
         syncOtaFromGitHub(reloadOnChange = false)
+    }
+
+    private fun schedulePeriodicNotificationSync() {
+        try {
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .build()
+
+            // 6 hours interval = 4 times a day
+            val workRequest = androidx.work.PeriodicWorkRequestBuilder<NotificationSyncWorker>(
+                6, java.util.concurrent.TimeUnit.HOURS
+            )
+            .setConstraints(constraints)
+            .build()
+
+            androidx.work.WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+                "DropSpend4xDailySync",
+                androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                workRequest
+            )
+        } catch (_: Exception) {
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -341,6 +366,22 @@ class MainActivity : Activity() {
         fun minimizeApp() {
             runOnUiThread {
                 moveTaskToBack(true)
+            }
+        }
+
+        @JavascriptInterface
+        fun isNotificationListenerEnabled(): Boolean {
+            val flat = android.provider.Settings.Secure.getString(
+                contentResolver,
+                "enabled_notification_listeners"
+            ) ?: return false
+            return flat.contains(packageName)
+        }
+
+        @JavascriptInterface
+        fun openNotificationListenerSettings() {
+            runOnUiThread {
+                startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
             }
         }
     }

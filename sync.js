@@ -95,6 +95,37 @@ function doPost(e) {
   lock.tryLock(10000);
   try {
     const payload = JSON.parse(e.postData.contents || '{}');
+    const ss = getSpreadsheet();
+
+    // 1. If action is append_notifications, record into a dedicated 'Notifications' tab
+    if (payload.action === 'append_notifications') {
+      const NOTIF_TAB = 'Notifications';
+      let notifSheet = ss.getSheetByName(NOTIF_TAB);
+      if (!notifSheet) {
+        notifSheet = ss.insertSheet(NOTIF_TAB);
+        notifSheet.appendRow(['Timestamp', 'App / Package', 'Amount (₹)', 'Merchant / Note', 'Full Notification Text']);
+        notifSheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#f3f4f6');
+        notifSheet.setFrozenRows(1);
+      }
+      const notifItems = Array.isArray(payload.items) ? payload.items : [];
+      for (var k = 0; k < notifItems.length; k++) {
+        var n = notifItems[k];
+        if (!n) continue;
+        var dateStr = n.timestamp ? new Date(Number(n.timestamp)).toLocaleString('en-IN') : new Date().toLocaleString('en-IN');
+        notifSheet.appendRow([
+          dateStr,
+          String(n.sourceApp || ''),
+          Number(n.amount) || 0,
+          String(n.merchant || ''),
+          String(n.rawText || '')
+        ]);
+      }
+      return ContentService.createTextOutput(
+        JSON.stringify({ ok: true, count: notifItems.length })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 2. Standard Expense sync logic
     const incoming = Array.isArray(payload.items) ? payload.items : [];
     const sheet = getOrCreateSheet();
     const existing = readAllRows(sheet);
