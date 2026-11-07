@@ -454,6 +454,28 @@ export function createSpecController(ctx) {
     const yestOpen = isExpandedHome || Boolean(specState.homeAccordions.yesterday);
     const earlierOpen = isExpandedHome || Boolean(specState.homeAccordions.earlier);
 
+    const ccStatuses = ctx.getCreditCardsStatus ? ctx.getCreditCardsStatus() : [];
+    const dueSoonCards = ccStatuses.filter((c) => c.isDueSoon);
+    const ccRemindersHtml = dueSoonCards
+      .map((card) => {
+        const whenTxt =
+          card.daysUntilDue === 0
+            ? `Due Today (${card.nextDueDateLabel})`
+            : `Due in ${card.daysUntilDue}d (${card.nextDueDateLabel})`;
+        const spendTxt =
+          card.currentCycleSpend > 0 ? ` · ${ctx.formatCurrency(card.currentCycleSpend)}` : '';
+        return `
+          <div class="spec-cc-reminder-row" data-cc-id="${esc(card.id)}">
+            <div class="spec-cc-reminder-info" data-open-cc-modal="1">
+              <strong>💳 ${esc(card.name)} bill · ${esc(whenTxt)}</strong>
+              <span>Cycle ${esc(card.rangeLabel)}${esc(spendTxt)}</span>
+            </div>
+            <button type="button" class="mini-pill-btn is-accent" data-mark-cc-paid="${esc(card.id)}">✓ Paid</button>
+          </div>
+        `;
+      })
+      .join('');
+
     root.innerHTML = `
       <div class="spec-phone-container">
         <header class="spec-midnight-hdr">
@@ -465,6 +487,14 @@ export function createSpecController(ctx) {
             ${MIDNIGHT_ICONS.search}
           </button>
         </header>
+
+        ${
+          dueSoonCards.length > 0
+            ? `<section class="spec-cc-reminder-banner" aria-label="Credit Card Bill Reminders">
+                 ${ccRemindersHtml}
+               </section>`
+            : ''
+        }
 
         ${
           showRecapCard
@@ -596,6 +626,17 @@ export function createSpecController(ctx) {
     root.querySelector('#spec-open-recap-story')?.addEventListener('click', (e) => {
       e.stopPropagation();
       ctx.openStoryModal(prevRecap);
+    });
+    root.querySelectorAll('[data-mark-cc-paid]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ctx.markCardPaid?.(btn.dataset.markCcPaid, true);
+      });
+    });
+    root.querySelectorAll('[data-open-cc-modal]').forEach((el) => {
+      el.addEventListener('click', () => {
+        ctx.openRecurringModal?.();
+      });
     });
 
     bindCommonClicks(root);
@@ -2387,10 +2428,10 @@ export function createSpecController(ctx) {
             </div>
             <div class="spec-setting-row" id="spec-open-recurring-modal" style="cursor:pointer">
               <div>
-                <strong>Recurring bills &amp; cards</strong>
-                <div class="spec-muted-sm">WiFi, Netflix, Rent &amp; CC statement reminders</div>
+                <strong>Credit cards &amp; recurring bills</strong>
+                <div class="spec-muted-sm">Statement cycles, due reminders &amp; monthly subscriptions</div>
               </div>
-              <span class="spec-muted-sm">${ctx.state.recurringRules.length} active ›</span>
+              <span class="spec-muted-sm">${(settings.creditCards || []).length || 1} ${(settings.creditCards || []).length === 1 ? 'card' : 'cards'} · ${ctx.state.recurringRules.length} bills ›</span>
             </div>
           </div>
         </div>
@@ -2721,7 +2762,8 @@ export function createSpecController(ctx) {
       // Only rebuild Home DOM if data, month, or theme changed; otherwise reveal cached DOM in <0.5ms!
       const topId = expenses[0]?.id || '';
       const topUpd = expenses[0]?.updatedAt || 0;
-      const homeSig = `${expenses.length}:${topId}:${topUpd}:${spanComp.curTotal}:${settings.monthlyBudget}:${settings.userName || ''}:${settings.theme}:${settings.homeStyle}:${settings.recapCard}:${ctx.state.selectedYear}-${ctx.state.selectedMonth}`;
+      const ccSig = JSON.stringify(settings.creditCards || []) + ':' + (settings.ccRemindDays || 5);
+      const homeSig = `${expenses.length}:${topId}:${topUpd}:${spanComp.curTotal}:${settings.monthlyBudget}:${settings.userName || ''}:${settings.theme}:${settings.homeStyle}:${settings.recapCard}:${ccSig}:${ctx.state.selectedYear}-${ctx.state.selectedMonth}`;
       if (homeSig !== lastHomeSignature || !views.home.firstElementChild) {
         renderHomeScreen(views.home, expenses, settings, spanComp);
         lastHomeSignature = homeSig;

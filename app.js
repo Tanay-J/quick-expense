@@ -35,7 +35,7 @@ import {
   saveTombstones,
   syncWithGoogleSheets,
   trackAppUsage
-} from './sync.js?v=22';
+} from './sync.js?v=24';
 
 import {
   computeCalendarAndPatterns,
@@ -47,9 +47,9 @@ import {
   computeUsuals,
   evaluateQuestionQuery,
   filterExpensesByQuery
-} from './insights.js?v=22';
+} from './insights.js?v=24';
 
-import { createSpecController } from './spec-ui.js?v=22';
+import { createSpecController } from './spec-ui.js?v=24';
 import {
   initNativeBridge,
   requestSoftKeyboard,
@@ -300,6 +300,10 @@ const els = {
   editRecurring: document.getElementById('edit-recurring'),
   deleteExpenseBtn: document.getElementById('delete-expense-btn'),
   recurringDialog: document.getElementById('recurring-dialog'),
+  ccCardsList: document.getElementById('cc-cards-list'),
+  ccCardNameInput: document.getElementById('cc-card-name-input'),
+  ccNotifyToggleBtn: document.getElementById('cc-notify-toggle-btn'),
+  ccRemindDaysSwitch: document.getElementById('cc-remind-days-switch'),
   ccCycleForm: document.getElementById('cc-cycle-form'),
   ccStatementDayInput: document.getElementById('cc-statement-day-input'),
   ccDueDayInput: document.getElementById('cc-due-day-input'),
@@ -2081,63 +2085,342 @@ function logRecurringRuleNow(rule) {
   triggerBackgroundSync(false);
 }
 
-function computeCreditCardCycleInfo() {
+function getCreditCardsArray() {
+  const cards = state.settings.creditCards;
+  if (Array.isArray(cards) && cards.length > 0) {
+    return cards;
+  }
+  return [
+    {
+      id: 'cc_primary',
+      name: 'Primary Card',
+      statementDay: Math.min(28, Math.max(1, Number(state.settings.ccStatementDay) || 15)),
+      dueDay: Math.min(28, Math.max(1, Number(state.settings.ccDueDay) || 5)),
+      lastPaidCycle: state.settings.ccLastPaidCycle || ''
+    }
+  ];
+}
+
+function computeAllCreditCardsStatus() {
   const now = new Date();
-  const stmtDay = Math.min(28, Math.max(1, Number(state.settings.ccStatementDay) || 15));
-  const dueDay = Math.min(28, Math.max(1, Number(state.settings.ccDueDay) || 5));
-
-  // Determine current unbilled cycle start & end dates
-  let cycleStart;
-  let cycleEnd;
-  if (now.getDate() >= stmtDay) {
-    cycleStart = new Date(now.getFullYear(), now.getMonth(), stmtDay);
-    cycleEnd = new Date(now.getFullYear(), now.getMonth() + 1, stmtDay - 1);
-  } else {
-    cycleStart = new Date(now.getFullYear(), now.getMonth() - 1, stmtDay);
-    cycleEnd = new Date(now.getFullYear(), now.getMonth(), stmtDay - 1);
-  }
-
-  const startIso = toLocalISODate(cycleStart);
-  const endIso = toLocalISODate(cycleEnd);
-
-  const ccItems = state.expenses.filter(
-    (e) =>
-      normalizeEntryType(e) !== 'income' &&
-      normalizePaymentMethod(e) === 'credit_card' &&
-      e.date >= startIso &&
-      e.date <= endIso
-  );
-  const currentCycleSpend = ccItems.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-
-  // Next due date calculation
-  let nextDueDate = new Date(now.getFullYear(), now.getMonth(), dueDay);
-  if (now.getDate() > dueDay) {
-    nextDueDate = new Date(now.getFullYear(), now.getMonth() + 1, dueDay);
-  }
-  const msPerDay = 86400000;
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const daysUntilDue = Math.round((nextDueDate - todayMidnight) / msPerDay);
-  const dueCycleKey = toLocalISODate(nextDueDate).slice(0, 7);
-  const isPaidThisCycle = state.settings.ccLastPaidCycle === dueCycleKey;
+  const msPerDay = 86400000;
+  const rangeFmt = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  const remindDays = Math.min(14, Math.max(1, Number(state.settings.ccRemindDays) || 5));
+  const cards = getCreditCardsArray();
 
-  const rangeFmt = (d) =>
-    d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  // Pre-build lowercase keyword tokens per card for matching multi-card expenses
+  const cardTokens = cards.map((card) =>
+    String(card.name || '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((tok) => tok.length >= 2 && tok !== 'card' && tok !== 'credit' && tok !== 'cc')
+  );
 
-  return {
-    stmtDay,
-    dueDay,
-    startIso,
-    endIso,
-    rangeLabel: `${rangeFmt(cycleStart)} – ${rangeFmt(cycleEnd)}`,
-    currentCycleSpend,
-    txCount: ccItems.length,
-    nextDueDateLabel: rangeFmt(nextDueDate),
-    daysUntilDue,
-    dueCycleKey,
-    isPaidThisCycle,
-    isDueSoon:
-      !isPaidThisCycle && currentCycleSpend > 0 && daysUntilDue >= 0 && daysUntilDue <= 5
+  return cards.map((card, idx) => {
+    const stmtDay = Math.min(28, Math.max(1, Number(card.statementDay) || 15));
+    const dueDay = Math.min(28, Math.max(1, Number(card.dueDay) || 5));
+
+    let cycleStart;
+    let cycleEnd;
+    if (now.getDate() >= stmtDay) {
+      cycleStart = new Date(now.getFullYear(), now.getMonth(), stmtDay);
+      cycleEnd = new Date(now.getFullYear(), now.getMonth() + 1, stmtDay - 1);
+    } else {
+      cycleStart = new Date(now.getFullYear(), now.getMonth() - 1, stmtDay);
+      cycleEnd = new Date(now.getFullYear(), now.getMonth(), stmtDay - 1);
+    }
+
+    const startIso = toLocalISODate(cycleStart);
+    const endIso = toLocalISODate(cycleEnd);
+
+    const ccItems = state.expenses.filter((e) => {
+      if (normalizeEntryType(e) === 'income') return false;
+      if (normalizePaymentMethod(e) !== 'credit_card') return false;
+      if (e.date < startIso || e.date > endIso) return false;
+      if (cards.length <= 1) return true;
+
+      const haystack = `${e.note || ''} ${e.raw || ''} ${(e.tags || []).join(' ')}`.toLowerCase();
+      const myTokens = cardTokens[idx];
+      if (myTokens.length > 0 && myTokens.some((tok) => haystack.includes(tok))) {
+        return true;
+      }
+      // If it doesn't match ANY specific card's keyword, attribute to the first (primary) card
+      if (idx === 0) {
+        const matchedOther = cardTokens.some(
+          (toks, otherIdx) => otherIdx !== 0 && toks.some((tok) => haystack.includes(tok))
+        );
+        return !matchedOther;
+      }
+      return false;
+    });
+
+    const currentCycleSpend = ccItems.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+    let nextDueDate = new Date(now.getFullYear(), now.getMonth(), dueDay);
+    if (now.getDate() > dueDay) {
+      nextDueDate = new Date(now.getFullYear(), now.getMonth() + 1, dueDay);
+    }
+    const daysUntilDue = Math.round((nextDueDate - todayMidnight) / msPerDay);
+    const dueCycleKey = toLocalISODate(nextDueDate).slice(0, 7);
+    const isPaidThisCycle = card.lastPaidCycle === dueCycleKey;
+    const isDueSoon = !isPaidThisCycle && daysUntilDue >= 0 && daysUntilDue <= remindDays;
+
+    return {
+      id: card.id,
+      name: card.name,
+      stmtDay,
+      dueDay,
+      startIso,
+      endIso,
+      rangeLabel: `${rangeFmt(cycleStart)} – ${rangeFmt(cycleEnd)}`,
+      currentCycleSpend,
+      txCount: ccItems.length,
+      nextDueDateLabel: rangeFmt(nextDueDate),
+      daysUntilDue,
+      dueCycleKey,
+      isPaidThisCycle,
+      remindDays,
+      isDueSoon
+    };
+  });
+}
+
+function computeCreditCardCycleInfo() {
+  const all = computeAllCreditCardsStatus();
+  const first = all[0] || {
+    stmtDay: 15,
+    dueDay: 5,
+    rangeLabel: '',
+    currentCycleSpend: 0,
+    txCount: 0,
+    nextDueDateLabel: '',
+    daysUntilDue: 10,
+    dueCycleKey: '',
+    isPaidThisCycle: false,
+    isDueSoon: false
   };
+  const totalSpend = all.reduce((s, c) => s + c.currentCycleSpend, 0);
+  const dueSoonCards = all.filter((c) => c.isDueSoon);
+  const mostUrgent = dueSoonCards.sort((a, b) => a.daysUntilDue - b.daysUntilDue)[0] || first;
+  return {
+    ...mostUrgent,
+    currentCycleSpend: totalSpend,
+    cards: all,
+    dueSoonCards,
+    isDueSoon: dueSoonCards.length > 0
+  };
+}
+
+function markCreditCardPaid(cardId, paid = true) {
+  const statuses = computeAllCreditCardsStatus();
+  const targetStatus = statuses.find((c) => c.id === cardId) || statuses[0];
+  if (!targetStatus) return;
+
+  const updatedCards = getCreditCardsArray().map((c) => {
+    if (c.id !== targetStatus.id) return c;
+    return {
+      ...c,
+      lastPaidCycle: paid ? targetStatus.dueCycleKey : ''
+    };
+  });
+
+  state.settings = saveSettings({
+    creditCards: updatedCards,
+    ccLastPaidCycle: updatedCards[0]?.lastPaidCycle || ''
+  });
+  renderCreditCardsModalList();
+  renderAll();
+  showToast(
+    paid
+      ? `✅ Marked ${targetStatus.name} bill paid for ${targetStatus.nextDueDateLabel}`
+      : `↩ Reopened ${targetStatus.name} bill for ${targetStatus.nextDueDateLabel}`
+  );
+}
+
+function sendCcDueBrowserNotification(cardInfo, isTest = false) {
+  const title = isTest
+    ? `🔔 Reminder Active: ${cardInfo.name}`
+    : cardInfo.daysUntilDue === 0
+      ? `⚠️ ${cardInfo.name} Bill Due Today!`
+      : `💳 ${cardInfo.name} Bill Due in ${cardInfo.daysUntilDue}d`;
+
+  const spendPart =
+    cardInfo.currentCycleSpend > 0 ? ` (${formatCurrency(cardInfo.currentCycleSpend)} unbilled)` : '';
+  const body = `Due on ${cardInfo.nextDueDateLabel}${spendPart}. We'll remind you ${cardInfo.remindDays} days before your due date.`;
+
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      if (navigator.serviceWorker?.controller) {
+        navigator.serviceWorker.ready
+          .then((reg) =>
+            reg.showNotification(title, {
+              body,
+              icon: './icons/icon-192.png',
+              badge: './icons/icon-192.png',
+              tag: `cc-due-${cardInfo.id}`
+            })
+          )
+          .catch(() => {
+            new Notification(title, { body, icon: './icons/icon-192.png' });
+          });
+      } else {
+        new Notification(title, { body, icon: './icons/icon-192.png' });
+      }
+      return true;
+    }
+  } catch {
+    // Fallback to in-app toast
+  }
+  return false;
+}
+
+function checkAndFireCcDueNotifications() {
+  if (state.settings.ccNotificationsEnabled === false) return;
+  const statuses = computeAllCreditCardsStatus();
+  const dueSoon = statuses.filter((c) => c.isDueSoon);
+  if (dueSoon.length === 0) return;
+
+  const todayIso = toLocalISODate(new Date());
+  try {
+    const notifiedMap = JSON.parse(localStorage.getItem('qe_cc_notified_v1') || '{}');
+    let changed = false;
+    for (const card of dueSoon) {
+      const key = `${card.id}_${todayIso}`;
+      if (!notifiedMap[key]) {
+        const sent = sendCcDueBrowserNotification(card, false);
+        if (sent) {
+          notifiedMap[key] = true;
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      localStorage.setItem('qe_cc_notified_v1', JSON.stringify(notifiedMap));
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function updateCcNotificationButtonUI() {
+  if (!els.ccNotifyToggleBtn) return;
+  const hasNotificationApi = 'Notification' in window;
+  const granted = hasNotificationApi && Notification.permission === 'granted';
+  const enabled = state.settings.ccNotificationsEnabled !== false;
+  if (granted && enabled) {
+    els.ccNotifyToggleBtn.textContent = '🔔 Alerts On · Test';
+    els.ccNotifyToggleBtn.classList.add('is-accent');
+  } else {
+    els.ccNotifyToggleBtn.textContent = '🔔 Enable Alerts';
+    els.ccNotifyToggleBtn.classList.add('is-accent');
+  }
+
+  if (els.ccRemindDaysSwitch) {
+    const curDays = Number(state.settings.ccRemindDays) || 5;
+    els.ccRemindDaysSwitch.querySelectorAll('[data-remind-days]').forEach((btn) => {
+      btn.classList.toggle('active', Number(btn.dataset.remindDays) === curDays);
+    });
+  }
+}
+
+function renderCreditCardsModalList() {
+  if (!els.ccCardsList) return;
+  els.ccCardsList.replaceChildren();
+  updateCcNotificationButtonUI();
+
+  const statuses = computeAllCreditCardsStatus();
+  const rawCards = getCreditCardsArray();
+
+  for (const cardStatus of statuses) {
+    const tile = document.createElement('div');
+    tile.className = `cc-card-tile ${cardStatus.isDueSoon ? 'is-due-soon' : ''} ${cardStatus.isPaidThisCycle ? 'is-paid' : ''}`;
+
+    const topRow = document.createElement('div');
+    topRow.className = 'cc-card-top';
+
+    const leftCol = document.createElement('div');
+    leftCol.className = 'cc-card-info';
+
+    const nameEl = document.createElement('strong');
+    nameEl.className = 'cc-card-name';
+    nameEl.textContent = `💳 ${cardStatus.name}`;
+
+    const metaEl = document.createElement('span');
+    metaEl.className = 'cc-card-cycle-meta';
+    metaEl.textContent = `Stmt ${formatOrdinal(cardStatus.stmtDay)} · Due ${formatOrdinal(cardStatus.dueDay)} (${cardStatus.rangeLabel})`;
+
+    leftCol.append(nameEl, metaEl);
+
+    const rightCol = document.createElement('div');
+    rightCol.className = 'cc-card-right';
+
+    const amtEl = document.createElement('strong');
+    amtEl.className = 'cc-card-spend num';
+    amtEl.textContent = formatCurrency(cardStatus.currentCycleSpend);
+
+    const badgeEl = document.createElement('span');
+    badgeEl.className = `cc-due-badge ${cardStatus.isPaidThisCycle ? 'is-good' : cardStatus.isDueSoon ? 'is-warn' : ''}`;
+    if (cardStatus.isPaidThisCycle) {
+      badgeEl.textContent = `✓ Paid (${cardStatus.nextDueDateLabel})`;
+    } else if (cardStatus.daysUntilDue === 0) {
+      badgeEl.textContent = `⚠️ Due Today (${cardStatus.nextDueDateLabel})`;
+    } else {
+      badgeEl.textContent = `Due ${cardStatus.nextDueDateLabel} · in ${cardStatus.daysUntilDue}d`;
+    }
+
+    rightCol.append(amtEl, badgeEl);
+    topRow.append(leftCol, rightCol);
+
+    const bottomRow = document.createElement('div');
+    bottomRow.className = 'cc-card-actions';
+
+    const hintSpan = document.createElement('span');
+    hintSpan.className = 'cc-card-match-hint';
+    const tokenHint = cardStatus.name.split(/\s+/)[0]?.toLowerCase() || 'cc';
+    hintSpan.textContent =
+      statuses.length > 1
+        ? `Tip: type "${tokenHint} cc" when logging`
+        : `${cardStatus.txCount} card ${cardStatus.txCount === 1 ? 'entry' : 'entries'} this cycle`;
+
+    const btnGroup = document.createElement('div');
+    btnGroup.className = 'cc-card-btn-group';
+
+    const paidBtn = document.createElement('button');
+    paidBtn.type = 'button';
+    paidBtn.className = `mini-pill-btn ${cardStatus.isPaidThisCycle ? '' : 'is-accent'}`;
+    paidBtn.textContent = cardStatus.isPaidThisCycle ? '↩ Undo Paid' : '✓ Mark Paid';
+    paidBtn.addEventListener('click', () => {
+      markCreditCardPaid(cardStatus.id, !cardStatus.isPaidThisCycle);
+    });
+
+    btnGroup.appendChild(paidBtn);
+
+    if (rawCards.length > 1) {
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'mini-pill-btn is-danger';
+      delBtn.textContent = '✕';
+      delBtn.title = `Remove ${cardStatus.name}`;
+      delBtn.addEventListener('click', () => {
+        const nextCards = getCreditCardsArray().filter((c) => c.id !== cardStatus.id);
+        state.settings = saveSettings({
+          creditCards: nextCards,
+          ccStatementDay: nextCards[0]?.statementDay || 15,
+          ccDueDay: nextCards[0]?.dueDay || 5,
+          ccLastPaidCycle: nextCards[0]?.lastPaidCycle || ''
+        });
+        renderCreditCardsModalList();
+        renderAll();
+        showToast(`Removed card: ${cardStatus.name}`);
+      });
+      btnGroup.appendChild(delBtn);
+    }
+
+    bottomRow.append(hintSpan, btnGroup);
+    tile.append(topRow, bottomRow);
+    els.ccCardsList.appendChild(tile);
+  }
 }
 
 function renderSmartTrackersAndReminders() {
@@ -2322,11 +2605,15 @@ function renderRecurringModalList() {
 
 function openRecurringModal() {
   if (els.ccStatementDayInput) {
-    els.ccStatementDayInput.value = String(state.settings.ccStatementDay || 15);
+    els.ccStatementDayInput.value = '15';
   }
   if (els.ccDueDayInput) {
-    els.ccDueDayInput.value = String(state.settings.ccDueDay || 5);
+    els.ccDueDayInput.value = '5';
   }
+  if (els.ccCardNameInput) {
+    els.ccCardNameInput.value = '';
+  }
+  renderCreditCardsModalList();
   renderRecurringModalList();
   els.recurringDialog?.showModal();
 }
@@ -2638,6 +2925,8 @@ const specController = createSpecController({
     state.selectedCalendarDate = null;
   },
   QuickAdd: quickAddExpense,
+  getCreditCardsStatus: () => computeAllCreditCardsStatus(),
+  markCardPaid: (cardId, paid) => markCreditCardPaid(cardId, paid),
   openEditModal: (exp) => openEditModal(exp),
   openStoryModal: (recap) => openStoryModal(recap),
   openRecurringModal: () => openRecurringModal(),
@@ -3779,21 +4068,103 @@ function setupEventListeners() {
 
   els.ccMarkPaidBtn?.addEventListener('click', () => {
     const ccInfo = computeCreditCardCycleInfo();
-    state.settings = saveSettings({ ccLastPaidCycle: ccInfo.dueCycleKey });
-    renderAll();
-    showToast('✅ Marked credit card bill paid for this cycle');
+    markCreditCardPaid(ccInfo.id, true);
+  });
+
+  els.ccNotifyToggleBtn?.addEventListener('click', async () => {
+    const statuses = computeAllCreditCardsStatus();
+    const targetCard = statuses.find((c) => c.isDueSoon) || statuses[0];
+    if ('Notification' in window) {
+      if (Notification.permission !== 'granted') {
+        try {
+          const perm = await Notification.requestPermission();
+          if (perm === 'granted') {
+            state.settings = saveSettings({ ccNotificationsEnabled: true });
+            updateCcNotificationButtonUI();
+            if (targetCard) sendCcDueBrowserNotification(targetCard, true);
+            showToast('🔔 Credit Card due date notifications enabled!');
+            return;
+          }
+        } catch {
+          // Fall through to in-app reminder toast
+        }
+      } else {
+        state.settings = saveSettings({ ccNotificationsEnabled: true });
+        updateCcNotificationButtonUI();
+        if (targetCard) sendCcDueBrowserNotification(targetCard, true);
+        showToast(
+          targetCard
+            ? `🔔 Sent test alert: ${targetCard.name} due ${targetCard.nextDueDateLabel} (in ${targetCard.daysUntilDue}d)`
+            : '🔔 Due date alerts are active!'
+        );
+        return;
+      }
+    }
+    state.settings = saveSettings({ ccNotificationsEnabled: true });
+    updateCcNotificationButtonUI();
+    showToast(
+      targetCard
+        ? `🔔 Reminder active: ${targetCard.name} due ${targetCard.nextDueDateLabel} (in ${targetCard.daysUntilDue}d)`
+        : '🔔 In-app due date reminders enabled!'
+    );
+  });
+
+  els.ccRemindDaysSwitch?.querySelectorAll('[data-remind-days]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const days = Math.min(14, Math.max(1, Number(btn.dataset.remindDays) || 5));
+      state.settings = saveSettings({ ccRemindDays: days });
+      renderCreditCardsModalList();
+      renderAll();
+      showToast(`🔔 Will remind you ${days} days before each card's due date`);
+    });
   });
 
   els.ccCycleForm?.addEventListener('submit', (e) => {
     e.preventDefault();
+    const rawName = (els.ccCardNameInput?.value || '').trim();
     const stDay = Math.min(28, Math.max(1, Number(els.ccStatementDayInput?.value) || 15));
     const dueDay = Math.min(28, Math.max(1, Number(els.ccDueDayInput?.value) || 5));
+    const cards = [...getCreditCardsArray()];
+    const cardName = rawName || `Card ${cards.length + 1}`;
+
+    // If the only card is the default placeholder "Primary Card" and user adds their first named card, update it or append
+    const existingIdx = cards.findIndex(
+      (c) => c.name.toLowerCase() === cardName.toLowerCase()
+    );
+    if (existingIdx >= 0) {
+      cards[existingIdx] = {
+        ...cards[existingIdx],
+        name: cardName,
+        statementDay: stDay,
+        dueDay
+      };
+    } else if (cards.length === 1 && cards[0].id === 'cc_primary' && cards[0].name === 'Primary Card' && rawName) {
+      cards[0] = {
+        ...cards[0],
+        id: `cc_${Date.now()}`,
+        name: cardName,
+        statementDay: stDay,
+        dueDay
+      };
+    } else {
+      cards.push({
+        id: `cc_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+        name: cardName,
+        statementDay: stDay,
+        dueDay,
+        lastPaidCycle: ''
+      });
+    }
+
     state.settings = saveSettings({
-      ccStatementDay: stDay,
-      ccDueDay: dueDay
+      creditCards: cards,
+      ccStatementDay: cards[0]?.statementDay || stDay,
+      ccDueDay: cards[0]?.dueDay || dueDay
     });
+    if (els.ccCardNameInput) els.ccCardNameInput.value = '';
+    renderCreditCardsModalList();
     renderAll();
-    showToast(`💳 Saved cycle: Statement ${formatOrdinal(stDay)} • Due ${formatOrdinal(dueDay)}`);
+    showToast(`💳 Saved ${cardName} (Stmt ${formatOrdinal(stDay)} · Due ${formatOrdinal(dueDay)})`);
   });
 
   els.addRecurringForm?.addEventListener('submit', (e) => {
@@ -4401,6 +4772,7 @@ function init() {
   }
 
   renderAll();
+  setTimeout(() => checkAndFireCcDueNotifications(), 800);
 
   initNativeBridge({
     getExpenses: () => state.expenses,

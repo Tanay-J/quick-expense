@@ -7783,4 +7783,199 @@ textarea {
   border: 1px solid rgba(16, 185, 129, 0.35) !important;
 }
 
+/* 10. Multi-Credit-Card Manager & Due-Date Reminder Banner */
+.cc-reminder-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  padding: 0.55rem 0.75rem;
+  margin: 0.6rem 0 0.75rem;
+  border-radius: 13px;
+  background: var(--spec-surface-2, #1b2740);
+  border: 1px solid var(--spec-hairline, #22304a);
+}
+
+.cc-reminder-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--spec-ink-2, #b8c4d6);
+}
+
+.cc-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+
+.cc-card-tile {
+  background: var(--spec-surface-2, #1b2740);
+  border: 1px solid var(--spec-hairline, #22304a);
+  border-radius: 15px;
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.cc-card-tile.is-due-soon {
+  border-color: rgba(251, 191, 36, 0.5);
+  background: linear-gradient(155deg, rgba(251, 191, 36, 0.1), var(--spec-surface-2, #1b2740));
+}
+
+.cc-card-tile.is-paid {
+  border-color: rgba(16, 185, 129, 0.32);
+}
+
+.cc-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.cc-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.cc-card-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--spec-ink, #e8edf5);
+}
+
+.cc-card-cycle-meta {
+  font-size: 0.73rem;
+  color: var(--spec-muted, #8b98ad);
+}
+
+.cc-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.18rem;
+  flex-shrink: 0;
+}
+
+.cc-card-spend {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--spec-ink, #e8edf5);
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-due-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.14rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--spec-muted, #8b98ad);
+  white-space: nowrap;
+}
+
+.cc-due-badge.is-warn {
+  background: rgba(251, 191, 36, 0.16);
+  color: var(--spec-warn, #fbbf24);
+}
+
+.cc-due-badge.is-good {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--spec-good, #10b981);
+}
+
+.cc-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cc-card-match-hint {
+  font-size: 0.71rem;
+  color: var(--spec-muted, #8b98ad);
+}
+
+.cc-card-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cc-add-card-form {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--spec-hairline, #22304a);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.cc-add-card-title {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--spec-muted, #8b98ad);
+}
+
+.cc-add-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 0.85fr 0.85fr;
+  gap: 0.5rem;
+}
+
+.cc-add-grid input {
+  width: 100%;
+  min-width: 0;
+}
+
+.cc-add-submit-btn {
+  width: 100%;
+  min-height: 44px !important;
+}
+
+/* Home Screen Credit Card Due Reminder Banner */
+.spec-cc-reminder-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.spec-cc-reminder-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(251, 191, 36, 0.14), var(--spec-card, #131c2e));
+  border: 1px solid rgba(251, 191, 36, 0.42);
+}
+
+.spec-cc-reminder-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.spec-cc-reminder-info strong {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--spec-warn, #fbbf24);
+}
+
+.spec-cc-reminder-info span {
+  font-size: 0.73rem;
+  color: var(--spec-ink-2, #b8c4d6);
+}
+
+
 

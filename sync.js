@@ -227,6 +227,28 @@ export function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
+    const stDay = Math.min(28, Math.max(1, Number(parsed.ccStatementDay) || 15));
+    const dueDay = Math.min(28, Math.max(1, Number(parsed.ccDueDay) || 5));
+    const defaultCards = [
+      {
+        id: 'cc_primary',
+        name: 'Primary Card',
+        statementDay: stDay,
+        dueDay,
+        lastPaidCycle: parsed.ccLastPaidCycle || ''
+      }
+    ];
+    const creditCards =
+      Array.isArray(parsed.creditCards) && parsed.creditCards.length > 0
+        ? parsed.creditCards.map((c, idx) => ({
+            id: c.id || `cc_${idx + 1}`,
+            name: String(c.name || `Card ${idx + 1}`).trim(),
+            statementDay: Math.min(28, Math.max(1, Number(c.statementDay) || 15)),
+            dueDay: Math.min(28, Math.max(1, Number(c.dueDay) || 5)),
+            lastPaidCycle: c.lastPaidCycle || ''
+          }))
+        : defaultCards;
+
     return {
       userName: parsed.userName || '',
       webhookUrl: parsed.webhookUrl || '',
@@ -238,9 +260,12 @@ export function loadSettings() {
       usualsCount: Number(parsed.usualsCount) || 6,
       recapCard: parsed.recapCard !== undefined ? Boolean(parsed.recapCard) : true,
       monthlyBudget: parsed.monthlyBudget !== undefined ? Number(parsed.monthlyBudget) : 30000,
-      ccStatementDay: Number(parsed.ccStatementDay) || 15,
-      ccDueDay: Number(parsed.ccDueDay) || 5,
-      ccLastPaidCycle: parsed.ccLastPaidCycle || '',
+      ccStatementDay: creditCards[0]?.statementDay || stDay,
+      ccDueDay: creditCards[0]?.dueDay || dueDay,
+      ccLastPaidCycle: creditCards[0]?.lastPaidCycle || parsed.ccLastPaidCycle || '',
+      creditCards,
+      ccRemindDays: Math.min(14, Math.max(1, Number(parsed.ccRemindDays) || 5)),
+      ccNotificationsEnabled: parsed.ccNotificationsEnabled !== false,
       homeStyle: parsed.homeStyle || 'accordions',
       theme: parsed.themeMigratedMidnight ? (parsed.theme || 'dark') : 'dark',
       themeMigratedMidnight: true,
@@ -263,6 +288,17 @@ export function loadSettings() {
       ccStatementDay: 15,
       ccDueDay: 5,
       ccLastPaidCycle: '',
+      creditCards: [
+        {
+          id: 'cc_primary',
+          name: 'Primary Card',
+          statementDay: 15,
+          dueDay: 5,
+          lastPaidCycle: ''
+        }
+      ],
+      ccRemindDays: 5,
+      ccNotificationsEnabled: true,
       homeStyle: 'accordions',
       theme: 'dark',
       themeMigratedMidnight: true,
