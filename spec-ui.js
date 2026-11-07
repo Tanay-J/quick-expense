@@ -53,7 +53,7 @@ import {
   requestSoftKeyboard,
   toggleWidgetSimulator,
   triggerHaptic
-} from './native-bridge.js?v=22';
+} from './native-bridge.js?v=28';
 
 const FULL_MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -2470,6 +2470,14 @@ export function createSpecController(ctx) {
               </div>
               <input type="checkbox" id="spec-set-open-add" class="spec-ios-switch" ${settings.openToAdd !== false ? 'checked' : ''} />
             </div>
+
+            <div class="spec-setting-row">
+              <div>
+                <strong>Haptic feedback</strong>
+                <div class="spec-muted-sm">Subtle vibration when tapping keys &amp; saving</div>
+              </div>
+              <input type="checkbox" id="spec-set-haptics" class="spec-ios-switch" ${settings.hapticsEnabled !== false ? 'checked' : ''} />
+            </div>
           </div>
         </div>
 
@@ -2596,6 +2604,14 @@ export function createSpecController(ctx) {
     });
     root.querySelector('#spec-set-open-add')?.addEventListener('change', (e) => {
       ctx.updateSettings({ openToAdd: e.target.checked });
+    });
+    root.querySelector('#spec-set-haptics')?.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      window.__qeHapticsEnabled = enabled;
+      ctx.updateSettings({ hapticsEnabled: enabled });
+      if (enabled) {
+        triggerHaptic('light');
+      }
     });
     root.querySelector('#spec-set-usuals-cnt')?.addEventListener('change', (e) => {
       ctx.updateSettings({ usualsCount: Number(e.target.value) });

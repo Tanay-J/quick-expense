@@ -1454,26 +1454,25 @@ pre:focus-visible {
   cursor: pointer;
 }
 
-/* Toast Notification — Fast Bottom Pill */
-.toast-region {
+/* Toast Notification — Floating Pill Above Bottom Composer Dock */
+.toast-region,
+body[data-design="spotlight"] .toast-region,
+body[data-design="tabs"] .toast-region,
+body[data-design="pocket"] .toast-region {
   position: fixed;
   top: auto !important;
-  bottom: 4.85rem;
-  left: 50%;
-  right: auto;
-  transform: translateX(-50%);
-  width: min(calc(100% - 1.5rem), 25rem);
-  z-index: 1600;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 8.65rem) !important;
+  left: 0.75rem !important;
+  right: 0.75rem !important;
+  margin-inline: auto !important;
+  transform: none !important;
+  width: auto !important;
+  max-width: 24.5rem !important;
+  z-index: 2200;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   pointer-events: none;
-}
-
-body[data-design="spotlight"] .toast-region,
-body[data-design="tabs"] .toast-region,
-body[data-design="pocket"] .toast-region {
-  bottom: 1.25rem;
 }
 
 @keyframes toast-pop-up {
@@ -1493,14 +1492,18 @@ body[data-design="pocket"] .toast-region {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #141413;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #ffffff;
-  border-radius: 999px;
-  font-size: 0.83rem;
+  background: rgba(19, 28, 46, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(16, 185, 129, 0.55);
+  color: #e8edf5;
+  border-radius: 16px;
+  font-size: 0.84rem;
   font-weight: 600;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.38);
-  animation: toast-pop-up 0.11s cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.55),
+    0 0 18px rgba(16, 185, 129, 0.14);
+  animation: toast-pop-up 0.14s cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
 }
 
 .toast-body {
@@ -1509,7 +1512,7 @@ body[data-design="pocket"] .toast-region {
   align-items: center;
   justify-content: space-between;
   gap: 0.55rem;
-  padding: 0.52rem 0.85rem;
+  padding: 0.58rem 0.9rem;
 }
 
 .toast-progress-track {
@@ -1545,23 +1548,25 @@ body[data-design="pocket"] .toast-region {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 .toast-action-btn {
-  min-height: 32px;
-  padding: 0.2rem 0.6rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
-  background: var(--bg-base);
-  color: var(--accent);
-  font-size: 0.78rem;
+  min-height: 28px;
+  padding: 0.18rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  background: #1b2740;
+  color: #34d399;
+  font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .toast-action-btn:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.18);
 }
 
 @media (pointer: coarse) {
@@ -2479,21 +2484,19 @@ body[data-design="classic"] .feed-footer {
     font-size: 0.74rem;
   }
 
-  /* 6. Bottom-Pill Toast on Mobile (sits cleanly near bottom above the add dock) */
-  .toast-region {
-    top: auto !important;
-    bottom: 4.7rem;
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    width: calc(100% - 1.5rem);
-  }
-
+  /* 6. Floating Pill Toast Above Bottom Composer Dock on Mobile */
+  .toast-region,
   body[data-design="spotlight"] .toast-region,
   body[data-design="tabs"] .toast-region,
   body[data-design="pocket"] .toast-region {
     top: auto !important;
-    bottom: 1rem;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8.65rem) !important;
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    margin-inline: auto !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: 24.5rem !important;
   }
 
   .toast-body {
@@ -4433,6 +4436,9 @@ body[data-design="spec"][data-theme="receipt"] {
 .spec-app-root {
   min-height: 100dvh;
   width: 100%;
+  max-width: 100vw;
+  min-width: 0;
+  overflow-x: hidden;
   display: flex;
   justify-content: center;
   padding: 0 0.75rem 9.25rem;
@@ -4441,6 +4447,7 @@ body[data-design="spec"][data-theme="receipt"] {
 .spec-phone-container {
   width: 100%;
   max-width: 440px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -6217,6 +6224,8 @@ body[data-design="spec"][data-theme="receipt"] {
 .spa-view {
   outline: none;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   flex: 1 1 100%;
   display: flex;
   justify-content: center;
@@ -7199,28 +7208,34 @@ textarea {
   pointer-events: auto;
   width: 100%;
   max-width: 440px;
-  height: 48px;
+  height: 52px;
   border-radius: 999px;
-  background: var(--spec-card);
-  border: 1px solid var(--spec-hairline);
-  color: var(--spec-muted);
-  padding: 0 0.4rem 0 1.05rem;
+  background: linear-gradient(135deg, #1c2e4d 0%, #15233b 100%);
+  border: 1.5px solid rgba(16, 185, 129, 0.62);
+  color: var(--spec-ink);
+  padding: 0 0.45rem 0 1.15rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
-  transition: transform 0.12s ease, border-color 0.15s ease;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.55),
+    0 0 22px rgba(16, 185, 129, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .spec-midnight-composer:hover {
-  border-color: var(--spec-primary);
+  border-color: #10b981;
+  box-shadow:
+    0 14px 32px rgba(0, 0, 0, 0.6),
+    0 0 26px rgba(16, 185, 129, 0.26);
 }
 
 .spec-composer-placeholder {
-  font-size: 0.86rem;
-  font-weight: 500;
-  color: var(--spec-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #dbe5f3;
 }
 
 .spec-composer-plus {
@@ -7596,17 +7611,21 @@ textarea {
   min-height: 44px;
   padding: 0.5rem 0.85rem;
   border-radius: 13px;
-  border: 1px solid var(--spec-hairline, #22304a);
-  background: var(--spec-surface-2, #1b2740);
+  border: 1px solid #33496e;
+  background: #0c1322;
   color: var(--spec-ink, #e8edf5);
   font-size: 0.94rem;
   font-weight: 600;
   outline: none;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 .app-dialog input:not([type="checkbox"]):focus,
 .app-dialog select:focus {
   border-color: var(--spec-primary, #10b981);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.45),
+    0 0 0 2px rgba(16, 185, 129, 0.18);
 }
 
 .app-dialog .primary-btn {
@@ -7783,161 +7802,497 @@ textarea {
   border: 1px solid rgba(16, 185, 129, 0.35) !important;
 }
 
-/* 10. Multi-Credit-Card Manager & Due-Date Reminder Banner */
-.cc-reminder-bar {
+/* 10. Option 1 · Clean List + Tabs Credit Cards & Bills Modal */
+#recurring-dialog.cc-clean-dialog {
+  background: #0b1120 !important;
+  border: 1px solid #22304a !important;
+  border-radius: 24px !important;
+  padding: 0 !important;
+  max-width: 390px !important;
+  width: calc(100% - 20px) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65) !important;
+}
+
+.cc-clean-sheet {
+  padding: 14px 16px 18px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cc-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 99px;
+  background: #22304a;
+  margin: 0 auto -2px;
+}
+
+.cc-sheet-hdr {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.55rem;
-  padding: 0.55rem 0.75rem;
-  margin: 0.6rem 0 0.75rem;
-  border-radius: 13px;
-  background: var(--spec-surface-2, #1b2740);
-  border: 1px solid var(--spec-hairline, #22304a);
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
-.cc-reminder-label {
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--spec-ink-2, #b8c4d6);
+.cc-sheet-hdr .dialog-title {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+  color: #e8edf5 !important;
+  margin: 0 !important;
 }
 
-.cc-cards-list {
+.cc-close-btn {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  border-radius: 50% !important;
+  background: #131c2e !important;
+  border: 1px solid #22304a !important;
+  color: #8b98ad !important;
+  font-size: 13px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+/* Segmented Top Tabs */
+.cc-modal-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #131c2e;
+  border: 1px solid #22304a;
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.cc-seg-btn {
+  border: 0;
+  background: transparent;
+  color: #8b98ad;
+  font-size: 12.5px;
+  font-weight: 650;
+  padding: 7px 8px;
+  border-radius: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cc-seg-btn.active {
+  background: #1b2740;
+  color: #e8edf5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.cc-tab-pane {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  margin-bottom: 0.85rem;
+  gap: 12px;
 }
 
-.cc-card-tile {
-  background: var(--spec-surface-2, #1b2740);
-  border: 1px solid var(--spec-hairline, #22304a);
-  border-radius: 15px;
-  padding: 0.75rem 0.85rem;
+.cc-tab-pane[hidden] {
+  display: none !important;
+}
+
+/* 1-Line Compact Notification Bar */
+.cc-notify-bar {
   display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.cc-card-tile.is-due-soon {
-  border-color: rgba(251, 191, 36, 0.5);
-  background: linear-gradient(155deg, rgba(251, 191, 36, 0.1), var(--spec-surface-2, #1b2740));
-}
-
-.cc-card-tile.is-paid {
-  border-color: rgba(16, 185, 129, 0.32);
-}
-
-.cc-card-top {
-  display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 13px;
+  background: #131c2e;
+  border: 1px solid #22304a;
 }
 
-.cc-card-info {
+.cc-notify-left {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
-.cc-card-name {
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--spec-ink, #e8edf5);
-}
-
-.cc-card-cycle-meta {
-  font-size: 0.73rem;
-  color: var(--spec-muted, #8b98ad);
-}
-
-.cc-card-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.18rem;
-  flex-shrink: 0;
-}
-
-.cc-card-spend {
-  font-size: 0.98rem;
-  font-weight: 800;
-  color: var(--spec-ink, #e8edf5);
-  font-variant-numeric: tabular-nums;
-}
-
-.cc-due-badge {
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 0.14rem 0.5rem;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.14);
-  color: var(--spec-muted, #8b98ad);
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #b8c4d6;
   white-space: nowrap;
 }
 
-.cc-due-badge.is-warn {
-  background: rgba(251, 191, 36, 0.16);
-  color: var(--spec-warn, #fbbf24);
+.cc-notify-bell {
+  color: #10b981;
+  font-size: 13px;
 }
 
-.cc-due-badge.is-good {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--spec-good, #10b981);
-}
-
-.cc-card-actions {
+.cc-notify-right {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding-top: 0.45rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 8px;
 }
 
-.cc-card-match-hint {
-  font-size: 0.71rem;
-  color: var(--spec-muted, #8b98ad);
-}
-
-.cc-card-btn-group {
+.cc-mini-days {
   display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+  background: #0b1120;
+  border: 1px solid #22304a;
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
 }
 
-.cc-add-card-form {
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--spec-hairline, #22304a);
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.cc-add-card-title {
-  font-size: 0.74rem;
+.cc-mini-days button {
+  border: 0;
+  background: transparent;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--spec-muted, #8b98ad);
+  padding: 3px 7px;
+  border-radius: 6px;
+  color: #8b98ad;
+  cursor: pointer;
+  line-height: 1.2;
 }
 
-.cc-add-grid {
+.cc-mini-days button.active {
+  background: #1b2740;
+  color: #10b981;
+}
+
+.cc-ios-toggle {
+  width: 38px;
+  height: 22px;
+  border-radius: 99px;
+  border: 1px solid #22304a;
+  background: #1b2740;
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.cc-ios-toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #8b98ad;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.cc-ios-toggle.is-on {
+  background: #10b981;
+  border-color: #10b981;
+}
+
+.cc-ios-toggle.is-on::after {
+  transform: translateX(16px);
+  background: #04130d;
+}
+
+/* Flat Card / Bill List Rows */
+.cc-flat-list {
+  background: #131c2e;
+  border: 1px solid #22304a;
+  border-radius: 16px;
+  overflow: hidden;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cc-row-a {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 13px;
+  border-bottom: 1px solid #22304a;
+}
+
+.cc-row-a:last-child {
+  border-bottom: 0;
+}
+
+.cc-bank-badge {
+  width: 40px;
+  height: 28px;
+  border-radius: 7px;
+  background: #1b2740;
+  border: 1px solid #22304a;
   display: grid;
-  grid-template-columns: 1.5fr 0.85fr 0.85fr;
-  gap: 0.5rem;
+  place-items: center;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #e8edf5;
+  flex-shrink: 0;
 }
 
-.cc-add-grid input {
-  width: 100%;
+.cc-bank-badge.hdfc {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+}
+
+.cc-bank-badge.icici {
+  background: rgba(249, 115, 22, 0.16);
+  border-color: rgba(249, 115, 22, 0.35);
+  color: #fdba74;
+}
+
+.cc-bank-badge.amex {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+}
+
+.cc-bank-badge.sbi {
+  background: rgba(14, 165, 233, 0.16);
+  border-color: rgba(14, 165, 233, 0.35);
+  color: #7dd3fc;
+}
+
+.cc-bank-badge.axis {
+  background: rgba(244, 63, 94, 0.16);
+  border-color: rgba(244, 63, 94, 0.35);
+  color: #fda4af;
+}
+
+.cc-bank-badge.is-icon {
+  font-size: 14px;
+}
+
+.cc-row-mid {
+  flex: 1;
   min-width: 0;
 }
 
-.cc-add-submit-btn {
+.cc-row-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: #e8edf5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-row-name-txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-row-sub {
+  font-size: 11.5px;
+  color: #8b98ad;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-due-pill {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cc-due-pill.is-warn {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.cc-due-pill.is-ok {
+  background: rgba(16, 185, 129, 0.14);
+  color: #10b981;
+}
+
+.cc-row-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.cc-row-amt {
+  font-size: 14px;
+  font-weight: 750;
+  color: #e8edf5;
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-row-amt.is-muted {
+  color: #8b98ad;
+}
+
+.cc-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cc-btn-xs {
+  border: 1px solid #22304a;
+  background: #1b2740;
+  color: #b8c4d6;
+  font-size: 11px;
+  font-weight: 650;
+  padding: 3px 9px;
+  border-radius: 99px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.cc-btn-xs.is-emerald {
+  background: #10b981;
+  color: #04130d;
+  border-color: #10b981;
+}
+
+.cc-btn-xs.is-muted {
+  color: #8b98ad;
+}
+
+.cc-btn-del {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cc-empty-row {
+  padding: 16px 14px;
+  font-size: 12px;
+  color: #8b98ad;
+  text-align: center;
+}
+
+/* 1-Row Compact Inline Add Bar */
+.cc-add-inline-box {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.11) 0%, #172742 100%);
+  border: 1.5px solid rgba(16, 185, 129, 0.55);
+  border-radius: 15px;
+  padding: 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.38),
+    0 0 18px rgba(16, 185, 129, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.cc-add-inline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cc-add-inline-lbl {
+  font-size: 11px;
+  font-weight: 800;
+  color: #34d399;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.cc-add-inline-sub {
+  font-size: 10.5px;
+  color: #a8b8cf;
+  font-weight: 550;
+}
+
+.cc-add-inline-row {
+  display: grid;
+  grid-template-columns: 1fr 48px 48px auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.cc-add-recurring-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.cc-inp-sm {
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 10px !important;
+  border-radius: 10px !important;
+  border: 1.5px solid #45618f !important;
+  background: #09101d !important;
+  color: #f8fafc !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
   width: 100%;
-  min-height: 44px !important;
+  min-width: 0;
+  outline: none;
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
+.cc-inp-sm::-webkit-outer-spin-button,
+.cc-inp-sm::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+.cc-inp-sm.is-center {
+  text-align: center !important;
+  padding: 0 4px !important;
+}
+
+.cc-inp-sm::placeholder {
+  color: #b4c4da !important;
+  font-weight: 500;
+}
+
+.cc-inp-sm:focus {
+  border-color: #10b981 !important;
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.6),
+    0 0 0 3px rgba(16, 185, 129, 0.24) !important;
+}
+
+.cc-btn-save-sm {
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  border-radius: 10px !important;
+  border: 0 !important;
+  background: #10b981 !important;
+  color: #04130d !important;
+  font-size: 12.5px !important;
+  font-weight: 800 !important;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.28);
 }
 
 /* Home Screen Credit Card Due Reminder Banner */

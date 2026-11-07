@@ -8,7 +8,7 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=24">
+  <link rel="stylesheet" href="./styles.css?v=30">
 </head>
 <body data-design="spec" data-view="log" data-theme="dark">
   <!-- Live Design Option Switcher (hidden by default; append ?switcher=1 to URL to compare layouts) -->
@@ -857,79 +857,120 @@
   </dialog>
 
   <!-- Recurring Bills, Subscriptions & Multi-Credit-Card Cycle Modal (<dialog>) -->
-  <dialog id="recurring-dialog" class="app-dialog" closedby="any" aria-labelledby="recurring-dialog-title">
-    <div class="dialog-content">
-      <div class="dialog-header">
-        <h1 id="recurring-dialog-title" class="dialog-title">💳 Credit Cards &amp; Recurring</h1>
+  <dialog id="recurring-dialog" class="app-dialog cc-clean-dialog" closedby="any" aria-labelledby="recurring-dialog-title">
+    <div class="dialog-content cc-clean-sheet">
+      <div class="cc-sheet-handle" aria-hidden="true"></div>
+      <div class="dialog-header cc-sheet-hdr">
+        <h1 id="recurring-dialog-title" class="dialog-title">Cards &amp; Bills</h1>
         <form method="dialog">
-          <button type="submit" class="icon-btn" aria-label="Close recurring dialog">✕</button>
+          <button type="submit" class="icon-btn cc-close-btn" aria-label="Close recurring dialog">✕</button>
         </form>
       </div>
 
-      <!-- Multi-Credit-Card Billing Cycles & Due Date Reminders -->
-      <div class="cc-cycle-box">
-        <div class="cc-cycle-header">
-          <div>
-            <h2 class="sub-heading">💳 Your Credit Cards</h2>
-            <p class="field-hint">Track statement cycles and get due-date reminders per card.</p>
+      <!-- Segmented Top Tabs: Credit Cards vs Recurring -->
+      <div class="cc-modal-seg" role="tablist" aria-label="Cards and Recurring Tabs">
+        <button type="button" role="tab" id="cc-tab-cards" class="cc-seg-btn active" data-cc-tab="cards" aria-selected="true">
+          💳 Credit Cards
+        </button>
+        <button type="button" role="tab" id="cc-tab-recurring" class="cc-seg-btn" data-cc-tab="recurring" aria-selected="false">
+          🔁 Recurring
+        </button>
+      </div>
+
+      <!-- TAB 1: Credit Cards & Due-Date Reminders -->
+      <div id="cc-pane-cards" class="cc-tab-pane">
+        <!-- 1-Line Notification Bar -->
+        <div class="cc-notify-bar">
+          <div class="cc-notify-left">
+            <span class="cc-notify-bell" aria-hidden="true">🔔</span>
+            <span>Due alert</span>
           </div>
-          <button type="button" id="cc-notify-toggle-btn" class="mini-pill-btn is-accent" title="Enable or test due date notifications">
-            🔔 Enable Alerts
-          </button>
+          <div class="cc-notify-right">
+            <div class="cc-mini-days" id="cc-remind-days-switch" role="group" aria-label="Reminder days before due date">
+              <button type="button" data-remind-days="3">3d</button>
+              <button type="button" data-remind-days="5" class="active">5d</button>
+              <button type="button" data-remind-days="7">7d</button>
+            </div>
+            <button
+              type="button"
+              id="cc-notify-toggle-btn"
+              class="cc-ios-toggle is-on"
+              role="switch"
+              aria-checked="true"
+              title="Toggle or test due-date notifications"
+            ></button>
+          </div>
         </div>
 
-        <div class="cc-reminder-bar">
-          <span class="cc-reminder-label">🔔 Remind me before due date:</span>
-          <div class="spec-pill-switch" id="cc-remind-days-switch" role="group" aria-label="Reminder days before due date">
-            <button type="button" data-remind-days="3">3d</button>
-            <button type="button" data-remind-days="5" class="active">5d</button>
-            <button type="button" data-remind-days="7">7d</button>
-          </div>
-        </div>
+        <!-- Clean Flat List of Saved Credit Cards -->
+        <div id="cc-cards-list" class="cc-flat-list"></div>
 
-        <!-- Saved Credit Cards List -->
-        <div id="cc-cards-list" class="cc-cards-list"></div>
-
-        <!-- Add Another Credit Card Form -->
-        <form id="cc-cycle-form" class="cc-add-card-form" action="#" method="POST">
-          <div class="cc-add-card-title">+ Add Credit Card</div>
-          <div class="cc-add-grid">
-            <div class="form-group cc-name-col">
-              <label for="cc-card-name-input">Card Name</label>
-              <input type="text" id="cc-card-name-input" placeholder="e.g. HDFC, ICICI Amazon, Amex" maxlength="32" required>
-            </div>
-            <div class="form-group">
-              <label for="cc-statement-day-input">Stmt Day</label>
-              <input type="number" id="cc-statement-day-input" min="1" max="28" value="15" required>
-            </div>
-            <div class="form-group">
-              <label for="cc-due-day-input">Due Day</label>
-              <input type="number" id="cc-due-day-input" min="1" max="28" value="5" required>
-            </div>
+        <!-- 1-Row Inline Add Credit Card -->
+        <form id="cc-cycle-form" class="cc-add-inline-box" action="#" method="POST">
+          <div class="cc-add-inline-head">
+            <span class="cc-add-inline-lbl">+ Add Credit Card</span>
+            <span class="cc-add-inline-sub">Stmt day · Due day</span>
           </div>
-          <button type="submit" class="primary-btn cc-add-submit-btn">+ Add Card</button>
+          <div class="cc-add-inline-row">
+            <input
+              type="text"
+              id="cc-card-name-input"
+              class="cc-inp-sm"
+              placeholder="Card name (e.g. HDFC)"
+              maxlength="32"
+              aria-label="Card name"
+              required
+            >
+            <input
+              type="number"
+              id="cc-statement-day-input"
+              class="cc-inp-sm is-center num"
+              min="1"
+              max="28"
+              value="15"
+              placeholder="Stmt"
+              title="Statement day of month (1–28)"
+              aria-label="Statement day"
+              required
+            >
+            <input
+              type="number"
+              id="cc-due-day-input"
+              class="cc-inp-sm is-center num"
+              min="1"
+              max="28"
+              value="5"
+              placeholder="Due"
+              title="Bill due day of month (1–28)"
+              aria-label="Bill due day"
+              required
+            >
+            <button type="submit" class="cc-btn-save-sm">Add</button>
+          </div>
         </form>
       </div>
 
-      <hr class="dialog-divider">
+      <!-- TAB 2: Monthly Recurring Bills & Subscriptions -->
+      <div id="cc-pane-recurring" class="cc-tab-pane" hidden>
+        <ul id="recurring-rules-list" class="cc-flat-list cc-recurring-flat-list"></ul>
 
-      <!-- Active Recurring Rules List -->
-      <div class="recurring-section">
-        <h2 class="sub-heading">🔁 Monthly Recurring Bills &amp; Subscriptions</h2>
-        <p class="field-hint">Tip: type <em>"15000 rent monthly"</em> in the main bar or add below.</p>
-        <ul id="recurring-rules-list" class="recurring-rules-list"></ul>
-
-        <!-- Quick Add Recurring Rule -->
-        <form id="add-recurring-form" class="add-recurring-form" action="#" method="POST">
-          <input
-            type="text"
-            id="add-recurring-input"
-            class="add-recurring-input"
-            placeholder="e.g. 15000 rent, 199 netflix cc, +85k salary"
-            autocomplete="off"
-            required
-          >
-          <button type="submit" class="primary-btn add-recurring-submit-btn">Add</button>
+        <!-- 1-Row Inline Add Recurring Rule -->
+        <form id="add-recurring-form" class="cc-add-inline-box" action="#" method="POST">
+          <div class="cc-add-inline-head">
+            <span class="cc-add-inline-lbl">+ Add Monthly Recurring</span>
+            <span class="cc-add-inline-sub">Amount + name</span>
+          </div>
+          <div class="cc-add-recurring-row">
+            <input
+              type="text"
+              id="add-recurring-input"
+              class="cc-inp-sm"
+              placeholder="e.g. 15000 rent, 649 netflix cc"
+              autocomplete="off"
+              required
+            >
+            <button type="submit" class="cc-btn-save-sm">Add</button>
+          </div>
         </form>
       </div>
     </div>
@@ -953,6 +994,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="./app.js?v=24"></script>
+  <script type="module" src="./app.js?v=28"></script>
 </body>
 </html>

@@ -72,6 +72,15 @@ export function requestSoftKeyboard(inputEl) {
  */
 export function triggerHaptic(style = 'light') {
   try {
+    if (window.__qeHapticsEnabled === false) return;
+    if (window.__qeHapticsEnabled === undefined) {
+      const raw = localStorage.getItem('qe_settings_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        window.__qeHapticsEnabled = parsed.hapticsEnabled !== false;
+        if (!window.__qeHapticsEnabled) return;
+      }
+    }
     if (window.DropSpendNative?.haptic) {
       window.DropSpendNative.haptic(style);
       return;

@@ -35,7 +35,7 @@ import {
   saveTombstones,
   syncWithGoogleSheets,
   trackAppUsage
-} from './sync.js?v=24';
+} from './sync.js?v=28';
 
 import {
   computeCalendarAndPatterns,
@@ -47,15 +47,15 @@ import {
   computeUsuals,
   evaluateQuestionQuery,
   filterExpensesByQuery
-} from './insights.js?v=24';
+} from './insights.js?v=28';
 
-import { createSpecController } from './spec-ui.js?v=24';
+import { createSpecController } from './spec-ui.js?v=28';
 import {
   initNativeBridge,
   requestSoftKeyboard,
   syncWidgetSnapshot,
   triggerHaptic
-} from './native-bridge.js?v=22';
+} from './native-bridge.js?v=28';
 
 const DESIGN_DESCRIPTIONS = {
   spec: 'Exact 1:1 Clean Mobile UI from the 7 Spec Mockups',
@@ -300,6 +300,10 @@ const els = {
   editRecurring: document.getElementById('edit-recurring'),
   deleteExpenseBtn: document.getElementById('delete-expense-btn'),
   recurringDialog: document.getElementById('recurring-dialog'),
+  ccTabCards: document.getElementById('cc-tab-cards'),
+  ccTabRecurring: document.getElementById('cc-tab-recurring'),
+  ccPaneCards: document.getElementById('cc-pane-cards'),
+  ccPaneRecurring: document.getElementById('cc-pane-recurring'),
   ccCardsList: document.getElementById('cc-cards-list'),
   ccCardNameInput: document.getElementById('cc-card-name-input'),
   ccNotifyToggleBtn: document.getElementById('cc-notify-toggle-btn'),
@@ -2304,16 +2308,13 @@ function checkAndFireCcDueNotifications() {
 }
 
 function updateCcNotificationButtonUI() {
-  if (!els.ccNotifyToggleBtn) return;
-  const hasNotificationApi = 'Notification' in window;
-  const granted = hasNotificationApi && Notification.permission === 'granted';
-  const enabled = state.settings.ccNotificationsEnabled !== false;
-  if (granted && enabled) {
-    els.ccNotifyToggleBtn.textContent = '🔔 Alerts On · Test';
-    els.ccNotifyToggleBtn.classList.add('is-accent');
-  } else {
-    els.ccNotifyToggleBtn.textContent = '🔔 Enable Alerts';
-    els.ccNotifyToggleBtn.classList.add('is-accent');
+  if (els.ccNotifyToggleBtn) {
+    const enabled = state.settings.ccNotificationsEnabled !== false;
+    els.ccNotifyToggleBtn.classList.toggle('is-on', enabled);
+    els.ccNotifyToggleBtn.setAttribute('aria-checked', String(enabled));
+    els.ccNotifyToggleBtn.title = enabled
+      ? 'Due-date alerts enabled (tap to test or toggle)'
+      : 'Due-date alerts off (tap to enable)';
   }
 
   if (els.ccRemindDaysSwitch) {
@@ -2321,6 +2322,41 @@ function updateCcNotificationButtonUI() {
     els.ccRemindDaysSwitch.querySelectorAll('[data-remind-days]').forEach((btn) => {
       btn.classList.toggle('active', Number(btn.dataset.remindDays) === curDays);
     });
+  }
+}
+
+function getBankBadgeInfo(cardName) {
+  const lower = String(cardName || '').toLowerCase();
+  if (lower.includes('hdfc')) return { label: 'HDFC', cls: 'hdfc' };
+  if (lower.includes('icici') || lower.includes('amazon')) return { label: 'ICICI', cls: 'icici' };
+  if (lower.includes('amex') || lower.includes('american')) return { label: 'AMEX', cls: 'amex' };
+  if (lower.includes('sbi')) return { label: 'SBI', cls: 'sbi' };
+  if (lower.includes('axis') || lower.includes('flipkart')) return { label: 'AXIS', cls: 'axis' };
+  if (lower.includes('kotak')) return { label: 'KOTAK', cls: 'axis' };
+  if (lower.includes('onecard') || lower.includes('one card')) return { label: 'ONE', cls: 'hdfc' };
+  const firstWord = String(cardName || 'CARD')
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .trim()
+    .split(/\s+/)[0] || 'CARD';
+  if (firstWord.toLowerCase() === 'primary') return { label: 'CARD', cls: 'hdfc' };
+  return { label: firstWord.slice(0, 5).toUpperCase(), cls: 'hdfc' };
+}
+
+function switchCcModalTab(tabName) {
+  const isRecurring = tabName === 'recurring';
+  if (els.ccTabCards) {
+    els.ccTabCards.classList.toggle('active', !isRecurring);
+    els.ccTabCards.setAttribute('aria-selected', String(!isRecurring));
+  }
+  if (els.ccTabRecurring) {
+    els.ccTabRecurring.classList.toggle('active', isRecurring);
+    els.ccTabRecurring.setAttribute('aria-selected', String(isRecurring));
+  }
+  if (els.ccPaneCards) {
+    els.ccPaneCards.hidden = isRecurring;
+  }
+  if (els.ccPaneRecurring) {
+    els.ccPaneRecurring.hidden = !isRecurring;
   }
 }
 
@@ -2332,74 +2368,73 @@ function renderCreditCardsModalList() {
   const statuses = computeAllCreditCardsStatus();
   const rawCards = getCreditCardsArray();
 
+  if (els.ccTabCards) {
+    els.ccTabCards.textContent = `💳 Credit Cards (${statuses.length})`;
+  }
+
   for (const cardStatus of statuses) {
-    const tile = document.createElement('div');
-    tile.className = `cc-card-tile ${cardStatus.isDueSoon ? 'is-due-soon' : ''} ${cardStatus.isPaidThisCycle ? 'is-paid' : ''}`;
+    const row = document.createElement('div');
+    row.className = 'cc-row-a';
 
-    const topRow = document.createElement('div');
-    topRow.className = 'cc-card-top';
+    const badgeInfo = getBankBadgeInfo(cardStatus.name);
+    const bankBadge = document.createElement('div');
+    bankBadge.className = `cc-bank-badge ${badgeInfo.cls}`;
+    bankBadge.textContent = badgeInfo.label;
 
-    const leftCol = document.createElement('div');
-    leftCol.className = 'cc-card-info';
+    const mid = document.createElement('div');
+    mid.className = 'cc-row-mid';
 
-    const nameEl = document.createElement('strong');
-    nameEl.className = 'cc-card-name';
-    nameEl.textContent = `💳 ${cardStatus.name}`;
+    const titleRow = document.createElement('div');
+    titleRow.className = 'cc-row-title';
 
-    const metaEl = document.createElement('span');
-    metaEl.className = 'cc-card-cycle-meta';
-    metaEl.textContent = `Stmt ${formatOrdinal(cardStatus.stmtDay)} · Due ${formatOrdinal(cardStatus.dueDay)} (${cardStatus.rangeLabel})`;
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'cc-row-name-txt';
+    nameSpan.textContent = cardStatus.name;
+    titleRow.appendChild(nameSpan);
 
-    leftCol.append(nameEl, metaEl);
-
-    const rightCol = document.createElement('div');
-    rightCol.className = 'cc-card-right';
-
-    const amtEl = document.createElement('strong');
-    amtEl.className = 'cc-card-spend num';
-    amtEl.textContent = formatCurrency(cardStatus.currentCycleSpend);
-
-    const badgeEl = document.createElement('span');
-    badgeEl.className = `cc-due-badge ${cardStatus.isPaidThisCycle ? 'is-good' : cardStatus.isDueSoon ? 'is-warn' : ''}`;
     if (cardStatus.isPaidThisCycle) {
-      badgeEl.textContent = `✓ Paid (${cardStatus.nextDueDateLabel})`;
-    } else if (cardStatus.daysUntilDue === 0) {
-      badgeEl.textContent = `⚠️ Due Today (${cardStatus.nextDueDateLabel})`;
-    } else {
-      badgeEl.textContent = `Due ${cardStatus.nextDueDateLabel} · in ${cardStatus.daysUntilDue}d`;
+      const okDot = document.createElement('span');
+      okDot.className = 'cc-due-pill is-ok';
+      okDot.textContent = '✓ Paid';
+      titleRow.appendChild(okDot);
+    } else if (cardStatus.isDueSoon) {
+      const warnDot = document.createElement('span');
+      warnDot.className = 'cc-due-pill is-warn';
+      warnDot.textContent = cardStatus.daysUntilDue === 0 ? 'today' : `in ${cardStatus.daysUntilDue}d`;
+      titleRow.appendChild(warnDot);
     }
 
-    rightCol.append(amtEl, badgeEl);
-    topRow.append(leftCol, rightCol);
+    const subRow = document.createElement('div');
+    subRow.className = 'cc-row-sub';
+    const extraDays =
+      !cardStatus.isPaidThisCycle && !cardStatus.isDueSoon ? ` (${cardStatus.daysUntilDue}d)` : '';
+    subRow.textContent = `Stmt ${formatOrdinal(cardStatus.stmtDay)} · Due ${cardStatus.nextDueDateLabel}${extraDays}`;
 
-    const bottomRow = document.createElement('div');
-    bottomRow.className = 'cc-card-actions';
+    mid.append(titleRow, subRow);
 
-    const hintSpan = document.createElement('span');
-    hintSpan.className = 'cc-card-match-hint';
-    const tokenHint = cardStatus.name.split(/\s+/)[0]?.toLowerCase() || 'cc';
-    hintSpan.textContent =
-      statuses.length > 1
-        ? `Tip: type "${tokenHint} cc" when logging`
-        : `${cardStatus.txCount} card ${cardStatus.txCount === 1 ? 'entry' : 'entries'} this cycle`;
+    const right = document.createElement('div');
+    right.className = 'cc-row-right';
 
-    const btnGroup = document.createElement('div');
-    btnGroup.className = 'cc-card-btn-group';
+    const amtEl = document.createElement('span');
+    amtEl.className = `cc-row-amt num ${cardStatus.isPaidThisCycle ? 'is-muted' : ''}`;
+    amtEl.textContent = formatCurrency(cardStatus.currentCycleSpend);
+
+    const actions = document.createElement('div');
+    actions.className = 'cc-row-actions';
 
     const paidBtn = document.createElement('button');
     paidBtn.type = 'button';
-    paidBtn.className = `mini-pill-btn ${cardStatus.isPaidThisCycle ? '' : 'is-accent'}`;
-    paidBtn.textContent = cardStatus.isPaidThisCycle ? '↩ Undo Paid' : '✓ Mark Paid';
+    paidBtn.className = `cc-btn-xs ${cardStatus.isPaidThisCycle ? 'is-muted' : 'is-emerald'}`;
+    paidBtn.textContent = cardStatus.isPaidThisCycle ? 'Undo' : '✓ Mark paid';
     paidBtn.addEventListener('click', () => {
       markCreditCardPaid(cardStatus.id, !cardStatus.isPaidThisCycle);
     });
-
-    btnGroup.appendChild(paidBtn);
+    actions.appendChild(paidBtn);
 
     if (rawCards.length > 1) {
       const delBtn = document.createElement('button');
       delBtn.type = 'button';
-      delBtn.className = 'mini-pill-btn is-danger';
+      delBtn.className = 'cc-btn-del';
       delBtn.textContent = '✕';
       delBtn.title = `Remove ${cardStatus.name}`;
       delBtn.addEventListener('click', () => {
@@ -2414,12 +2449,12 @@ function renderCreditCardsModalList() {
         renderAll();
         showToast(`Removed card: ${cardStatus.name}`);
       });
-      btnGroup.appendChild(delBtn);
+      actions.appendChild(delBtn);
     }
 
-    bottomRow.append(hintSpan, btnGroup);
-    tile.append(topRow, bottomRow);
-    els.ccCardsList.appendChild(tile);
+    right.append(amtEl, actions);
+    row.append(bankBadge, mid, right);
+    els.ccCardsList.appendChild(row);
   }
 }
 
@@ -2544,9 +2579,13 @@ function renderRecurringModalList() {
   if (!els.recurringRulesList) return;
   els.recurringRulesList.replaceChildren();
 
+  if (els.ccTabRecurring) {
+    els.ccTabRecurring.textContent = `🔁 Recurring (${state.recurringRules.length})`;
+  }
+
   if (state.recurringRules.length === 0) {
     const emptyLi = document.createElement('li');
-    emptyLi.className = 'recurring-empty';
+    emptyLi.className = 'cc-empty-row';
     emptyLi.textContent = 'No monthly recurring items yet. Add one below or type "15000 rent monthly" in the main bar.';
     els.recurringRulesList.appendChild(emptyLi);
     return;
@@ -2556,37 +2595,60 @@ function renderRecurringModalList() {
 
   for (const rule of state.recurringRules) {
     const li = document.createElement('li');
-    li.className = 'recurring-rule-row';
+    li.className = 'cc-row-a';
 
     const cat = getCategoryById(rule.category);
     const pay = getPaymentMethodById(rule.paymentMethod || 'upi');
     const isLoggedThisMonth = rule.lastLoggedMonth === currentMonth;
 
-    const info = document.createElement('div');
-    info.className = 'recurring-rule-info';
+    const iconBadge = document.createElement('div');
+    iconBadge.className = 'cc-bank-badge is-icon';
+    iconBadge.textContent = cat.icon;
 
-    const title = document.createElement('strong');
-    title.textContent = `${cat.icon} ${rule.note} • ${rule.type === 'income' ? '+' : ''}${formatCurrency(rule.amount)}`;
+    const mid = document.createElement('div');
+    mid.className = 'cc-row-mid';
 
-    const sub = document.createElement('span');
-    sub.className = 'field-hint';
-    sub.textContent = `Day ${rule.dayOfMonth || 1} of month • ${pay.shortName} • ${isLoggedThisMonth ? '✓ Logged this month' : 'Pending this month'}`;
+    const titleRow = document.createElement('div');
+    titleRow.className = 'cc-row-title';
 
-    info.append(title, sub);
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'cc-row-name-txt';
+    nameSpan.textContent = rule.note;
+    titleRow.appendChild(nameSpan);
+
+    if (isLoggedThisMonth) {
+      const okDot = document.createElement('span');
+      okDot.className = 'cc-due-pill is-ok';
+      okDot.textContent = '✓ Logged';
+      titleRow.appendChild(okDot);
+    }
+
+    const subRow = document.createElement('div');
+    subRow.className = 'cc-row-sub';
+    subRow.textContent = `Day ${rule.dayOfMonth || 1} of month · ${pay.shortName}`;
+
+    mid.append(titleRow, subRow);
+
+    const right = document.createElement('div');
+    right.className = 'cc-row-right';
+
+    const amtEl = document.createElement('span');
+    amtEl.className = 'cc-row-amt num';
+    amtEl.textContent = `${rule.type === 'income' ? '+' : ''}${formatCurrency(rule.amount)}`;
 
     const actions = document.createElement('div');
-    actions.className = 'recurring-rule-actions';
+    actions.className = 'cc-row-actions';
 
     const logNowBtn = document.createElement('button');
     logNowBtn.type = 'button';
-    logNowBtn.className = 'mini-pill-btn is-accent';
+    logNowBtn.className = 'cc-btn-xs is-emerald';
     logNowBtn.textContent = '+ Log';
     logNowBtn.title = 'Log this transaction today';
     logNowBtn.addEventListener('click', () => logRecurringRuleNow(rule));
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
-    delBtn.className = 'mini-pill-btn is-danger';
+    delBtn.className = 'cc-btn-del';
     delBtn.textContent = '✕';
     delBtn.title = 'Remove recurring rule';
     delBtn.addEventListener('click', () => {
@@ -2598,12 +2660,13 @@ function renderRecurringModalList() {
     });
 
     actions.append(logNowBtn, delBtn);
-    li.append(info, actions);
+    right.append(amtEl, actions);
+    li.append(iconBadge, mid, right);
     els.recurringRulesList.appendChild(li);
   }
 }
 
-function openRecurringModal() {
+function openRecurringModal(initialTab = 'cards') {
   if (els.ccStatementDayInput) {
     els.ccStatementDayInput.value = '15';
   }
@@ -2613,6 +2676,7 @@ function openRecurringModal() {
   if (els.ccCardNameInput) {
     els.ccCardNameInput.value = '';
   }
+  switchCcModalTab(initialTab === 'recurring' ? 'recurring' : 'cards');
   renderCreditCardsModalList();
   renderRecurringModalList();
   els.recurringDialog?.showModal();
@@ -4062,9 +4126,12 @@ function setupEventListeners() {
   });
 
   // Recurring & Credit Card Cycle Manager triggers
-  els.openRecurringBtn?.addEventListener('click', openRecurringModal);
-  els.openCcSettingsBtn?.addEventListener('click', openRecurringModal);
-  els.quickOpenRecurringBtn?.addEventListener('click', openRecurringModal);
+  els.openRecurringBtn?.addEventListener('click', () => openRecurringModal('recurring'));
+  els.openCcSettingsBtn?.addEventListener('click', () => openRecurringModal('cards'));
+  els.quickOpenRecurringBtn?.addEventListener('click', () => openRecurringModal('cards'));
+
+  els.ccTabCards?.addEventListener('click', () => switchCcModalTab('cards'));
+  els.ccTabRecurring?.addEventListener('click', () => switchCcModalTab('recurring'));
 
   els.ccMarkPaidBtn?.addEventListener('click', () => {
     const ccInfo = computeCreditCardCycleInfo();
@@ -4072,40 +4139,37 @@ function setupEventListeners() {
   });
 
   els.ccNotifyToggleBtn?.addEventListener('click', async () => {
+    const currentlyEnabled = state.settings.ccNotificationsEnabled !== false;
+    const nextEnabled = !currentlyEnabled;
+    state.settings = saveSettings({ ccNotificationsEnabled: nextEnabled });
+    updateCcNotificationButtonUI();
+    renderAll();
+
+    if (!nextEnabled) {
+      showToast('🔕 Credit card due-date alerts paused');
+      return;
+    }
+
     const statuses = computeAllCreditCardsStatus();
     const targetCard = statuses.find((c) => c.isDueSoon) || statuses[0];
     if ('Notification' in window) {
       if (Notification.permission !== 'granted') {
         try {
           const perm = await Notification.requestPermission();
-          if (perm === 'granted') {
-            state.settings = saveSettings({ ccNotificationsEnabled: true });
-            updateCcNotificationButtonUI();
-            if (targetCard) sendCcDueBrowserNotification(targetCard, true);
-            showToast('🔔 Credit Card due date notifications enabled!');
-            return;
+          if (perm === 'granted' && targetCard) {
+            sendCcDueBrowserNotification(targetCard, true);
           }
         } catch {
           // Fall through to in-app reminder toast
         }
-      } else {
-        state.settings = saveSettings({ ccNotificationsEnabled: true });
-        updateCcNotificationButtonUI();
-        if (targetCard) sendCcDueBrowserNotification(targetCard, true);
-        showToast(
-          targetCard
-            ? `🔔 Sent test alert: ${targetCard.name} due ${targetCard.nextDueDateLabel} (in ${targetCard.daysUntilDue}d)`
-            : '🔔 Due date alerts are active!'
-        );
-        return;
+      } else if (targetCard) {
+        sendCcDueBrowserNotification(targetCard, true);
       }
     }
-    state.settings = saveSettings({ ccNotificationsEnabled: true });
-    updateCcNotificationButtonUI();
     showToast(
       targetCard
-        ? `🔔 Reminder active: ${targetCard.name} due ${targetCard.nextDueDateLabel} (in ${targetCard.daysUntilDue}d)`
-        : '🔔 In-app due date reminders enabled!'
+        ? `🔔 Alerts on: ${targetCard.name} due ${targetCard.nextDueDateLabel} (in ${targetCard.daysUntilDue}d)`
+        : '🔔 Credit card due-date alerts enabled!'
     );
   });
 
@@ -4795,10 +4859,28 @@ function init() {
   }
 
   // Always prompt for user name on first launch; once name is set, auto-open keyboard input
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('cards')) {
+    if (els.nameGateDialog?.open) els.nameGateDialog.close();
+    openRecurringModal('cards');
+    return;
+  }
+  if (params.has('screen')) {
+    if (els.nameGateDialog?.open) els.nameGateDialog.close();
+    specController.navigateScreen?.(params.get('screen'));
+    return;
+  }
+  if (params.has('toast')) {
+    if (els.nameGateDialog?.open) els.nameGateDialog.close();
+    showToast('✅ Saved ₹200 Coffee (UPI)', [
+      { label: '✎ Edit', onClick: () => {} },
+      { label: '↩ Undo', onClick: () => {} }
+    ]);
+    return;
+  }
   const hasName = ensureUserNameGate();
   if (hasName) {
     try {
-      const params = new URLSearchParams(window.location.search);
       if (state.uiDesign === 'spec') {
         if (params.has('add') || params.has('quickadd') || state.settings.openToAdd !== false) {
           specController.openAddPalette('');

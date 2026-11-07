@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DropSpend — Credit Cards & Reminders UI Options (Midnight)</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --surface: #131c2e;
+    --surface-2: #1b2740;
+    --ink: #e8edf5;
+    --ink-2: #b8c4d6;
+    --muted: #8b98ad;
+    --line: #22304a;
+    --accent: #10b981;
+    --accent-ink: #04130d;
+    --accent-soft: rgba(16, 185, 129, 0.14);
+    --warn: #fbbf24;
+    --warn-soft: rgba(251, 191, 36, 0.14);
+    --danger: #f87171;
+    --font: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+
+  body {
+    font-family: var(--font);
+    background: #070b14;
+    color: var(--ink);
+    padding: 28px 20px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page-head {
+    max-width: 1480px;
+    margin: 0 auto 24px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .page-head h1 {
+    font-size: 22px;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+  }
+  .page-head p {
+    color: var(--muted);
+    font-size: 13.5px;
+    margin-top: 4px;
+  }
+
+  .grid {
+    max-width: 1480px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 22px;
+    align-items: start;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .col-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px;
+  }
+  .col-label b {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .col-label span {
+    font-size: 11.5px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 3px 9px;
+    border-radius: 99px;
+    font-weight: 600;
+  }
+  .col-desc {
+    padding: 0 4px 4px;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+
+  /* Phone Sheet Frame (exact 360px inner width like a real mobile sheet) */
+  .sheet {
+    width: 100%;
+    max-width: 375px;
+    margin: 0 auto;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 26px;
+    padding: 18px 16px 20px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 99px;
+    background: var(--line);
+    margin: -4px auto 2px;
+  }
+
+  .sheet-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sheet-hdr h2 {
+    font-size: 16.5px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .close-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* Segmented Control */
+  .seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: var(--surface);
+    padding: 3px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+  }
+  .seg button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 7px 8px;
+    border-radius: 9px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .seg button.on {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+
+  /* Compact Notification Strip */
+  .notify-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 9px 12px;
+  }
+  .notify-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .notify-bell {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .notify-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .mini-days {
+    display: inline-flex;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 2px;
+  }
+  .mini-days span {
+    font-size: 11px;
+    font-weight: 650;
+    color: var(--muted);
+    padding: 3px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .mini-days span.on {
+    background: var(--surface-2);
+    color: var(--accent);
+  }
+  .ios-toggle {
+    width: 38px;
+    height: 22px;
+    border-radius: 99px;
+    background: var(--accent);
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .ios-toggle::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 18px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #04130d;
+  }
+
+  /* =========================================================
+     OPTION A: Clean List Rows (Apple Wallet / Linear style)
+     ========================================================= */
+  .card-list-a {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .row-a {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px 13px;
+    border-bottom: 1px solid var(--line);
+  }
+  .row-a:last-child { border-bottom: 0; }
+  .bank-badge {
+    width: 38px;
+    height: 28px;
+    border-radius: 7px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    display: grid;
+    place-items: center;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    flex-shrink: 0;
+  }
+  .bank-badge.hdfc { background: rgba(59, 130, 246, 0.16); border-color: rgba(59, 130, 246, 0.35); color: #93c5fd; }
+  .bank-badge.icici { background: rgba(249, 115, 22, 0.16); border-color: rgba(249, 115, 22, 0.35); color: #fdba74; }
+  .bank-badge.amex { background: rgba(16, 185, 129, 0.16); border-color: rgba(16, 185, 129, 0.35); color: #6ee7b7; }
+
+  .row-a-mid {
+    flex: 1;
+    min-width: 0;
+  }
+  .row-a-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13.5px;
+    font-weight: 650;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row-a-sub {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+  .due-dot {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 99px;
+    font-size: 10.5px;
+    font-weight: 700;
+    background: var(--warn-soft);
+    color: var(--warn);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .due-dot.ok {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .row-a-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .row-a-amt {
+    font-size: 14px;
+    font-weight: 750;
+    color: var(--ink);
+  }
+  .btn-xs {
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink-2);
+    font-size: 11px;
+    font-weight: 650;
+    padding: 3px 9px;
+    border-radius: 99px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-xs.emerald {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+
+  /* Compact Inline Add Bar */
+  .add-inline-box {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .add-inline-lbl {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .add-inline-row {
+    display: grid;
+    grid-template-columns: 1fr 54px 54px auto;
+    gap: 6px;
+    align-items: center;
+  }
+  .inp-sm {
+    height: 36px;
+    padding: 0 9px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    font-size: 12.5px;
+    font-weight: 550;
+    width: 100%;
+    outline: none;
+  }
+  .inp-sm.center { text-align: center; padding: 0 4px; }
+  .inp-sm::placeholder { color: var(--muted); font-weight: 450; }
+  .btn-save-sm {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 9px;
+    border: 0;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 12.5px;
+    font-weight: 750;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  /* =========================================================
+     OPTION B: Visual Pass Cards (Cred / Revolut Minimal)
+     ========================================================= */
+  .pass-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .pass-card {
+    border-radius: 16px;
+    padding: 13px 14px;
+    border: 1px solid var(--line);
+    background: linear-gradient(135deg, #17233b 0%, #11192b 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+  }
+  .pass-card.urgent {
+    border-color: rgba(251, 191, 36, 0.45);
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, #131c2e 70%);
+  }
+  .pass-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .pass-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .pass-cycle {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .pass-btm {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  .pass-amt-lbl {
+    font-size: 10.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .pass-amt {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-top: 1px;
+  }
+
+  .ghost-add-btn {
+    width: 100%;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px dashed var(--line);
+    background: transparent;
+    color: var(--ink-2);
+    font-size: 12.5px;
+    font-weight: 650;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .ghost-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* =========================================================
+     OPTION C: Unified Upcoming Timeline (Cards + Bills in 1 Feed)
+     ========================================================= */
+  .summary-hero-c {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 13px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .summary-hero-c small {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+  }
+  .summary-hero-c .big-num {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-top: 2px;
+  }
+
+  .timeline-group {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 2px 0 -4px 2px;
+  }
+
+  .date-pill-left {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.05;
+    flex-shrink: 0;
+  }
+  .date-pill-left b { font-size: 13px; font-weight: 800; }
+  .date-pill-left small { font-size: 9.5px; color: var(--muted); text-transform: uppercase; }
+  .date-pill-left.warn {
+    border-color: rgba(251, 191, 36, 0.45);
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+  .date-pill-left.warn small { color: var(--warn); }
+
+  /* =========================================================
+     OPTION D: Ultra-Minimal Natural Language (Chat-Style)
+     ========================================================= */
+  .nl-input-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1.5px solid var(--accent);
+    border-radius: 13px;
+    padding: 5px 6px 5px 12px;
+  }
+  .nl-input-bar input {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 12.5px;
+    outline: none;
+  }
+  .nl-hint {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: -6px;
+    padding-left: 4px;
+  }
+  .nl-hint code {
+    color: var(--ink-2);
+    background: var(--surface);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+
+  <header class="page-head">
+    <div>
+      <h1>Credit Cards &amp; Due-Date Reminders — 4 UI Options (Midnight)</h1>
+      <p>Designed to eliminate nested boxes, multi-line button wrapping, and cramped number inputs on mobile.</p>
+    </div>
+  </header>
+
+  <main class="grid">
+
+    <!-- =================================================================
+         OPTION 1: CLEAN LIST ROWS + SEGMENTED TABS (Recommended)
+         ================================================================= -->
+    <section class="col">
+      <div class="col-label">
+        <b>Option 1 · Clean List + Tabs</b>
+        <span>Recommended</span>
+      </div>
+      <p class="col-desc">
+        Splits <b>Cards</b> and <b>Recurring</b> into tabs so there's zero scrolling clutter. Uses flat 1-line rows, bank badges, a single-line reminder strip, and a clean 1-row quick add.
+      </p>
+
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-hdr">
+          <h2>Cards &amp; Bills</h2>
+          <span class="close-btn">✕</span>
+        </div>
+
+        <div class="seg">
+          <button class="on">💳 Credit Cards (3)</button>
+          <button>🔁 Recurring (2)</button>
+        </div>
+
+        <!-- 1-Line Notification Bar -->
+        <div class="notify-bar">
+          <div class="notify-left">
+            <span class="notify-bell">🔔</span>
+            <span>Due alert</span>
+          </div>
+          <div class="notify-right">
+            <div class="mini-days">
+              <span>3d</span>
+              <span class="on">5d</span>
+              <span>7d</span>
+            </div>
+            <div class="ios-toggle" title="Notifications enabled"></div>
+          </div>
+        </div>
+
+        <!-- Clean Flat List of Cards -->
+        <div class="card-list-a">
+          <div class="row-a">
+            <div class="bank-badge hdfc">HDFC</div>
+            <div class="row-a-mid">
+              <div class="row-a-title">
+                <span>HDFC Millennia</span>
+                <span class="due-dot">in 2d</span>
+              </div>
+              <div class="row-a-sub">Stmt 20th · Due 9 Nov</div>
+            </div>
+            <div class="row-a-right">
+              <span class="row-a-amt num">₹2,499</span>
+              <button class="btn-xs emerald">✓ Mark paid</button>
+            </div>
+          </div>
+
+          <div class="row-a">
+            <div class="bank-badge icici">ICICI</div>
+            <div class="row-a-mid">
+              <div class="row-a-title">
+                <span>ICICI Amazon</span>
+              </div>
+              <div class="row-a-sub">Stmt 12th · Due 28 Nov (21d)</div>
+            </div>
+            <div class="row-a-right">
+              <span class="row-a-amt num">₹1,299</span>
+              <button class="btn-xs">Mark paid</button>
+            </div>
+          </div>
+
+          <div class="row-a">
+            <div class="bank-badge amex">AMEX</div>
+            <div class="row-a-mid">
+              <div class="row-a-title">
+                <span>Amex SmartEarn</span>
+                <span class="due-dot ok">✓ Paid</span>
+              </div>
+              <div class="row-a-sub">Stmt 1st · Due 18 Nov</div>
+            </div>
+            <div class="row-a-right">
+              <span class="row-a-amt num" style="color:var(--muted)">₹4,850</span>
+              <button class="btn-xs" style="color:var(--muted)">Undo</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1-Row Inline Add Card -->
+        <div class="add-inline-box">
+          <span class="add-inline-lbl">+ Add Credit Card</span>
+          <div class="add-inline-row">
+            <input class="inp-sm" placeholder="Card name (e.g. SBI)" />
+            <input class="inp-sm center num" placeholder="Stmt" value="15" />
+            <input class="inp-sm center num" placeholder="Due" value="5" />
+            <button class="btn-save-sm">Add</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================
+         OPTION 2: VISUAL MINI-PASS STACK (Cred / Revolut Minimal)
+         ================================================================= -->
+    <section class="col">
+      <div class="col-label">
+        <b>Option 2 · Visual Mini-Cards</b>
+        <span>Wallet Feel</span>
+      </div>
+      <p class="col-desc">
+        Each credit card is a slim wallet pass showing unbilled spend on the left and a 1-tap status pill on the right. "+ Add Card" stays collapsed until tapped.
+      </p>
+
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-hdr">
+          <h2>Your Credit Cards</h2>
+          <span class="close-btn">✕</span>
+        </div>
+
+        <!-- 1-Line Notification Bar -->
+        <div class="notify-bar">
+          <div class="notify-left">
+            <span class="notify-bell">🔔</span>
+            <span>Remind before due</span>
+          </div>
+          <div class="notify-right">
+            <div class="mini-days">
+              <span>3d</span>
+              <span class="on">5d</span>
+              <span>7d</span>
+            </div>
+            <div class="ios-toggle"></div>
+          </div>
+        </div>
+
+        <div class="pass-stack">
+          <div class="pass-card urgent">
+            <div class="pass-top">
+              <div class="pass-name">
+                <span class="bank-badge hdfc">HDFC</span>
+                <div>
+                  <div>HDFC Millennia</div>
+                  <div class="pass-cycle">20 Oct – 19 Nov · Stmt 20th</div>
+                </div>
+              </div>
+              <span class="due-dot">Due 9 Nov · 2d</span>
+            </div>
+            <div class="pass-btm">
+              <div>
+                <div class="pass-amt-lbl">Current Cycle</div>
+                <div class="pass-amt num">₹2,499</div>
+              </div>
+              <button class="btn-save-sm" style="height:32px;border-radius:99px;padding:0 14px">✓ Mark paid</button>
+            </div>
+          </div>
+
+          <div class="pass-card">
+            <div class="pass-top">
+              <div class="pass-name">
+                <span class="bank-badge icici">ICICI</span>
+                <div>
+                  <div>ICICI Amazon Pay</div>
+                  <div class="pass-cycle">12 Oct – 11 Nov · Stmt 12th</div>
+                </div>
+              </div>
+              <span class="pass-cycle">Due 28 Nov · 21d</span>
+            </div>
+            <div class="pass-btm">
+              <div>
+                <div class="pass-amt-lbl">Current Cycle</div>
+                <div class="pass-amt num">₹1,299</div>
+              </div>
+              <button class="btn-xs" style="height:30px;padding:0 12px">Mark paid</button>
+            </div>
+          </div>
+        </div>
+
+        <button class="ghost-add-btn">+ Add another credit card</button>
+      </div>
+    </section>
+
+    <!-- =================================================================
+         OPTION 3: UNIFIED UPCOMING TIMELINE (Cards + Bills by Due Date)
+         ================================================================= -->
+    <section class="col">
+      <div class="col-label">
+        <b>Option 3 · Due Date Timeline</b>
+        <span>Chronological</span>
+      </div>
+      <p class="col-desc">
+        Merges credit card due dates and recurring monthly bills into a single chronological calendar feed ordered by what's due next.
+      </p>
+
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-hdr">
+          <h2>Upcoming Bills &amp; Cards</h2>
+          <span class="close-btn">✕</span>
+        </div>
+
+        <div class="summary-hero-c">
+          <div>
+            <small>Due in next 30 days</small>
+            <div class="big-num num">₹18,798</div>
+          </div>
+          <div class="notify-right">
+            <div class="mini-days">
+              <span class="on">🔔 5d</span>
+            </div>
+            <div class="ios-toggle"></div>
+          </div>
+        </div>
+
+        <div class="timeline-group">Due This Week</div>
+        <div class="card-list-a">
+          <div class="row-a">
+            <div class="date-pill-left warn">
+              <b>9</b>
+              <small>Nov</small>
+            </div>
+            <div class="row-a-mid">
+              <div class="row-a-title">
+                <span>💳 HDFC Millennia</span>
+                <span class="due-dot">2d left</span>
+              </div>
+              <div class="row-a-sub">Stmt 20th · 3 card entries</div>
+            </div>
+            <div class="row-a-right">
+              <span class="row-a-amt num">₹2,499</span>
+              <button class="btn-xs emerald">✓ Paid</button>
+            </div>
+          </div>
+
+          <div class="row-a">
+            <div class="date-pill-left warn">
+              <b>10</b>
+              <small>Nov</small>
+            </div>
+            <div class="row-a-mid">
+              <div class="row-a-title">
+                <span>🏠 House Rent</span>
+                <span class="due-dot">3d left</span>
+              </div>
+              <div class="row-a-sub">Monthly recurring · UPI</div>
+            </div>
+            <div class="row-a-right">
+              <span class="row-a-amt num">₹15,000</span>
+              <button class="btn-xs emerald">+ Log</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-group">Later This Month</div>
+        <div class="card-list-a">
+          <div class="row-a">
+            <div class="date-pill-left">
+              <b>28</b>
+              <small>Nov</small>
+            </div>
+            <div class="row-a-mid">
+              <div class="row-a-title">💳 ICICI Amazon</div>
+              <div class="row-a-sub">Stmt 12th · Due in 21d</div>
+            </div>
+            <div class="row-a-right">
+              <span class="row-a-amt num">₹1,299</span>
+              <button class="btn-xs">Paid</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="ghost-add-btn">+ Credit Card</button>
+          <button class="ghost-add-btn">+ Recurring Bill</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================
+         OPTION 4: CHAT-STYLE ONE-LINE ADD (Matches DropSpend Text Input)
+         ================================================================= -->
+    <section class="col">
+      <div class="col-label">
+        <b>Option 4 · One-Line Text Add</b>
+        <span>Chat-First</span>
+      </div>
+      <p class="col-desc">
+        Matches the app's natural-language philosophy: add cards or bills in one text bar (e.g. <code>hdfc stmt 20 due 5</code>) above ultra-compact 1-line rows.
+      </p>
+
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="sheet-hdr">
+          <h2>Cards &amp; Recurring</h2>
+          <span class="close-btn">✕</span>
+        </div>
+
+        <!-- Natural language quick add at top -->
+        <div class="nl-input-bar">
+          <input value="sbi cashback stmt 18 due 7" />
+          <button class="btn-save-sm" style="height:30px">Add</button>
+        </div>
+        <p class="nl-hint">Try <code>hdfc stmt 15 due 5</code> or <code>15000 rent 1st</code></p>
+
+        <div class="notify-bar">
+          <div class="notify-left">
+            <span class="notify-bell">🔔</span>
+            <span>Remind 5 days before due</span>
+          </div>
+          <div class="ios-toggle"></div>
+        </div>
+
+        <div class="timeline-group">Credit Cards (2)</div>
+        <div class="card-list-a">
+          <div class="row-a">
+            <div class="bank-badge hdfc">HDFC</div>
+            <div class="row-a-mid">
+              <div class="row-a-title">HDFC · Due 9 Nov <span class="due-dot">2d</span></div>
+              <div class="row-a-sub">Cycle 20 Oct – 19 Nov</div>
+            </div>
+            <span class="row-a-amt num">₹2,499</span>
+            <button class="btn-xs emerald">✓</button>
+          </div>
+          <div class="row-a">
+            <div class="bank-badge icici">ICICI</div>
+            <div class="row-a-mid">
+              <div class="row-a-title">ICICI · Due 28 Nov</div>
+              <div class="row-a-sub">Cycle 12 Oct – 11 Nov</div>
+            </div>
+            <span class="row-a-amt num">₹1,299</span>
+            <button class="btn-xs">✓</button>
+          </div>
+        </div>
+
+        <div class="timeline-group">Monthly Recurring (2)</div>
+        <div class="card-list-a">
+          <div class="row-a">
+            <div class="bank-badge">🏠</div>
+            <div class="row-a-mid">
+              <div class="row-a-title">House Rent</div>
+              <div class="row-a-sub">1st of month · UPI</div>
+            </div>
+            <span class="row-a-amt num">₹15,000</span>
+            <button class="btn-xs emerald">+ Log</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>

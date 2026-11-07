@@ -266,6 +266,7 @@ export function loadSettings() {
       creditCards,
       ccRemindDays: Math.min(14, Math.max(1, Number(parsed.ccRemindDays) || 5)),
       ccNotificationsEnabled: parsed.ccNotificationsEnabled !== false,
+      hapticsEnabled: parsed.hapticsEnabled !== false,
       homeStyle: parsed.homeStyle || 'accordions',
       theme: parsed.themeMigratedMidnight ? (parsed.theme || 'dark') : 'dark',
       themeMigratedMidnight: true,
@@ -299,6 +300,7 @@ export function loadSettings() {
       ],
       ccRemindDays: 5,
       ccNotificationsEnabled: true,
+      hapticsEnabled: true,
       homeStyle: 'accordions',
       theme: 'dark',
       themeMigratedMidnight: true,
@@ -312,6 +314,9 @@ export function loadSettings() {
 export function saveSettings(settings) {
   const current = loadSettings();
   const next = { ...current, ...settings };
+  if (typeof window !== 'undefined') {
+    window.__qeHapticsEnabled = next.hapticsEnabled !== false;
+  }
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
   } catch {
