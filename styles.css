@@ -7005,10 +7005,11 @@ textarea {
   background: var(--spec-card);
   border: 1px solid var(--spec-hairline);
   border-radius: 18px;
-  padding: 1rem 1.05rem;
-  display: flex;
+  padding: 1.05rem 1.15rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 0.95rem;
+  gap: 1.05rem;
   cursor: pointer;
   transition: border-color 0.15s ease, transform 0.1s ease;
 }
@@ -7019,8 +7020,8 @@ textarea {
 
 .spec-budget-ring {
   --p: 48;
-  width: 60px;
-  height: 60px;
+  width: 82px;
+  height: 82px;
   border-radius: 50%;
   background: conic-gradient(var(--spec-primary) calc(var(--p) * 1%), var(--spec-hairline) 0);
   display: grid;
@@ -7032,23 +7033,39 @@ textarea {
   background: conic-gradient(var(--spec-warn) calc(var(--p) * 1%), var(--spec-hairline) 0);
 }
 
-.spec-budget-ring span {
-  width: 46px;
-  height: 46px;
+.spec-budget-ring > div,
+.spec-budget-ring > span {
+  width: 66px;
+  height: 66px;
   border-radius: 50%;
   background: var(--spec-card);
-  display: grid;
-  place-items: center;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--spec-ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1px;
   font-variant-numeric: tabular-nums;
+}
+
+.spec-budget-ring b {
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--spec-ink);
+}
+
+.spec-budget-ring small {
+  font-size: 0.58rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--spec-muted);
 }
 
 .spec-midnight-hero-body {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.18rem;
   min-width: 0;
 }
 
@@ -7061,7 +7078,8 @@ textarea {
 }
 
 .spec-midnight-hero-amt {
-  font-size: clamp(1.85rem, 6.5vw, 2.2rem);
+  margin: 0;
+  font-size: clamp(1.9rem, 6.5vw, 2.25rem);
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 1.06;
@@ -7070,7 +7088,8 @@ textarea {
 }
 
 .spec-midnight-hero-sub {
-  font-size: 0.78rem;
+  margin: 0;
+  font-size: 0.8rem;
   font-weight: 500;
   color: var(--spec-muted);
   font-variant-numeric: tabular-nums;
@@ -7080,30 +7099,32 @@ textarea {
 .spec-midnight-stack-block {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.5rem;
   cursor: pointer;
 }
 
 .spec-midnight-stack {
   display: flex;
-  height: 6px;
+  height: 10px;
   border-radius: 999px;
   overflow: hidden;
   gap: 2px;
   background: var(--spec-hairline);
 }
 
+.spec-midnight-stack span,
 .spec-midnight-stack i {
   display: block;
   height: 100%;
+  background: var(--c, var(--spec-primary));
   border-radius: 2px;
 }
 
 .spec-midnight-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 0.75rem;
-  font-size: 0.73rem;
+  gap: 0.35rem 0.8rem;
+  font-size: 0.74rem;
   color: var(--spec-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -7111,19 +7132,22 @@ textarea {
 .spec-midnight-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
 }
 
+.spec-midnight-legend i,
 .spec-midnight-legend b {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  background: var(--c, var(--spec-primary));
   display: inline-block;
+  flex-shrink: 0;
 }
 
 /* Day Feed Cards & Entries */
 .spec-day-card {
-  padding: 0.85rem 1rem;
+  padding: 0.9rem 1.05rem;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
@@ -7136,7 +7160,7 @@ textarea {
 }
 
 .spec-day-card-sum {
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--spec-muted);
   font-variant-numeric: tabular-nums;
@@ -7148,7 +7172,6 @@ textarea {
 }
 
 .spec-entry-icon {
-  background: var(--spec-surface-2) !important;
   border: 1px solid var(--spec-hairline);
 }
 
@@ -7503,24 +7526,241 @@ textarea {
   accent-color: var(--spec-primary);
 }
 
-/* 9. Edit Sheet & Monthly Wrapped Story Modal in Midnight Theme (Screen 4 & 7) */
-#edit-dialog {
-  background: var(--spec-card, #131c2e);
+/* 9. All Dialog Modals (#edit-dialog, #recurring-dialog, #sync-dialog) & Story Modal in Midnight Theme */
+.app-dialog {
+  max-width: 430px;
+  width: min(94vw, 430px);
+  background: var(--spec-bg, #0b1120);
   color: var(--spec-ink, #e8edf5);
   border: 1px solid var(--spec-hairline, #22304a);
-  border-radius: 22px;
+  border-radius: 24px;
+  overflow-x: hidden;
+  resize: none;
+  box-shadow: 0 28px 68px rgba(0, 0, 0, 0.65);
 }
 
-#edit-dialog .modal-content {
+.app-dialog::-webkit-resizer {
+  display: none;
+}
+
+.app-dialog .dialog-content {
+  padding: 1.25rem;
+  background: var(--spec-bg, #0b1120);
+  color: var(--spec-ink, #e8edf5);
+}
+
+.app-dialog .dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.app-dialog .dialog-title {
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--spec-ink, #e8edf5);
+}
+
+.app-dialog .icon-btn {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--spec-hairline, #22304a);
   background: var(--spec-card, #131c2e);
   color: var(--spec-ink, #e8edf5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
 }
 
-#edit-dialog input,
-#edit-dialog select {
+.app-dialog .icon-btn:hover {
+  border-color: var(--spec-primary, #10b981);
+}
+
+.app-dialog .form-group label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--spec-muted, #8b98ad);
+}
+
+.app-dialog input:not([type="checkbox"]),
+.app-dialog select {
+  min-height: 44px;
+  padding: 0.5rem 0.85rem;
+  border-radius: 13px;
+  border: 1px solid var(--spec-hairline, #22304a);
+  background: var(--spec-surface-2, #1b2740);
+  color: var(--spec-ink, #e8edf5);
+  font-size: 0.94rem;
+  font-weight: 600;
+  outline: none;
+}
+
+.app-dialog input:not([type="checkbox"]):focus,
+.app-dialog select:focus {
+  border-color: var(--spec-primary, #10b981);
+}
+
+.app-dialog .primary-btn {
+  min-height: 46px;
+  padding: 0 1.15rem;
+  border-radius: 14px;
+  border: none;
+  background: var(--spec-primary, #10b981);
+  color: var(--spec-primary-ink, #04130d);
+  font-size: 0.92rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.app-dialog .secondary-btn {
+  min-height: 46px;
+  padding: 0 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--spec-hairline, #22304a);
+  background: var(--spec-surface-2, #1b2740);
+  color: var(--spec-ink, #e8edf5);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.app-dialog .danger-btn {
+  min-height: 46px;
+  padding: 0 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--spec-bad, #f87171);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Credit Card Cycle & Recurring Modal (#recurring-dialog) */
+.cc-cycle-box,
+.recurring-section {
+  background: var(--spec-card, #131c2e);
+  border: 1px solid var(--spec-hairline, #22304a);
+  border-radius: 18px;
+  padding: 1rem;
+  margin-bottom: 0;
+}
+
+.cc-cycle-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.cc-cycle-box .form-row-2 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+}
+
+.mini-pill-btn {
+  min-height: 32px;
+  padding: 0.28rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--spec-hairline, #22304a);
+  background: var(--spec-surface-2, #1b2740);
+  color: var(--spec-ink, #e8edf5);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mini-pill-btn.is-accent,
+.mini-pill-btn.accent {
+  background: var(--spec-primary, #10b981);
+  color: var(--spec-primary-ink, #04130d);
+  border-color: var(--spec-primary, #10b981);
+}
+
+.mini-pill-btn.is-danger {
+  background: rgba(248, 113, 113, 0.14);
+  color: var(--spec-bad, #f87171);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.recurring-rules-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.7rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.recurring-rule-row {
+  background: var(--spec-surface-2, #1b2740);
+  border: 1px solid var(--spec-hairline, #22304a);
+  border-radius: 13px;
+  padding: 0.6rem 0.75rem;
+}
+
+.recurring-empty {
+  list-style: none;
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 13px;
+  background: var(--spec-surface-2, #1b2740);
+  border: 1px dashed var(--spec-hairline, #22304a);
+  color: var(--spec-muted, #8b98ad);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.add-recurring-form {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+#add-recurring-input,
+.add-recurring-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  padding: 0.55rem 0.85rem;
+  border-radius: 13px;
+  border: 1px solid var(--spec-hairline, #22304a);
+  background: var(--spec-surface-2, #1b2740);
+  color: var(--spec-ink, #e8edf5);
+  font-size: 0.86rem;
+}
+
+.add-recurring-submit-btn {
+  flex: 0 0 auto !important;
+  min-height: 46px;
+  padding: 0 1.15rem !important;
+  border-radius: 13px !important;
+}
+
+#edit-dialog .edit-cat-grid-btn {
   background: var(--spec-surface-2, #1b2740);
   border-color: var(--spec-hairline, #22304a);
-  color: var(--spec-ink, #e8edf5);
+  color: var(--spec-ink-2, #b8c4d6);
+  border-radius: 13px;
+}
+
+#edit-dialog .edit-pay-pill-btn {
+  background: var(--spec-surface-2, #1b2740);
+  border-color: var(--spec-hairline, #22304a);
+  color: var(--spec-ink-2, #b8c4d6);
 }
 
 #edit-dialog .edit-cat-grid-btn.active,
@@ -7528,6 +7768,13 @@ textarea {
   background: var(--spec-primary, #10b981);
   color: var(--spec-primary-ink, #04130d);
   border-color: var(--spec-primary, #10b981);
+  font-weight: 700;
+}
+
+#edit-dialog .recurring-check-row {
+  background: var(--spec-surface-2, #1b2740);
+  border-color: var(--spec-hairline, #22304a);
+  border-radius: 13px;
 }
 
 .story-dialog,
@@ -7535,4 +7782,5 @@ textarea {
   background: radial-gradient(circle at 30% 10%, #134e4a, #0b1120 75%) !important;
   border: 1px solid rgba(16, 185, 129, 0.35) !important;
 }
+
 

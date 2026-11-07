@@ -8,7 +8,7 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=22">
+  <link rel="stylesheet" href="./styles.css?v=23">
 </head>
 <body data-design="spec" data-view="log" data-theme="dark">
   <!-- Live Design Option Switcher (hidden by default; append ?switcher=1 to URL to compare layouts) -->
@@ -898,11 +898,12 @@
           <input
             type="text"
             id="add-recurring-input"
-            placeholder="Add monthly item: e.g. 15000 rent, 199 netflix cc, +85k salary"
+            class="add-recurring-input"
+            placeholder="e.g. 15000 rent, 199 netflix cc, +85k salary"
             autocomplete="off"
             required
           >
-          <button type="submit" class="secondary-btn">Add 🔁</button>
+          <button type="submit" class="primary-btn add-recurring-submit-btn">Add</button>
         </form>
       </div>
     </div>
@@ -926,6 +927,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="./app.js?v=22"></script>
+  <script type="module" src="./app.js?v=23"></script>
 </body>
 </html>

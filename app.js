@@ -2263,7 +2263,7 @@ function renderRecurringModalList() {
 
   if (state.recurringRules.length === 0) {
     const emptyLi = document.createElement('li');
-    emptyLi.className = 'field-hint';
+    emptyLi.className = 'recurring-empty';
     emptyLi.textContent = 'No monthly recurring items yet. Add one below or type "15000 rent monthly" in the main bar.';
     els.recurringRulesList.appendChild(emptyLi);
     return;
@@ -4413,7 +4413,7 @@ function init() {
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker
-      .register('./sw.js?v=19')
+      .register('./sw.js?v=23')
       .then((reg) => reg.update())
       .catch(() => {});
   }
