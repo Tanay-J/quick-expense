@@ -1,4 +1,4 @@
-import { extractTags, getPaymentMethodById, isIncomeCategory } from './parser.js';
+import { extractTags, getPaymentMethodById, isIncomeCategory } from './parser.js?v=22';
 
 const STORAGE_KEY = 'qe_expenses_v1';
 const TOMBSTONES_KEY = 'qe_tombstones_v1';
@@ -242,7 +242,8 @@ export function loadSettings() {
       ccDueDay: Number(parsed.ccDueDay) || 5,
       ccLastPaidCycle: parsed.ccLastPaidCycle || '',
       homeStyle: parsed.homeStyle || 'accordions',
-      theme: parsed.theme || 'clean',
+      theme: parsed.themeMigratedMidnight ? (parsed.theme || 'dark') : 'dark',
+      themeMigratedMidnight: true,
       alwaysTables: Boolean(parsed.alwaysTables),
       recapSeen: parsed.recapSeen && typeof parsed.recapSeen === 'object' ? parsed.recapSeen : {},
       lastSyncAt: parsed.lastSyncAt || null
@@ -263,7 +264,8 @@ export function loadSettings() {
       ccDueDay: 5,
       ccLastPaidCycle: '',
       homeStyle: 'accordions',
-      theme: 'clean',
+      theme: 'dark',
+      themeMigratedMidnight: true,
       alwaysTables: false,
       recapSeen: {},
       lastSyncAt: null

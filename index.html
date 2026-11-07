@@ -8,9 +8,9 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=21">
+  <link rel="stylesheet" href="./styles.css?v=22">
 </head>
-<body data-design="spec" data-view="log" data-theme="clean">
+<body data-design="spec" data-view="log" data-theme="dark">
   <!-- Live Design Option Switcher (hidden by default; append ?switcher=1 to URL to compare layouts) -->
   <nav id="design-switcher-bar" class="design-switcher" aria-label="Landing Page Design Options" hidden>
     <div class="design-switcher-inner">
@@ -128,7 +128,7 @@
       <div id="mini-pace-card" class="mini-pace-card" hidden>
         <div class="mini-pace-meta">
           <span id="mini-budget-left" class="mini-pace-left">₹0 left</span>
-          <span id="mini-budget-allowance" class="mini-pace-allowance">₹0/day · 0 days left</span>
+          <span id="mini-budget-allowance" class="mini-pace-allowance">0 days left</span>
         </div>
         <div class="mini-pace-track" aria-hidden="true">
           <div id="mini-pace-fill" class="mini-pace-fill"></div>
@@ -611,29 +611,40 @@
 
   <!-- Mandatory Welcome Name Gate Modal (<dialog>) -->
   <dialog id="name-gate-dialog" class="app-dialog name-gate-dialog" closedby="none" aria-labelledby="name-gate-title">
-    <div class="dialog-content">
+    <div class="dialog-content spec-welcome-dialog-content">
+      <div class="spec-welcome-logo" aria-hidden="true">₹</div>
       <div class="dialog-header">
-        <h1 id="name-gate-title" class="dialog-title">Welcome to DropSpend 👋</h1>
+        <h1 id="name-gate-title" class="dialog-title spec-welcome-title">Log money like<br>you text a friend.</h1>
       </div>
-      <p class="dialog-lead">
-        Enter your name to start logging your daily expenses and income.
+      <p class="dialog-lead spec-welcome-lead">
+        Type what you spent. We figure out the rest. Works offline, free forever.
       </p>
-      <form id="quick-name-form" class="dialog-form" action="#" method="POST">
+      <div class="spec-welcome-demo" aria-hidden="true">
+        <span class="spec-welcome-bubble">200 fuel bike upi</span>
+        <div class="spec-welcome-parsed">
+          <span class="spec-welcome-chip is-soft">₹200</span>
+          <span class="spec-welcome-chip">⛽ Transport</span>
+          <span class="spec-welcome-chip">UPI</span>
+          <span class="spec-welcome-chip">Today</span>
+        </div>
+      </div>
+      <form id="quick-name-form" class="dialog-form spec-welcome-form" action="#" method="POST">
         <div class="form-group">
-          <label for="quick-name-input">Your Name</label>
+          <label for="quick-name-input">What should we call you?</label>
           <input
             type="text"
             id="quick-name-input"
             name="userName"
-            placeholder="My Name"
+            placeholder="Your name"
             maxlength="40"
             required
             autocomplete="given-name"
           >
         </div>
         <div class="dialog-actions">
-          <button type="submit" class="primary-btn">Get Started →</button>
+          <button type="submit" class="primary-btn" style="width:100%">Get started</button>
         </div>
+        <p class="spec-welcome-footnote">Your data stays on this phone. Google Sheets sync is optional.</p>
       </form>
     </div>
   </dialog>
@@ -915,6 +926,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="./app.js?v=20"></script>
+  <script type="module" src="./app.js?v=22"></script>
 </body>
 </html>

@@ -15,7 +15,7 @@ import {
   parseQuestionQuery,
   PAYMENT_METHODS,
   toLocalISODate
-} from './parser.js?v=16';
+} from './parser.js?v=22';
 
 import {
   exportToCSV,
@@ -35,7 +35,7 @@ import {
   saveTombstones,
   syncWithGoogleSheets,
   trackAppUsage
-} from './sync.js?v=16';
+} from './sync.js?v=22';
 
 import {
   computeCalendarAndPatterns,
@@ -47,15 +47,15 @@ import {
   computeUsuals,
   evaluateQuestionQuery,
   filterExpensesByQuery
-} from './insights.js?v=17';
+} from './insights.js?v=22';
 
-import { createSpecController } from './spec-ui.js?v=20';
+import { createSpecController } from './spec-ui.js?v=22';
 import {
   initNativeBridge,
   requestSoftKeyboard,
   syncWidgetSnapshot,
   triggerHaptic
-} from './native-bridge.js?v=20';
+} from './native-bridge.js?v=22';
 
 const DESIGN_DESCRIPTIONS = {
   spec: 'Exact 1:1 Clean Mobile UI from the 7 Spec Mockups',
@@ -528,7 +528,7 @@ function renderKPIs(periodExpenses, spanComp) {
     els.budgetProgress.value = pct;
     const hue = pct > 90 ? 0 : pct > 75 ? 38 : 150;
     els.budgetProgress.style.setProperty('--budget-hue', String(hue));
-    els.budgetStatusText.textContent = `${formatCurrency(leftAmt)} left · ${formatCurrency(dailyAllowance)}/day (${remDays}d)`;
+    els.budgetStatusText.textContent = `${formatCurrency(leftAmt)} left of ${formatCurrency(budget)}`;
     if (els.budgetPacePill) {
       els.budgetPacePill.textContent = statusCopy;
       els.budgetPacePill.dataset.status = isOnPace ? 'good' : 'warn';
@@ -544,7 +544,7 @@ function renderKPIs(periodExpenses, spanComp) {
         totalSpent <= budget
           ? `${formatCurrency(leftAmt)} left of ${formatCurrency(budget)}`
           : `${formatCurrency(Math.round(totalSpent - budget))} over ${formatCurrency(budget)} budget`;
-      els.miniBudgetAllowance.textContent = `${formatCurrency(dailyAllowance)}/day · ${remDays} day${remDays === 1 ? '' : 's'} left`;
+      els.miniBudgetAllowance.textContent = `${pct}% of budget`;
       els.miniPaceFill.style.width = `${pct}%`;
       els.miniPaceFill.dataset.status = isOnPace ? 'good' : 'warn';
       els.miniPaceTick.style.left = `${elapsedPct}%`;
@@ -560,7 +560,7 @@ function renderKPIs(periodExpenses, spanComp) {
       if (hasSpanDelta) {
         els.miniPaceCard.hidden = false;
         els.miniBudgetLeft.textContent = `${expenseItems.length} entries in ${spanComp.curSpanLabel}`;
-        els.miniBudgetAllowance.textContent = `${formatCurrency(Math.round(totalSpent / Math.max(1, elapsedDay)))}/day avg`;
+        els.miniBudgetAllowance.textContent = '';
         els.miniPaceFill.style.width = `${elapsedPct}%`;
         els.miniPaceFill.dataset.status = spanComp.deltaPct <= 0 ? 'good' : 'warn';
         els.miniPaceTick.style.left = `${elapsedPct}%`;
@@ -3590,7 +3590,7 @@ function openSyncAndSettingsModal() {
     els.uiDesignSelectInput.value = state.uiDesign || 'spec';
   }
   if (els.themeSelectInput) {
-    els.themeSelectInput.value = state.settings.theme || 'clean';
+    els.themeSelectInput.value = state.settings.theme || 'dark';
   }
   if (els.alwaysTablesInput) {
     els.alwaysTablesInput.value = state.settings.alwaysTables ? 'true' : 'false';
@@ -4111,7 +4111,7 @@ function setupEventListeners() {
       currency: els.currencyInput.value.trim() || '₹',
       monthlyBudget: Number(els.budgetInput.value.replace(/,/g, '')) || 0,
       defaultPayment: els.defaultPaymentInput ? els.defaultPaymentInput.value : 'upi',
-      theme: els.themeSelectInput ? els.themeSelectInput.value : state.settings.theme || 'clean',
+      theme: els.themeSelectInput ? els.themeSelectInput.value : state.settings.theme || 'dark',
       alwaysTables
     });
     state.showCatTable = alwaysTables;

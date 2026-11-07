@@ -24,13 +24,13 @@ import {
   parseQuestionQuery,
   PAYMENT_METHODS,
   toLocalISODate
-} from './parser.js?v=16';
+} from './parser.js?v=22';
 
 import {
   normalizeEntryType,
   normalizePaymentMethod,
   normalizeTags
-} from './sync.js?v=16';
+} from './sync.js?v=22';
 
 import {
   computeCalendarAndPatterns,
@@ -42,7 +42,7 @@ import {
   computeUsuals,
   evaluateQuestionQuery,
   filterExpensesByQuery
-} from './insights.js?v=16';
+} from './insights.js?v=22';
 
 import {
   attachSwipeToDismiss,
@@ -53,7 +53,7 @@ import {
   requestSoftKeyboard,
   toggleWidgetSimulator,
   triggerHaptic
-} from './native-bridge.js?v=19';
+} from './native-bridge.js?v=22';
 
 const FULL_MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -118,6 +118,37 @@ function formatDayGroupHeader(iso, todayIso, yesterdayIso) {
     .toUpperCase();
 }
 
+const sv = (d) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+
+const MIDNIGHT_ICONS = {
+  home: sv('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
+  history: sv('<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>'),
+  stats: sv('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  settings: sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  plus: sv('<path d="M12 5v14M5 12h14"/>'),
+  search: sv('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
+  x: sv('<path d="M18 6 6 18M6 6l12 12"/>'),
+  chev: sv('<path d="m9 18 6-6-6-6"/>')
+};
+
+function renderMidnightBottomNav(activeKey) {
+  const item = (key, icon, label) => `
+    <button type="button" class="spec-tabbar-item ${activeKey === key ? 'is-active' : ''}" data-nav="${key}">
+      ${icon}
+      <span>${label}</span>
+    </button>
+  `;
+  return `
+    <nav class="spec-midnight-tabbar" aria-label="Main navigation">
+      ${item('home', MIDNIGHT_ICONS.home, 'Home')}
+      ${item('history', MIDNIGHT_ICONS.history, 'History')}
+      ${item('stats', MIDNIGHT_ICONS.stats, 'Stats')}
+      ${item('settings', MIDNIGHT_ICONS.settings, 'Settings')}
+    </nav>
+  `;
+}
+
 export function createSpecController(ctx) {
   // Navigation & local spec state
   const specState = {
@@ -138,6 +169,7 @@ export function createSpecController(ctx) {
     overrideMode: null,
     overrideDate: null,
     historyQuery: '',
+    historyChip: 'all', // 'all' | 'expense' | 'income' | 'upi' | 'card' | 'cash'
     exploreFromQuestion: null,
     homeAccordions: {
       pace: false,
@@ -295,10 +327,11 @@ export function createSpecController(ctx) {
             <span>/ ${budget.toLocaleString('en-IN')}</span>
           </div>
           <div class="spec-receipt-ascii">[${asciiBar}] ${pct}%</div>
-          <div class="spec-receipt-allowance">ALLOWANCE — ${safeDaily.toFixed(2)}/DAY × ${remDays}</div>
+          <div class="spec-receipt-allowance">REMAINING — ${Math.max(0, budget - curTotal).toLocaleString('en-IN')}</div>
         </section>
         ${dayReceiptsHtml}
       </div>
+      ${renderMidnightBottomNav('home')}
     `;
   }
 
@@ -310,7 +343,7 @@ export function createSpecController(ctx) {
     const yesterdayIso = toLocalISODate(yest);
 
     // 6D: If theme is 'receipt', render the Thermal Receipt Ledger skin!
-    if ((settings.theme || 'clean') === 'receipt') {
+    if ((settings.theme || 'dark') === 'receipt') {
       root.innerHTML = buildReceiptViewHTML(expenses, settings, spanComp, todayIso, yesterdayIso);
       const inlineForm = root.querySelector('#spec-receipt-inline-form');
       const inlineInp = root.querySelector('#spec-receipt-inline-input');
@@ -330,11 +363,13 @@ export function createSpecController(ctx) {
       return;
     }
 
-    const dateHeaderStr = now.toLocaleDateString('en-IN', {
-      weekday: 'long',
+    const shortDateStr = now.toLocaleDateString('en-IN', {
+      weekday: 'short',
       day: 'numeric',
-      month: 'long'
+      month: 'short'
     });
+    const rawName = (settings.userName || '').trim();
+    const firstName = rawName ? rawName.split(/\s+/)[0] : 'there';
 
     const monthPrefix = `${ctx.state.selectedYear}-${String(ctx.state.selectedMonth + 1).padStart(2, '0')}`;
     const monthExpenses = expenses.filter(
@@ -345,40 +380,37 @@ export function createSpecController(ctx) {
       .filter((e) => e.date === todayIso)
       .reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
-    // Budget & Pace calculations (1A)
+    // Budget calculations (Midnight Hero Ring — no per-day spend line)
     const budget = Number(settings.monthlyBudget) || 30000;
     const leftAmt = Math.max(0, budget - monthTotal);
-    const remDays = Math.max(1, spanComp.daysInCurMonth - spanComp.elapsedDay + 1);
-    const perDayAllowance = Math.max(0, Math.round((budget - monthTotal) / remDays));
-    const fillPct = Math.min(100, Math.max(0, (monthTotal / Math.max(1, budget)) * 100));
-    const tickPct = Math.min(100, Math.max(2, (spanComp.elapsedDay / Math.max(1, spanComp.daysInCurMonth)) * 100));
-    const expectedByToday = (budget * spanComp.elapsedDay) / Math.max(1, spanComp.daysInCurMonth);
-    const paceDiff = Math.round(monthTotal - expectedByToday);
-    const isOverPace = paceDiff > 0;
+    const budgetPct = budget > 0 ? Math.min(100, Math.max(0, Math.round((monthTotal / budget) * 100))) : 0;
+    const budgetSubText =
+      monthTotal <= budget
+        ? `${ctx.formatCurrency(leftAmt)} left of ${ctx.formatCurrency(budget)}`
+        : `${ctx.formatCurrency(monthTotal - budget)} over ${ctx.formatCurrency(budget)} budget`;
 
-    // Fixed-order category breakdown (1A)
+    // Category breakdown stacked bar + dot legend
     const catTotals = {};
     for (const e of monthExpenses) {
       catTotals[e.category] = (catTotals[e.category] || 0) + (Number(e.amount) || 0);
     }
-    const catSegmentsHtml = EXPENSE_CATEGORIES.map((c) => {
-      const amt = catTotals[c.id] || 0;
-      if (amt <= 0 || monthTotal <= 0) return '';
-      const pct = Math.max(2, (amt / monthTotal) * 100);
-      return `<div class="spec-cat-seg" style="width:${pct}%; background:${c.color}"></div>`;
-    }).join('');
+    const sortedActiveCats = EXPENSE_CATEGORIES.filter((c) => (catTotals[c.id] || 0) > 0).sort(
+      (a, b) => (catTotals[b.id] || 0) - (catTotals[a.id] || 0)
+    );
+    const catSegmentsHtml = sortedActiveCats
+      .map((c) => {
+        const amt = catTotals[c.id] || 0;
+        const pct = Math.max(2, (amt / Math.max(1, monthTotal)) * 100);
+        return `<span style="--c:${c.color}; flex:${pct}"></span>`;
+      })
+      .join('');
 
-    const catLegendHtml = EXPENSE_CATEGORIES.map((c) => {
-      const amt = catTotals[c.id] || 0;
-      if (amt <= 0 || monthTotal <= 0) return '';
-      const pct = Math.round((amt / monthTotal) * 100);
-      if (pct < 4) return '';
-      return `<span class="spec-cat-leg"><i style="background:${c.color}"></i>${esc(c.shortName || c.name)} ${pct}%</span>`;
-    })
-      .filter(Boolean)
-      .join(' · ');
+    const catLegendHtml = sortedActiveCats
+      .slice(0, 6)
+      .map((c) => `<span><i style="--c:${c.color}"></i>${esc(c.shortName || c.name)}</span>`)
+      .join('');
 
-    // 6A: Recap Card at top of Home (shown on days 1-3 or if enabled in settings and unseen)
+    // 6A: Recap Card at top of Home (shown on days 1-5 or if enabled in settings and unseen)
     const prevM = ctx.state.selectedMonth === 0 ? 11 : ctx.state.selectedMonth - 1;
     const prevY = ctx.state.selectedMonth === 0 ? ctx.state.selectedYear - 1 : ctx.state.selectedYear;
     const prevRecap = computeMonthlyRecap(expenses, budget, prevY, prevM, ctx.formatCurrency);
@@ -394,12 +426,12 @@ export function createSpecController(ctx) {
     const earlierItems = monthExpenses.filter((e) => e.date !== todayIso && e.date !== yesterdayIso);
     const yesterdayTotal = yesterdayItems.reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const earlierTotal = earlierItems.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const leftPct = budget > 0 ? Math.max(0, Math.min(100, Math.round((leftAmt / budget) * 100))) : 0;
     const isExpandedHome = settings.homeStyle === 'expanded';
 
     const renderEntryRows = (items) =>
       items
         .map((item, idx) => {
+          const isInc = normalizeEntryType(item) === 'income';
           const cat = getCategoryById(item.category);
           const pay = getPaymentMethodById(normalizePaymentMethod(item));
           const tags = normalizeTags(item);
@@ -408,31 +440,30 @@ export function createSpecController(ctx) {
             .join(' ');
           return `
             <div class="spec-entry-row" data-edit-id="${esc(item.id)}">
-              <div class="spec-entry-icon" style="background:${cat.color}18">${cat.icon}</div>
+              <div class="spec-entry-icon" style="background:${isInc ? '#22c55e24' : `${cat.color}22`}">${isInc ? '💰' : cat.icon}</div>
               <div class="spec-entry-mid">
                 <div class="spec-entry-note">${esc(item.note)} ${tagsHtml}</div>
-                <div class="spec-entry-sub">${esc(cat.shortName || cat.name)} · ${esc(pay.shortName)} · ${formatTime12h(item.updatedAt, idx)}</div>
+                <div class="spec-entry-sub">${isInc ? 'Income · Bank' : `${esc(cat.shortName || cat.name)} · ${esc(pay.shortName)} · ${formatTime12h(item.updatedAt, idx)}`}</div>
               </div>
-              <div class="spec-entry-amt">${ctx.formatCurrency(item.amount)}</div>
+              <div class="spec-entry-amt ${isInc ? 'is-inc' : ''}">${isInc ? '+' : ''}${ctx.formatCurrency(item.amount)}</div>
             </div>
           `;
         })
         .join('');
 
-    const paceOpen = isExpandedHome || Boolean(specState.homeAccordions.pace);
-    const todayOpen = isExpandedHome || Boolean(specState.homeAccordions.today);
     const yestOpen = isExpandedHome || Boolean(specState.homeAccordions.yesterday);
     const earlierOpen = isExpandedHome || Boolean(specState.homeAccordions.earlier);
 
     root.innerHTML = `
       <div class="spec-phone-container">
-        <header class="spec-top-bar">
-          <div class="spec-date-label">${esc(dateHeaderStr)}</div>
-          <div class="spec-icon-pair">
-            <button type="button" class="spec-circle-btn" data-nav="history" title="Search & History">🔍</button>
-            <button type="button" class="spec-circle-btn" data-nav="stats" title="Stats & Insights">◔</button>
-            <button type="button" class="spec-circle-btn" data-nav="settings" title="Settings">⚙</button>
+        <header class="spec-midnight-hdr">
+          <div>
+            <small class="spec-hdr-date">${esc(shortDateStr)}</small>
+            <h2 class="spec-hdr-greeting">Hi ${esc(firstName)}</h2>
           </div>
+          <button type="button" class="spec-circle-btn" data-nav="history" title="Search &amp; History" aria-label="Search and History">
+            ${MIDNIGHT_ICONS.search}
+          </button>
         </header>
 
         ${
@@ -445,144 +476,101 @@ export function createSpecController(ctx) {
                  <div class="spec-recap-open-area" id="spec-open-recap-story">
                    <h3>Your ${esc(FULL_MONTHS[prevM])} is wrapped</h3>
                    <p>${ctx.formatCurrency(prevRecap.totalSpent)} · ${prevRecap.slides.length} stories · tap to watch ▶</p>
-                   <div class="spec-story-color-strip">
-                     <span style="background:#2a78d6"></span>
-                     <span style="background:#d03b3b"></span>
-                     <span style="background:#1baf7a"></span>
-                     <span style="background:#4a3aa7"></span>
-                     <span style="background:#eb6834"></span>
-                     <span style="background:#0f172a"></span>
-                   </div>
                  </div>
                </section>`
             : ''
         }
 
-        <section class="spec-hero-block">
-          <div class="spec-hero-kicker">Spent in ${FULL_MONTHS[ctx.state.selectedMonth]}</div>
-          <h1 class="spec-hero-amount">${ctx.formatCurrency(monthTotal)}</h1>
+        <section class="spec-card spec-midnight-hero" data-nav="stats" title="View Stats">
+          <div class="spec-budget-ring" style="--p:${budgetPct}">
+            <div>
+              <b class="num">${budgetPct}%</b>
+              <small>of budget</small>
+            </div>
+          </div>
+          <div class="spec-midnight-hero-body">
+            <span class="spec-eyebrow">${esc(FULL_MONTHS[ctx.state.selectedMonth])}</span>
+            <h1 class="spec-midnight-hero-amt num">${ctx.formatCurrency(monthTotal)}</h1>
+            <p class="spec-midnight-hero-sub">${esc(budgetSubText)}</p>
+          </div>
         </section>
 
-        <div class="spec-accordion-stack">
-          <!-- Accordion 1: Budget Pace & Categories (1-line summary by default) -->
-          <section class="spec-accordion-card ${paceOpen ? 'is-open' : ''}" data-acc-key="pace">
-            <button type="button" class="spec-accordion-summary" data-acc-toggle="pace">
-              <span class="spec-acc-left">
-                <i class="spec-acc-dot ${isOverPace ? 'is-warn' : 'is-good'}">●</i>
-                <strong>Budget Pace</strong>
-                <span class="spec-acc-sub">· ${ctx.formatCurrency(perDayAllowance)}/day safe</span>
-              </span>
-              <span class="spec-acc-right">
-                <span class="spec-acc-sub">${leftPct}% left</span>
-                <span class="spec-acc-chev">▾</span>
-              </span>
-            </button>
-            <div class="spec-accordion-body">
-              <div class="spec-pace-top">
-                <div class="spec-pace-left"><strong>${ctx.formatCurrency(leftAmt)}</strong> left of ${ctx.formatCurrency(budget)}</div>
-                <div class="spec-pace-right"><strong>${ctx.formatCurrency(perDayAllowance)}</strong>/day · ${remDays}d</div>
-              </div>
-              <div class="spec-pace-bar-track">
-                <div class="spec-pace-bar-fill" style="width:${fillPct}%"></div>
-                <div class="spec-pace-bar-tick" style="left:${tickPct}%" title="Elapsed month pace marker"></div>
-              </div>
-              <div class="spec-pace-status-row">
-                <span class="spec-pace-status ${isOverPace ? 'is-warn' : 'is-good'}">
-                  ${
-                    isOverPace
-                      ? `▲ ${ctx.formatCurrency(Math.abs(paceDiff))} over pace`
-                      : `✓ On pace · ${ctx.formatCurrency(Math.abs(paceDiff))} under`
-                  }
-                </span>
-                <button type="button" class="spec-inline-link-btn" data-nav="stats">Full Stats ›</button>
-              </div>
-              ${
-                monthTotal > 0
-                  ? `<div class="spec-cat-strip-wrap">
-                       <div class="spec-cat-stacked-bar">${catSegmentsHtml}</div>
-                       <div class="spec-cat-legend-line">${catLegendHtml}</div>
-                     </div>`
-                  : ''
-              }
-            </div>
-          </section>
+        ${
+          monthTotal > 0
+            ? `<div class="spec-midnight-stack-block">
+                 <div class="spec-midnight-stack">${catSegmentsHtml}</div>
+                 <div class="spec-midnight-legend">${catLegendHtml}</div>
+               </div>`
+            : ''
+        }
 
-          <!-- Accordion 2: Today -->
-          <section class="spec-accordion-card ${todayOpen ? 'is-open' : ''}" data-acc-key="today">
-            <button type="button" class="spec-accordion-summary" data-acc-toggle="today">
-              <span class="spec-acc-left">
-                <strong>Today</strong>
-                <span class="spec-acc-sub">· ${todayItems.length} ${todayItems.length === 1 ? 'entry' : 'entries'}</span>
-              </span>
-              <span class="spec-acc-right">
-                <strong>${ctx.formatCurrency(todayTotal)}</strong>
-                <span class="spec-acc-chev">▾</span>
-              </span>
-            </button>
-            <div class="spec-accordion-body is-entries-body">
-              ${
-                todayItems.length > 0
-                  ? renderEntryRows(todayItems)
-                  : `<div class="spec-acc-empty-row">
-                       <span>No expenses logged today yet.</span>
-                       <button type="button" class="spec-inline-link-btn" id="spec-open-add-empty">+ Add now</button>
-                     </div>`
-              }
-            </div>
-          </section>
+        <section class="spec-card spec-day-card">
+          <div class="spec-day-card-head">
+            <b>Today</b>
+            <span class="num spec-day-card-sum">${ctx.formatCurrency(todayTotal)}</span>
+          </div>
+          <div class="spec-day-card-list">
+            ${
+              todayItems.length > 0
+                ? renderEntryRows(todayItems)
+                : `<div class="spec-acc-empty-row">
+                     <span>No expenses logged today yet.</span>
+                     <button type="button" class="spec-inline-link-btn" id="spec-open-add-empty">+ Add now</button>
+                   </div>`
+            }
+          </div>
+        </section>
 
-          <!-- Accordion 3: Yesterday (1-line summary by default) -->
-          <section class="spec-accordion-card ${yestOpen ? 'is-open' : ''}" data-acc-key="yesterday">
-            <button type="button" class="spec-accordion-summary" data-acc-toggle="yesterday">
-              <span class="spec-acc-left">
-                <strong>Yesterday</strong>
-                <span class="spec-acc-sub">· ${yesterdayItems.length} ${yesterdayItems.length === 1 ? 'entry' : 'entries'}</span>
-              </span>
-              <span class="spec-acc-right">
-                <span class="spec-acc-sub">${ctx.formatCurrency(yesterdayTotal)}</span>
-                <span class="spec-acc-chev">▾</span>
-              </span>
-            </button>
-            <div class="spec-accordion-body is-entries-body">
-              ${
-                yesterdayItems.length > 0
-                  ? renderEntryRows(yesterdayItems)
-                  : `<div class="spec-acc-empty-row"><span>No expenses logged yesterday.</span></div>`
-              }
-            </div>
-          </section>
+        ${
+          yesterdayItems.length > 0
+            ? `<section class="spec-accordion-card ${yestOpen ? 'is-open' : ''}" data-acc-key="yesterday">
+                 <button type="button" class="spec-accordion-summary" data-acc-toggle="yesterday">
+                   <span class="spec-acc-left">
+                     <strong>Yesterday</strong>
+                     <span class="spec-acc-sub">· ${yesterdayItems.length} ${yesterdayItems.length === 1 ? 'entry' : 'entries'}</span>
+                   </span>
+                   <span class="spec-acc-right">
+                     <span class="spec-acc-sub num">${ctx.formatCurrency(yesterdayTotal)}</span>
+                     <span class="spec-acc-chev">▾</span>
+                   </span>
+                 </button>
+                 <div class="spec-accordion-body is-entries-body">
+                   ${renderEntryRows(yesterdayItems)}
+                 </div>
+               </section>`
+            : ''
+        }
 
-          ${
-            earlierItems.length > 0
-              ? `<!-- Accordion 4: Earlier this month -->
-                 <section class="spec-accordion-card ${earlierOpen ? 'is-open' : ''}" data-acc-key="earlier">
-                   <button type="button" class="spec-accordion-summary" data-acc-toggle="earlier">
-                     <span class="spec-acc-left">
-                       <strong>Earlier in ${esc(SHORT_MONTHS[ctx.state.selectedMonth])}</strong>
-                       <span class="spec-acc-sub">· ${earlierItems.length} ${earlierItems.length === 1 ? 'entry' : 'entries'}</span>
-                     </span>
-                     <span class="spec-acc-right">
-                       <span class="spec-acc-sub">${ctx.formatCurrency(earlierTotal)}</span>
-                       <span class="spec-acc-chev">▾</span>
-                     </span>
-                   </button>
-                   <div class="spec-accordion-body is-entries-body">
-                     ${renderEntryRows(earlierItems.slice(0, 12))}
-                     <div style="padding: 0.55rem 0.85rem; text-align:center;">
-                       <button type="button" class="spec-btn-ghost" data-nav="history" style="width:100%;">View full History &amp; Search (${monthExpenses.length} entries) ›</button>
-                     </div>
+        ${
+          earlierItems.length > 0
+            ? `<section class="spec-accordion-card ${earlierOpen ? 'is-open' : ''}" data-acc-key="earlier">
+                 <button type="button" class="spec-accordion-summary" data-acc-toggle="earlier">
+                   <span class="spec-acc-left">
+                     <strong>Earlier in ${esc(SHORT_MONTHS[ctx.state.selectedMonth])}</strong>
+                     <span class="spec-acc-sub">· ${earlierItems.length} ${earlierItems.length === 1 ? 'entry' : 'entries'}</span>
+                   </span>
+                   <span class="spec-acc-right">
+                     <span class="spec-acc-sub num">${ctx.formatCurrency(earlierTotal)}</span>
+                     <span class="spec-acc-chev">▾</span>
+                   </span>
+                 </button>
+                 <div class="spec-accordion-body is-entries-body">
+                   ${renderEntryRows(earlierItems.slice(0, 12))}
+                   <div style="padding: 0.55rem 0.85rem; text-align:center;">
+                     <button type="button" class="spec-btn-ghost" data-nav="history" style="width:100%;">View all in History (${monthExpenses.length} entries) ›</button>
                    </div>
-                 </section>`
-              : ''
-          }
-        </div>
+                 </div>
+               </section>`
+            : ''
+        }
+      </div>
 
-        <div class="spec-bottom-pill-dock">
-          <button type="button" class="spec-bottom-add-pill" id="spec-open-add-pill">
-            <span class="spec-pill-placeholder">What did you spend on?</span>
-            <span class="spec-pill-plus">+</span>
-          </button>
-        </div>
+      <div class="spec-midnight-dock">
+        <button type="button" class="spec-midnight-composer" id="spec-open-add-pill">
+          <span class="spec-composer-placeholder">200 coffee upi…</span>
+          <span class="spec-composer-plus" aria-hidden="true">${MIDNIGHT_ICONS.plus}</span>
+        </button>
+        ${renderMidnightBottomNav('home')}
       </div>
     `;
 
@@ -899,14 +887,14 @@ export function createSpecController(ctx) {
       const isDefaultMode = !specState.overrideMode && !firstDraft.explicitPayment;
       const matches = computeHistoryMatches(expenses, firstDraft.note || trimmed, 4);
 
-      const historyRowsHtml = matches
+      const historyChipsHtml = (matches.length > 0 ? matches : usuals)
         .map((m) => {
           const c = getCategoryById(m.category);
           const p = getPaymentMethodById(m.paymentMethod);
           return `
-            <button type="button" class="spec-hist-match-row" data-hist-note="${esc(m.note)}" data-hist-amt="${m.amount}" data-hist-mode="${esc(p.shortName.toLowerCase())}">
-              <span class="spec-hist-left">${c.icon} ${esc(m.note)}</span>
-              <span class="spec-hist-right">${ctx.formatCurrency(m.amount)} · ${esc(p.shortName)} · ×${m.count}</span>
+            <button type="button" class="spec-hist-match-row spec-midnight-hist-chip" data-hist-note="${esc(m.note)}" data-hist-amt="${m.amount}" data-hist-mode="${esc(p.shortName.toLowerCase())}">
+              <span>${c.icon} ${esc(m.note)}</span>
+              <strong>${ctx.formatCurrency(m.amount)}</strong>
             </button>
           `;
         })
@@ -914,33 +902,37 @@ export function createSpecController(ctx) {
 
       bodyContentHtml = `
         <div class="spec-typing-preview">
-          <div class="spec-typing-amt ${!hasAmount ? 'is-missing' : ''}">
-            ${hasAmount ? ctx.formatCurrency(firstDraft.amount) : '₹?'}
-          </div>
-          <div class="spec-typing-note">
-            ${esc(firstDraft.note || '...')}
-            ${(firstDraft.tags || []).map((t) => `<span class="spec-inline-tag">#${esc(t)}</span>`).join(' ')}
-          </div>
-          <div class="spec-typing-chips">
-            <button type="button" class="spec-preview-chip" id="spec-cycle-cat-chip">
-              <span style="color:${catObj.color}">●</span> ${catObj.icon} ${esc(catObj.shortName || catObj.name)} ⌄
-              ${specState.overrideCategory ? '<small class="spec-learned-tag">will remember</small>' : ''}
-            </button>
-            <button type="button" class="spec-preview-chip ${isDefaultMode ? 'is-dimmed' : ''}" id="spec-cycle-mode-chip">
-              ${esc(payObj.shortName)} ${isDefaultMode ? '<small>default</small>' : ''} ⌄
-            </button>
-            <label class="spec-preview-chip">
-              <span>${esc(firstDraft.dateLabel || 'Today')} ⌄</span>
-              <input type="date" id="spec-preview-date-input" value="${esc(activeDateIso)}" style="position:absolute; opacity:0; width:1px; height:1px;" />
-            </label>
-          </div>
+          <section class="spec-card spec-midnight-preview-card">
+            <span class="spec-eyebrow">WILL SAVE AS</span>
+            <div class="spec-typing-amt num ${!hasAmount ? 'is-missing' : ''}">
+              ${hasAmount ? ctx.formatCurrency(firstDraft.amount) : '₹?'}
+            </div>
+            <div class="spec-typing-chips">
+              <button type="button" class="spec-preview-chip" id="spec-cycle-cat-chip">
+                ${catObj.icon} ${esc(catObj.shortName || catObj.name)} ▾
+                ${specState.overrideCategory ? '<small class="spec-learned-tag">saved</small>' : ''}
+              </button>
+              <button type="button" class="spec-preview-chip ${isDefaultMode ? 'is-dimmed' : ''}" id="spec-cycle-mode-chip">
+                💳 ${esc(payObj.shortName)} ${isDefaultMode ? '<small>default</small>' : ''} ▾
+              </button>
+              <label class="spec-preview-chip">
+                <span>📅 ${esc(firstDraft.dateLabel || 'Today')} ▾</span>
+                <input type="date" id="spec-preview-date-input" value="${esc(activeDateIso)}" style="position:absolute; opacity:0; width:1px; height:1px;" />
+              </label>
+              ${
+                firstDraft.note
+                  ? `<span class="spec-preview-chip is-static-note">${esc(firstDraft.note)} ${(firstDraft.tags || []).map((t) => `#${esc(t)}`).join(' ')}</span>`
+                  : ''
+              }
+            </div>
+          </section>
 
           ${
-            historyRowsHtml
+            historyChipsHtml
               ? `<div class="spec-from-history-block">
                    <div class="spec-section-kicker">FROM YOUR HISTORY</div>
-                   <div class="spec-card spec-hist-matches-card">
-                     ${historyRowsHtml}
+                   <div class="spec-midnight-hist-chips">
+                     ${historyChipsHtml}
                    </div>
                  </div>`
               : ''
@@ -953,7 +945,7 @@ export function createSpecController(ctx) {
       ? 'Type <code>200 snacks upi</code> to add · ask <code>food this month</code>'
       : isQuestion
         ? 'No amount, so this is a question. Add a number to log it.'
-        : 'Tap a chip to fix it. The app remembers.';
+        : 'Tap any chip to change it · Press Save or Enter to log.';
 
     // Only rebuild the shell if not already built, or update parts so input never loses focus!
     const existingInput = overlay.querySelector('#spec-add-input');
@@ -962,20 +954,18 @@ export function createSpecController(ctx) {
         <div class="spec-add-sheet">
           <div class="spec-sheet-drag-pill" aria-hidden="true"></div>
           <header class="spec-add-header">
-            <span class="spec-add-title">Add or ask</span>
-            <div class="spec-icon-pair">
-              <button type="button" class="spec-mini-text-btn" id="spec-switch-to-keypad" title="Switch to Keypad">🔢 Keypad</button>
-              <button type="button" class="spec-circle-btn" id="spec-close-add-btn">✕</button>
-            </div>
+            <button type="button" class="spec-circle-btn" id="spec-close-add-btn" aria-label="Close Add">${MIDNIGHT_ICONS.x}</button>
+            <span class="spec-add-title">Add</span>
+            <button type="button" class="spec-mini-text-btn" id="spec-switch-to-keypad" title="Switch to Keypad">🔢 Keypad</button>
           </header>
-          <div id="spec-add-dynamic-body" class="spec-add-dynamic-body"></div>
-          <div class="spec-add-bottom-bar">
+          <div class="spec-add-top-bar">
             <form id="spec-add-form" class="spec-add-input-pill">
-              <input type="text" id="spec-add-input" placeholder="200 snacks upi" autocomplete="off" />
-              <button type="submit" class="spec-return-btn">return</button>
+              <input type="text" id="spec-add-input" placeholder="1299 shoes myntra cc" autocomplete="off" />
+              <button type="submit" class="spec-return-btn">Save</button>
             </form>
             <div id="spec-add-hint-line" class="spec-add-hint-line"></div>
           </div>
+          <div id="spec-add-dynamic-body" class="spec-add-dynamic-body"></div>
         </div>
       `;
 
@@ -1137,17 +1127,20 @@ export function createSpecController(ctx) {
     }
 
     const tabsHeaderHtml = `
-      <header class="spec-sub-header">
-        <button type="button" class="spec-back-link" data-nav="home">‹ Home</button>
-        <strong class="spec-sub-title">Stats</strong>
-        <span style="width:48px"></span>
+      <header class="spec-midnight-hdr">
+        <h2 class="spec-hdr-greeting">Stats</h2>
+        <div class="spec-segmented-3" style="width:176px">
+          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'week' ? 'active' : ''}" data-stats-period="week">Week</button>
+          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'month' ? 'active' : ''}" data-stats-period="month">Month</button>
+          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'year' ? 'active' : ''}" data-stats-period="year">Year</button>
+        </div>
       </header>
       <nav class="spec-underline-tabs" role="tablist">
         <button type="button" class="spec-utab ${specState.statsTab === 'overview' ? 'active' : ''}" data-stats-tab="overview">Overview</button>
         <button type="button" class="spec-utab ${specState.statsTab === 'calendar' ? 'active' : ''}" data-stats-tab="calendar">Calendar</button>
         <button type="button" class="spec-utab ${specState.statsTab === 'explore' ? 'active' : ''}" data-stats-tab="explore">Explore</button>
-        <button type="button" class="spec-utab ${specState.statsTab === 'recaps' ? 'active' : ''}" data-stats-tab="recaps">
-          Recaps ${hasUnseenRecap ? '<i class="spec-red-dot"></i>' : ''}
+        <button type="button" class="spec-utab ${specState.statsTab === 'recaps' ? 'active' : ''}">
+          <span data-stats-tab="recaps">Recaps ${hasUnseenRecap ? '<i class="spec-red-dot"></i>' : ''}</span>
         </button>
       </nav>
     `;
@@ -1233,12 +1226,12 @@ export function createSpecController(ctx) {
             <text x="${toX(10)}" y="${H - 4}" class="spec-axis-txt" text-anchor="middle">10</text>
             <text x="${toX(20)}" y="${H - 4}" class="spec-axis-txt" text-anchor="middle">20</text>
             <text x="${toX(days.length)}" y="${H - 4}" class="spec-axis-txt" text-anchor="middle">${days.length}</text>
-            ${curArea ? `<path d="${curArea}" fill="rgba(42,120,214,0.10)" />` : ''}
-            ${prevLine ? `<path d="${prevLine}" fill="none" stroke="#898781" stroke-width="1.6" stroke-dasharray="4 3" />` : ''}
-            ${curLine ? `<path d="${curLine}" fill="none" stroke="#2a78d6" stroke-width="2.2" />` : ''}
+            ${curArea ? `<path d="${curArea}" fill="rgba(16,185,129,0.14)" />` : ''}
+            ${prevLine ? `<path d="${prevLine}" fill="none" stroke="#8b98ad" stroke-width="1.6" stroke-dasharray="4 3" />` : ''}
+            ${curLine ? `<path d="${curLine}" fill="none" stroke="#10b981" stroke-width="2.2" />` : ''}
             ${
               lastC
-                ? `<circle cx="${toX(lastC.day).toFixed(1)}" cy="${toY(lastC.curCumulative).toFixed(1)}" r="3.5" fill="#2a78d6" stroke="#fff" stroke-width="1.5" />
+                ? `<circle cx="${toX(lastC.day).toFixed(1)}" cy="${toY(lastC.curCumulative).toFixed(1)}" r="3.5" fill="#10b981" stroke="#0b1120" stroke-width="1.5" />
                    <text x="${(toX(lastC.day) + 5).toFixed(1)}" y="${(toY(lastC.curCumulative) + 3).toFixed(1)}" class="spec-end-txt">${fmtK(lastC.curCumulative)}</text>`
                 : ''
             }
@@ -1324,18 +1317,68 @@ export function createSpecController(ctx) {
       const oneFact =
         clearedFacts.find((f) => preferredOrder.includes(f.id)) || clearedFacts[0] || null;
 
-      tabBodyHtml = `
-        <div class="spec-segmented-3">
-          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'week' ? 'active' : ''}" data-stats-period="week">Week</button>
-          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'month' ? 'active' : ''}" data-stats-period="month">Month</button>
-          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'year' ? 'active' : ''}" data-stats-period="year">Year</button>
-        </div>
+      // Compute 7-day "This week" bars (Midnight Stats design)
+      const nowDt = new Date();
+      const weekBars = [];
+      const dayLetters = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(nowDt);
+        d.setDate(nowDt.getDate() - i);
+        const iso = toLocalISODate(d);
+        const sum = expenses
+          .filter((e) => e.date === iso && normalizeEntryType(e) !== 'income')
+          .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        weekBars.push({ label: dayLetters[d.getDay()], sum, isToday: i === 0 });
+      }
+      const maxWeekBar = Math.max(100, ...weekBars.map((b) => b.sum));
+      const weekTotal = weekBars.reduce((s, b) => s + b.sum, 0);
+      const weekBarsHtml = weekBars
+        .map((b) => {
+          const hPx = b.sum > 0 ? Math.max(10, Math.round((b.sum / maxWeekBar) * 86)) : 4;
+          return `<div class="spec-midnight-wbar ${b.isToday ? 'is-on' : ''}"><span style="height:${hPx}px" title="${ctx.formatCurrency(b.sum)}"></span>${b.label}</div>`;
+        })
+        .join('');
 
+      tabBodyHtml = `
         <section class="spec-stats-kpi">
-          <div class="spec-span-kicker">${esc(comp.curSpanLabel)}</div>
-          <h2 class="spec-hero-amount">${ctx.formatCurrency(comp.curTotal)}</h2>
+          <div class="spec-eyebrow">${esc(comp.curSpanLabel)}</div>
+          <h2 class="spec-hero-amount num" style="font-size:2.4rem">${ctx.formatCurrency(comp.curTotal)}</h2>
           <div class="spec-delta-line ${isLess ? 'is-good' : 'is-bad'}">${esc(deltaText)}</div>
         </section>
+
+        <section class="spec-card">
+          <div class="spec-card-head">
+            <strong>This week</strong>
+            <span class="spec-muted-sm num">${ctx.formatCurrency(weekTotal)} total</span>
+          </div>
+          <div class="spec-midnight-week-bars">${weekBarsHtml}</div>
+        </section>
+
+        <section class="spec-card">
+          <div class="spec-card-head">
+            <strong>Where it went</strong>
+            <div class="spec-card-head-right">
+              <span class="spec-muted-sm">Tap to drill in</span>
+              <button type="button" class="spec-table-toggle-btn" data-toggle-table="categories">${catTableOn ? '📊 Chart' : '⊞ Table'}</button>
+            </div>
+          </div>
+          ${categoriesBodyHtml || '<p class="field-hint">No expenses in this period yet.</p>'}
+        </section>
+
+        ${
+          oneFact
+            ? `<section class="spec-midnight-insight">
+                 <span class="spec-fact-emoji">${oneFact.icon}</span>
+                 <div style="flex:1">
+                   <strong>${esc(oneFact.title)}</strong>
+                   <p>${esc(oneFact.body)}</p>
+                   <button type="button" class="spec-inline-link-btn" id="spec-open-all-facts" style="padding:0.25rem 0 0">
+                     All ${clearedFacts.length} fun facts ›
+                   </button>
+                 </div>
+               </section>`
+            : ''
+        }
 
         <section class="spec-card">
           <div class="spec-card-head">
@@ -1347,34 +1390,6 @@ export function createSpecController(ctx) {
           </div>
           ${runningBodyHtml}
         </section>
-
-        <section class="spec-card">
-          <div class="spec-card-head">
-            <strong>Categories</strong>
-            <div class="spec-card-head-right">
-              <span class="spec-muted-sm">tap to drill in</span>
-              <button type="button" class="spec-table-toggle-btn" data-toggle-table="categories">${catTableOn ? '📊 Chart' : '⊞ Table'}</button>
-            </div>
-          </div>
-          ${categoriesBodyHtml || '<p class="field-hint">No expenses in this period yet.</p>'}
-        </section>
-
-        ${
-          oneFact
-            ? `<section class="spec-card spec-one-fact-card">
-                 <div class="spec-fact-row">
-                   <span class="spec-fact-emoji">${oneFact.icon}</span>
-                   <div>
-                     <strong>${esc(oneFact.title)}</strong>
-                     <p>${esc(oneFact.body)}</p>
-                   </div>
-                 </div>
-                 <button type="button" class="spec-link-row-btn" id="spec-open-all-facts">
-                   All ${clearedFacts.length} fun facts ›
-                 </button>
-               </section>`
-            : ''
-        }
       `;
     } else if (specState.statsTab === 'calendar') {
       // 5A: CALENDAR TAB
@@ -1461,7 +1476,7 @@ export function createSpecController(ctx) {
           <div class="spec-card spec-stat-tile">
             <span class="spec-muted-sm">Month</span>
             <strong>${ctx.formatCurrency(cal.monthTotal)}</strong>
-            <span class="spec-muted-sm">${ctx.formatCurrency(cal.dailyAvg)}/day avg</span>
+            <span class="spec-muted-sm">${cal.activeDays || 0} active days</span>
           </div>
           <div class="spec-card spec-stat-tile">
             <span class="spec-muted-sm">Heavy · no-spend</span>
@@ -1708,6 +1723,9 @@ export function createSpecController(ctx) {
           ${tabBodyHtml}
         </div>
       </div>
+      <div class="spec-midnight-dock">
+        ${renderMidnightBottomNav('stats')}
+      </div>
     `;
 
     // Bind Stats events
@@ -1903,6 +1921,9 @@ export function createSpecController(ctx) {
           <span>›</span>
         </button>
       </div>
+      <div class="spec-midnight-dock">
+        ${renderMidnightBottomNav('stats')}
+      </div>
     `;
 
     root.querySelector('#spec-back-overview')?.addEventListener('click', () => {
@@ -1916,6 +1937,7 @@ export function createSpecController(ctx) {
       specState.statsTab = 'explore';
       render();
     });
+    bindCommonClicks(root);
   }
 
   // 4C: ALL FUN FACTS SUB-SCREEN (< Overview   Fun facts)
@@ -1957,12 +1979,16 @@ export function createSpecController(ctx) {
             .join('')}
         </div>
       </div>
+      <div class="spec-midnight-dock">
+        ${renderMidnightBottomNav('stats')}
+      </div>
     `;
 
     root.querySelector('#spec-back-overview')?.addEventListener('click', () => {
       specState.statsSubscreen = null;
       render();
     });
+    bindCommonClicks(root);
   }
 
   // 5B: PATTERNS SUB-SCREEN (< Calendar   Patterns)
@@ -2073,12 +2099,16 @@ export function createSpecController(ctx) {
           </div>
         </section>
       </div>
+      <div class="spec-midnight-dock">
+        ${renderMidnightBottomNav('stats')}
+      </div>
     `;
 
     root.querySelector('#spec-back-calendar')?.addEventListener('click', () => {
       specState.statsSubscreen = null;
       render();
     });
+    bindCommonClicks(root);
   }
 
   // 5D: COMPARE SUB-SCREEN (< Explore   Compare)
@@ -2156,6 +2186,9 @@ export function createSpecController(ctx) {
           ${comp.skippedItems.length > 0 ? `<p><strong>Skipped:</strong> ${esc(comp.skippedItems.join(', '))}</p>` : ''}
         </section>
       </div>
+      <div class="spec-midnight-dock">
+        ${renderMidnightBottomNav('stats')}
+      </div>
     `;
 
     root.querySelector('#spec-back-explore')?.addEventListener('click', () => {
@@ -2168,14 +2201,16 @@ export function createSpecController(ctx) {
         render();
       });
     });
+    bindCommonClicks(root);
   }
 
-  // 3C: HISTORY SCREEN
+  // 3C: HISTORY SCREEN (Midnight Redesign with Filter Chips & Out/In Summary)
   function renderHistoryScreen(root, expenses) {
     const rawQ = specState.historyQuery.trim();
+    const activeChip = specState.historyChip || 'all';
     const parsedQ = rawQ ? parseQuestionQuery(rawQ, new Date()) : null;
-    let filtered = expenses.filter((e) => normalizeEntryType(e) !== 'income');
-    let filterLabel = 'All time';
+    let filtered = [...expenses];
+    let filterLabel = FULL_MONTHS[ctx.state.selectedMonth];
 
     if (parsedQ && parsedQ.isSpecific) {
       const ans = evaluateQuestionQuery(expenses, parsedQ);
@@ -2191,7 +2226,21 @@ export function createSpecController(ctx) {
       filterLabel = `“${rawQ}”`;
     }
 
-    const total = filtered.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    if (activeChip === 'expense') {
+      filtered = filtered.filter((e) => normalizeEntryType(e) !== 'income');
+    } else if (activeChip === 'income') {
+      filtered = filtered.filter((e) => normalizeEntryType(e) === 'income');
+    } else if (['upi', 'card', 'cash'].includes(activeChip)) {
+      filtered = filtered.filter((e) => normalizePaymentMethod(e) === activeChip);
+    }
+
+    const totalOut = filtered
+      .filter((e) => normalizeEntryType(e) !== 'income')
+      .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const totalIn = filtered
+      .filter((e) => normalizeEntryType(e) === 'income')
+      .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
     const todayIso = toLocalISODate(new Date());
     const yest = new Date();
     yest.setDate(yest.getDate() - 1);
@@ -2205,28 +2254,47 @@ export function createSpecController(ctx) {
     }
     const sortedDates = Array.from(byDate.keys()).sort((a, b) => b.localeCompare(a));
 
+    const chips = [
+      ['all', 'All'],
+      ['expense', 'Expenses'],
+      ['income', 'Income'],
+      ['upi', 'UPI'],
+      ['card', 'Card'],
+      ['cash', 'Cash']
+    ];
+
     root.innerHTML = `
       <div class="spec-phone-container">
-        <header class="spec-sub-header">
-          <button type="button" class="spec-back-link" data-nav="home">‹ Home</button>
-          <strong class="spec-sub-title">History</strong>
-          <button type="button" class="spec-mini-text-btn" id="spec-export-history-csv">Export</button>
+        <header class="spec-midnight-hdr">
+          <h2 class="spec-hdr-greeting">History</h2>
+          <button type="button" class="spec-circle-btn" id="spec-export-history-csv" title="Export CSV">⇩</button>
         </header>
 
         <div class="spec-search-pill">
-          <span>🔍</span>
-          <input type="text" id="spec-history-search" value="${esc(specState.historyQuery)}" placeholder="food last week, chai, #goa, upi..." autocomplete="off" />
+          <span class="spec-search-ico">${MIDNIGHT_ICONS.search}</span>
+          <input type="text" id="spec-history-search" value="${esc(specState.historyQuery)}" placeholder="Try &quot;food last week&quot; or &quot;&gt; 500&quot;" autocomplete="off" />
+        </div>
+
+        <div class="spec-midnight-filter-chips">
+          ${chips
+            .map(
+              ([id, lbl]) =>
+                `<button type="button" class="spec-filter-chip ${activeChip === id ? 'is-on' : ''}" data-hist-chip="${id}">${lbl}</button>`
+            )
+            .join('')}
         </div>
 
         <div class="spec-history-summary">
-          <strong>${filtered.length} entries · ${ctx.formatCurrency(total)}</strong> · ${esc(filterLabel)}
+          ${esc(filterLabel)} · ${filtered.length} ${filtered.length === 1 ? 'entry' : 'entries'} · <b style="color:var(--spec-ink)">${ctx.formatCurrency(totalOut)} out</b>${totalIn > 0 ? ` · <b style="color:var(--spec-primary)">${ctx.formatCurrency(totalIn)} in</b>` : ''}
         </div>
 
         <div class="spec-days-feed">
           ${sortedDates
             .map((iso) => {
               const items = byDate.get(iso) || [];
-              const daySum = items.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+              const daySum = items
+                .filter((e) => normalizeEntryType(e) !== 'income')
+                .reduce((s, e) => s + (Number(e.amount) || 0), 0);
               return `
                 <div class="spec-day-group">
                   <div class="spec-day-header">
@@ -2236,16 +2304,17 @@ export function createSpecController(ctx) {
                   <div class="spec-card spec-entries-card">
                     ${items
                       .map((item, idx) => {
+                        const isInc = normalizeEntryType(item) === 'income';
                         const c = getCategoryById(item.category);
                         const p = getPaymentMethodById(normalizePaymentMethod(item));
                         return `
                           <div class="spec-entry-row" data-edit-id="${esc(item.id)}">
-                            <div class="spec-entry-icon" style="background:${c.color}18">${c.icon}</div>
+                            <div class="spec-entry-icon" style="background:${isInc ? '#22c55e24' : `${c.color}22`}">${isInc ? '💰' : c.icon}</div>
                             <div class="spec-entry-mid">
                               <div class="spec-entry-note">${esc(item.note)}</div>
-                              <div class="spec-entry-sub">${esc(c.shortName || c.name)} · ${esc(p.shortName)} · ${formatTime12h(item.updatedAt, idx)}</div>
+                              <div class="spec-entry-sub">${isInc ? 'Income · Bank' : `${esc(c.shortName || c.name)} · ${esc(p.shortName)} · ${formatTime12h(item.updatedAt, idx)}`}</div>
                             </div>
-                            <div class="spec-entry-amt">${ctx.formatCurrency(item.amount)}</div>
+                            <div class="spec-entry-amt ${isInc ? 'is-inc' : ''}">${isInc ? '+' : ''}${ctx.formatCurrency(item.amount)}</div>
                           </div>
                         `;
                       })
@@ -2256,6 +2325,9 @@ export function createSpecController(ctx) {
             })
             .join('')}
         </div>
+      </div>
+      <div class="spec-midnight-dock">
+        ${renderMidnightBottomNav('history')}
       </div>
     `;
 
@@ -2269,50 +2341,56 @@ export function createSpecController(ctx) {
         newInp.setSelectionRange(newInp.value.length, newInp.value.length);
       }
     });
+    root.querySelectorAll('[data-hist-chip]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        specState.historyChip = btn.dataset.histChip || 'all';
+        renderHistoryScreen(root, expenses);
+      });
+    });
     root.querySelector('#spec-export-history-csv')?.addEventListener('click', () => {
       ctx.exportCsv(filtered);
     });
     bindCommonClicks(root);
   }
 
-  // 3D: SETTINGS SCREEN (with UI Layout Switcher + all 3D settings!)
+  // 3D: SETTINGS SCREEN (Midnight Redesign)
   function renderSettingsScreen(root, expenses, settings) {
-    const curTheme = settings.theme || 'clean';
+    const curTheme = settings.theme || 'dark';
     const curInputStyle = settings.inputStyle || 'keyboard';
-    const curDesign = ctx.state.uiDesign || 'spec';
     const learnedCount = Object.keys(getLearnedKeywords() || {}).length;
+    const rawName = (settings.userName || '').trim();
+    const initial = rawName ? rawName[0].toUpperCase() : 'T';
 
     root.innerHTML = `
       <div class="spec-phone-container">
-        <header class="spec-sub-header">
-          <button type="button" class="spec-back-link" data-nav="home">‹ Home</button>
-          <strong class="spec-sub-title">Settings</strong>
-          <span style="width:48px"></span>
+        <header class="spec-midnight-hdr">
+          <h2 class="spec-hdr-greeting">Settings</h2>
         </header>
 
+        <div class="spec-midnight-profile">
+          <span class="spec-midnight-avatar">${esc(initial)}</span>
+          <label class="spec-midnight-profile-meta" for="spec-set-username">
+            <input type="text" id="spec-set-username" class="spec-midnight-name-input" placeholder="Your name" value="${esc(rawName)}" />
+            <small class="spec-muted-sm">Tap to edit name</small>
+          </label>
+        </div>
+
         <div class="spec-settings-group">
-          <div class="spec-section-kicker">PROFILE &amp; UI LAYOUT</div>
+          <div class="spec-section-kicker">MONEY</div>
           <div class="spec-card spec-settings-card">
             <div class="spec-setting-row">
-              <div>
-                <strong>Your Name</strong>
-                <div class="spec-muted-sm">Personalizes your expense tracker</div>
+              <div><strong>Monthly budget</strong></div>
+              <div style="display:inline-flex;align-items:center;gap:4px">
+                <span class="spec-muted-sm">₹</span>
+                <input type="number" id="spec-set-budget" class="spec-inline-num" value="${Number(settings.monthlyBudget) || 30000}" step="500" />
               </div>
-              <input type="text" id="spec-set-username" class="spec-inline-num" style="width:130px; text-align:right;" placeholder="Your name" value="${esc(settings.userName || '')}" />
             </div>
-            <div class="spec-setting-row">
+            <div class="spec-setting-row" id="spec-open-recurring-modal" style="cursor:pointer">
               <div>
-                <strong>App UI Layout</strong>
-                <div class="spec-muted-sm">Switch between the new Spec UI (from mockups) and Classic DropSpend layouts</div>
+                <strong>Recurring bills &amp; cards</strong>
+                <div class="spec-muted-sm">WiFi, Netflix, Rent &amp; CC statement reminders</div>
               </div>
-              <select id="spec-ui-design-select" class="spec-select">
-                <option value="spec" ${curDesign === 'spec' ? 'selected' : ''}>✨ Mockup Spec UI (New)</option>
-                <option value="tabs" ${curDesign === 'tabs' ? 'selected' : ''}>⚡ Two-Tab Zen (Classic)</option>
-                <option value="spotlight" ${curDesign === 'spotlight' ? 'selected' : ''}>🎯 Spotlight Hero (Classic)</option>
-                <option value="chat" ${curDesign === 'chat' ? 'selected' : ''}>💬 Chat Messenger (Classic)</option>
-                <option value="pocket" ${curDesign === 'pocket' ? 'selected' : ''}>💳 Pocket Card (Classic)</option>
-                <option value="classic" ${curDesign === 'classic' ? 'selected' : ''}>📊 Full Dashboard (Classic)</option>
-              </select>
+              <span class="spec-muted-sm">${ctx.state.recurringRules.length} active ›</span>
             </div>
           </div>
         </div>
@@ -2322,8 +2400,8 @@ export function createSpecController(ctx) {
           <div class="spec-card spec-settings-card">
             <div class="spec-setting-row">
               <div>
-                <strong>Input style</strong>
-                <div class="spec-muted-sm">Keypad shows ₹5 numeric pad instead of keyboard</div>
+                <strong>Input</strong>
+                <div class="spec-muted-sm">Keyboard typing vs numeric keypad</div>
               </div>
               <div class="spec-pill-switch">
                 <button type="button" class="${curInputStyle === 'keyboard' ? 'active' : ''}" data-set-input="keyboard">Keyboard</button>
@@ -2333,7 +2411,7 @@ export function createSpecController(ctx) {
 
             <div class="spec-setting-row">
               <div>
-                <strong>Default payment mode</strong>
+                <strong>Default payment</strong>
                 <div class="spec-muted-sm">Used when you don't type one</div>
               </div>
               <select id="spec-set-default-pay" class="spec-select">
@@ -2347,35 +2425,9 @@ export function createSpecController(ctx) {
             <div class="spec-setting-row">
               <div>
                 <strong>Open straight to Add</strong>
-                <div class="spec-muted-sm">App launches directly into the Add palette with keyboard open</div>
+                <div class="spec-muted-sm">Launches directly into Add with keyboard open</div>
               </div>
               <input type="checkbox" id="spec-set-open-add" class="spec-ios-switch" ${settings.openToAdd !== false ? 'checked' : ''} />
-            </div>
-
-            <div class="spec-setting-row">
-              <div><strong>Usuals on empty palette</strong></div>
-              <select id="spec-set-usuals-cnt" class="spec-select">
-                <option value="4" ${Number(settings.usualsCount) === 4 ? 'selected' : ''}>4</option>
-                <option value="6" ${Number(settings.usualsCount || 6) === 6 ? 'selected' : ''}>6</option>
-                <option value="8" ${Number(settings.usualsCount) === 8 ? 'selected' : ''}>8</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div class="spec-settings-group">
-          <div class="spec-section-kicker">BUDGET</div>
-          <div class="spec-card spec-settings-card">
-            <div class="spec-setting-row">
-              <div><strong>Monthly budget (₹)</strong></div>
-              <input type="number" id="spec-set-budget" class="spec-inline-num" value="${Number(settings.monthlyBudget) || 30000}" step="500" />
-            </div>
-            <div class="spec-setting-row" id="spec-open-recurring-modal" style="cursor:pointer">
-              <div>
-                <strong>Recurring & Credit Card Cycle</strong>
-                <div class="spec-muted-sm">WiFi, Netflix, Rent & CC statement reminders</div>
-              </div>
-              <span class="spec-muted-sm">${ctx.state.recurringRules.length} ›</span>
             </div>
           </div>
         </div>
@@ -2384,58 +2436,77 @@ export function createSpecController(ctx) {
           <div class="spec-section-kicker">LOOK</div>
           <div class="spec-card spec-settings-card">
             <div class="spec-setting-row">
-              <div>
-                <strong>Home screen density</strong>
-                <div class="spec-muted-sm">1-line collapsible accordions vs all cards open</div>
-              </div>
+              <div><strong>Theme</strong></div>
               <div class="spec-pill-switch">
-                <button type="button" class="${settings.homeStyle !== 'expanded' ? 'active' : ''}" data-set-homestyle="accordions">Accordions</button>
-                <button type="button" class="${settings.homeStyle === 'expanded' ? 'active' : ''}" data-set-homestyle="expanded">Expanded</button>
+                <button type="button" class="${curTheme === 'clean' ? 'active' : ''}" data-set-theme="clean">Light</button>
+                <button type="button" class="${curTheme === 'dark' ? 'active' : ''}" data-set-theme="dark">Dark</button>
+                <button type="button" class="${curTheme === 'receipt' ? 'active' : ''}" data-set-theme="receipt">Receipt</button>
               </div>
             </div>
             <div class="spec-setting-row">
-              <div><strong>Theme</strong></div>
+              <div>
+                <strong>Home screen density</strong>
+                <div class="spec-muted-sm">Collapsible Yesterday/Earlier vs all open</div>
+              </div>
               <div class="spec-pill-switch">
-                <button type="button" class="${curTheme === 'clean' ? 'active' : ''}" data-set-theme="clean">Clean</button>
-                <button type="button" class="${curTheme === 'receipt' ? 'active' : ''}" data-set-theme="receipt">Receipt</button>
-                <button type="button" class="${curTheme === 'dark' ? 'active' : ''}" data-set-theme="dark">Dark</button>
+                <button type="button" class="${settings.homeStyle !== 'expanded' ? 'active' : ''}" data-set-homestyle="accordions">Compact</button>
+                <button type="button" class="${settings.homeStyle === 'expanded' ? 'active' : ''}" data-set-homestyle="expanded">Expanded</button>
               </div>
             </div>
             <div class="spec-setting-row">
               <div><strong>Show monthly recap card on Home</strong></div>
               <input type="checkbox" id="spec-set-recap-card" class="spec-ios-switch" ${settings.recapCard !== false ? 'checked' : ''} />
             </div>
-            <div class="spec-setting-row">
-              <div><strong>Always show tables instead of charts</strong></div>
-              <input type="checkbox" id="spec-set-always-tables" class="spec-ios-switch" ${settings.alwaysTables ? 'checked' : ''} />
+          </div>
+        </div>
+
+        <div class="spec-settings-group">
+          <div class="spec-section-kicker">DATA</div>
+          <div class="spec-card spec-settings-card">
+            <div class="spec-setting-row" id="spec-open-cloud-sync" style="cursor:pointer">
+              <div>
+                <strong>Google Sheets</strong>
+                <div class="spec-muted-sm">${settings.webhookUrl ? '2-way cloud backup active' : 'Optional free cloud backup'}</div>
+              </div>
+              <span class="spec-muted-sm" style="display:inline-flex;align-items:center;gap:6px">
+                <i class="spec-status-dot ${settings.webhookUrl ? 'is-on' : ''}"></i>
+                ${settings.webhookUrl ? 'Synced ›' : 'Set up ›'}
+              </span>
+            </div>
+            <div class="spec-setting-row" id="spec-export-all-csv" style="cursor:pointer">
+              <div>
+                <strong>Export CSV / Backup</strong>
+                <div class="spec-muted-sm">${learnedCount} learned category keywords active</div>
+              </div>
+              <span>›</span>
+            </div>
+            <div class="spec-setting-row" id="spec-seed-demo-settings" style="cursor:pointer">
+              <div>
+                <strong>Load sample data</strong>
+                <div class="spec-muted-sm">Populate sample entries to preview all charts</div>
+              </div>
+              <span>✨</span>
             </div>
           </div>
         </div>
 
         <div class="spec-settings-group">
-          <div class="spec-section-kicker">ANDROID APP, WIDGET &amp; OTA</div>
+          <div class="spec-section-kicker">ANDROID APP &amp; WIDGET</div>
           <div class="spec-card spec-settings-card">
             <div class="spec-setting-row" id="spec-open-widget-sim" style="cursor:pointer">
               <div>
-                <strong>📱 Preview Android Home Screen Widget</strong>
-                <div class="spec-muted-sm">Test the 4×2 live widget &amp; 0ms floating Quick-Add sheet right here</div>
+                <strong>📱 Preview Android Home Widget</strong>
+                <div class="spec-muted-sm">Test the 4×2 live widget &amp; floating Quick-Add</div>
               </div>
               <span>▶</span>
             </div>
-            <div class="spec-setting-row" id="spec-open-floating-qa" style="cursor:pointer">
-              <div>
-                <strong>⚡ Test Floating Quick-Add Popup</strong>
-                <div class="spec-muted-sm">Opens the instant overlay sheet without loading the full app</div>
-              </div>
-              <span>+</span>
-            </div>
             <div class="spec-setting-row" id="spec-check-ota-btn" style="cursor:pointer">
               <div>
-                <strong>↻ Push-to-Publish OTA Update</strong>
+                <strong>↻ Check for OTA Update</strong>
                 <div class="spec-muted-sm" id="spec-ota-status-line">${
                   getOtaMeta()?.sha
-                    ? `Live build ${esc(getOtaMeta().sha)} · Tap to pull latest GitHub push`
-                    : 'Pulls latest GitHub main code without reinstalling APK'
+                    ? `Live build ${esc(getOtaMeta().sha)} · Tap to pull latest`
+                    : 'Pulls latest GitHub main update'
                 }</div>
               </div>
               <span>↻</span>
@@ -2448,41 +2519,17 @@ export function createSpecController(ctx) {
               style="text-decoration:none; color:inherit;"
             >
               <div>
-                <strong>📦 Download Android APK (~2.2 MB)</strong>
-                <div class="spec-muted-sm">Auto-compiled on GitHub Actions from your main branch</div>
+                <strong>📦 Download Android APK</strong>
+                <div class="spec-muted-sm">Install on your phone</div>
               </div>
               <span>⬇</span>
             </a>
           </div>
-        </div>
-
-        <div class="spec-settings-group">
-          <div class="spec-section-kicker">DATA &amp; BACKUP</div>
-          <div class="spec-card spec-settings-card">
-            <div class="spec-setting-row" id="spec-open-cloud-sync" style="cursor:pointer">
-              <div>
-                <strong>Google Sheets backup &amp; sync</strong>
-                <div class="spec-muted-sm">${settings.webhookUrl ? '● Connected — tap to sync or configure' : 'Optional cloud backup — tap to setup'}</div>
-              </div>
-              <span>›</span>
-            </div>
-            <div class="spec-setting-row" id="spec-export-all-csv" style="cursor:pointer">
-              <div>
-                <strong>Export to CSV</strong>
-                <div class="spec-muted-sm">${learnedCount} learned category keywords active</div>
-              </div>
-              <span>⬇</span>
-            </div>
-            <div class="spec-setting-row" id="spec-seed-demo-settings" style="cursor:pointer">
-              <div>
-                <strong>Load realistic sample data (from mockups)</strong>
-                <div class="spec-muted-sm">Populate November &amp; October entries + #goa trip to preview all charts</div>
-              </div>
-              <span>✨</span>
-            </div>
-          </div>
           <p class="spec-settings-footer">Stored on this device · ${expenses.length} entries</p>
         </div>
+      </div>
+      <div class="spec-midnight-dock">
+        ${renderMidnightBottomNav('settings')}
       </div>
     `;
 
@@ -2674,7 +2721,7 @@ export function createSpecController(ctx) {
       // Only rebuild Home DOM if data, month, or theme changed; otherwise reveal cached DOM in <0.5ms!
       const topId = expenses[0]?.id || '';
       const topUpd = expenses[0]?.updatedAt || 0;
-      const homeSig = `${expenses.length}:${topId}:${topUpd}:${spanComp.curTotal}:${settings.monthlyBudget}:${settings.theme}:${settings.homeStyle}:${settings.recapCard}:${ctx.state.selectedYear}-${ctx.state.selectedMonth}`;
+      const homeSig = `${expenses.length}:${topId}:${topUpd}:${spanComp.curTotal}:${settings.monthlyBudget}:${settings.userName || ''}:${settings.theme}:${settings.homeStyle}:${settings.recapCard}:${ctx.state.selectedYear}-${ctx.state.selectedMonth}`;
       if (homeSig !== lastHomeSignature || !views.home.firstElementChild) {
         renderHomeScreen(views.home, expenses, settings, spanComp);
         lastHomeSignature = homeSig;

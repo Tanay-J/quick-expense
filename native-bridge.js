@@ -13,9 +13,9 @@ import {
   getCategoryById,
   getPaymentMethodById,
   toLocalISODate
-} from './parser.js?v=18';
-import { normalizeEntryType } from './sync.js?v=18';
-import { computeSameSpanComparison, computeUsuals } from './insights.js?v=18';
+} from './parser.js?v=22';
+import { normalizeEntryType } from './sync.js?v=22';
+import { computeSameSpanComparison, computeUsuals } from './insights.js?v=22';
 
 export const WIDGET_SNAPSHOT_KEY = 'qe_widget_snapshot_v1';
 export const WIDGET_PENDING_QUEUE_KEY = 'qe_widget_pending_adds_v1';
@@ -661,7 +661,7 @@ function renderWidgetSimulatorIfOpen(snap, prefillText = '') {
               <div class="dnw-pace-tick" style="left:${snap?.tickPct || 50}%"></div>
             </div>
             <div class="dnw-pace-meta">
-              <span>₹${Number(snap?.leftAmt ?? 30000).toLocaleString('en-IN')} left (₹${Number(snap?.perDayAllowance || 1000).toLocaleString('en-IN')}/d)</span>
+              <span>₹${Number(snap?.leftAmt ?? 30000).toLocaleString('en-IN')} left of ₹${Number(snap?.budget ?? 30000).toLocaleString('en-IN')}</span>
               <span class="${snap?.isOverPace ? 'is-over' : 'is-under'}">${snap?.paceLabel || 'On pace'}</span>
             </div>
           </div>

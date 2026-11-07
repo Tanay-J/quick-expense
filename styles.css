@@ -4362,17 +4362,21 @@ body[data-design="spec"] .app-main {
 }
 
 body[data-design="spec"] {
-  --spec-bg: #f5f5f3;
-  --spec-card: #ffffff;
-  --spec-ink: #0b0b0b;
-  --spec-ink-2: #52514e;
-  --spec-muted: #898781;
-  --spec-hairline: #ecebe6;
-  --spec-axis: #c3c2b7;
-  --spec-primary: #111111;
-  --spec-good: #006300;
-  --spec-bad: #d03b3b;
-  --spec-warn: #8a5a00;
+  --spec-bg: #0b1120;
+  --spec-card: #131c2e;
+  --spec-surface-2: #1b2740;
+  --spec-ink: #e8edf5;
+  --spec-ink-2: #b8c4d6;
+  --spec-muted: #8b98ad;
+  --spec-hairline: #22304a;
+  --spec-axis: #334155;
+  --spec-primary: #10b981;
+  --spec-primary-ink: #04130d;
+  --spec-accent-soft: rgba(16, 185, 129, 0.15);
+  --spec-good: #10b981;
+  --spec-bad: #f87171;
+  --spec-warn: #fbbf24;
+  color-scheme: dark;
   background: var(--spec-bg);
   color: var(--spec-ink);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif;
@@ -4380,26 +4384,50 @@ body[data-design="spec"] {
 }
 
 body[data-design="spec"][data-theme="dark"] {
-  --spec-bg: #0b0f17;
-  --spec-card: #151c28;
-  --spec-ink: #f8fafc;
-  --spec-ink-2: #cbd5e1;
-  --spec-muted: #64748b;
-  --spec-hairline: #1e293b;
+  --spec-bg: #0b1120;
+  --spec-card: #131c2e;
+  --spec-surface-2: #1b2740;
+  --spec-ink: #e8edf5;
+  --spec-ink-2: #b8c4d6;
+  --spec-muted: #8b98ad;
+  --spec-hairline: #22304a;
   --spec-axis: #334155;
   --spec-primary: #10b981;
-  --spec-good: #34d399;
+  --spec-primary-ink: #04130d;
+  --spec-accent-soft: rgba(16, 185, 129, 0.15);
+  --spec-good: #10b981;
   --spec-bad: #f87171;
   --spec-warn: #fbbf24;
+  color-scheme: dark;
+}
+
+body[data-design="spec"][data-theme="clean"] {
+  --spec-bg: #f6f6f3;
+  --spec-card: #ffffff;
+  --spec-surface-2: #efefea;
+  --spec-ink: #111111;
+  --spec-ink-2: #52514e;
+  --spec-muted: #767570;
+  --spec-hairline: #e6e5df;
+  --spec-axis: #c3c2b7;
+  --spec-primary: #10b981;
+  --spec-primary-ink: #04130d;
+  --spec-accent-soft: rgba(16, 185, 129, 0.12);
+  --spec-good: #059669;
+  --spec-bad: #dc2626;
+  --spec-warn: #d97706;
+  color-scheme: light;
 }
 
 body[data-design="spec"][data-theme="receipt"] {
   --spec-bg: #ece5d8;
   --spec-card: #fffdf8;
+  --spec-surface-2: #f3ecde;
   --spec-ink: #1a1815;
   --spec-ink-2: #57524a;
   --spec-muted: #857e72;
   --spec-hairline: #dfd6c7;
+  color-scheme: light;
 }
 
 .spec-app-root {
@@ -4407,7 +4435,7 @@ body[data-design="spec"][data-theme="receipt"] {
   width: 100%;
   display: flex;
   justify-content: center;
-  padding: 0 0.75rem 6.5rem;
+  padding: 0 0.75rem 9.25rem;
 }
 
 .spec-phone-container {
@@ -6802,3 +6830,709 @@ textarea {
   font-size: 0.8rem;
   color: var(--spec-muted);
 }
+
+/* ==========================================================================
+   V22: B · MIDNIGHT DARK THEME ACROSS ALL 8 SCREENS
+   Tokens: bg #0b1120 · card #131c2e · surface-2 #1b2740 · ink #e8edf5
+   muted #8b98ad · hairline #22304a · emerald #10b981
+   ========================================================================== */
+
+/* 1. Welcome / Name Gate Dialog (Screen 1) */
+#name-gate-dialog {
+  max-width: 390px;
+  width: 92vw;
+  border-radius: 26px;
+  border: 1px solid var(--spec-hairline, #22304a);
+  background: var(--spec-bg, #0b1120);
+  color: var(--spec-ink, #e8edf5);
+  padding: 0;
+  box-shadow: 0 28px 68px rgba(0, 0, 0, 0.65);
+}
+
+.spec-welcome-dialog-content {
+  padding: 1.75rem 1.45rem 1.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.05rem;
+  background: var(--spec-bg, #0b1120);
+  color: var(--spec-ink, #e8edf5);
+}
+
+.spec-welcome-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--spec-primary, #10b981);
+  color: var(--spec-primary-ink, #04130d);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.28);
+}
+
+.spec-welcome-title {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--spec-ink, #e8edf5);
+}
+
+.spec-welcome-lead {
+  margin: -0.35rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--spec-muted, #8b98ad);
+}
+
+.spec-welcome-demo {
+  background: var(--spec-card, #131c2e);
+  border: 1px solid var(--spec-hairline, #22304a);
+  border-radius: 18px;
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.spec-welcome-bubble {
+  align-self: flex-end;
+  background: var(--spec-primary, #10b981);
+  color: var(--spec-primary-ink, #04130d);
+  padding: 0.45rem 0.8rem;
+  border-radius: 14px 14px 4px 14px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.spec-welcome-parsed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+}
+
+.spec-welcome-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: var(--spec-surface-2, #1b2740);
+  color: var(--spec-ink, #e8edf5);
+  border: 1px solid var(--spec-hairline, #22304a);
+}
+
+.spec-welcome-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.spec-welcome-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--spec-muted, #8b98ad);
+}
+
+.spec-welcome-input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0.65rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid var(--spec-hairline, #22304a);
+  background: var(--spec-card, #131c2e);
+  color: var(--spec-ink, #e8edf5);
+  font-size: 0.95rem;
+  font-weight: 600;
+  outline: none;
+}
+
+.spec-welcome-input:focus {
+  border-color: var(--spec-primary, #10b981);
+}
+
+.spec-welcome-cta {
+  margin-top: 0.25rem;
+  min-height: 48px;
+  border-radius: 14px;
+  border: none;
+  background: var(--spec-primary, #10b981);
+  color: var(--spec-primary-ink, #04130d);
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* 2. Top Header & Icon Buttons (Screen 2, 5, 6, 8) */
+.spec-midnight-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.15rem 0 0.2rem;
+}
+
+.spec-hdr-date {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--spec-muted);
+}
+
+.spec-hdr-greeting {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--spec-ink);
+  margin-top: 1px;
+}
+
+.spec-circle-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 3. Home Hero Card with Budget Conic Ring & Stacked Bar (Screen 2) */
+.spec-midnight-hero {
+  background: var(--spec-card);
+  border: 1px solid var(--spec-hairline);
+  border-radius: 18px;
+  padding: 1rem 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.spec-midnight-hero:hover {
+  border-color: var(--spec-axis);
+}
+
+.spec-budget-ring {
+  --p: 48;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: conic-gradient(var(--spec-primary) calc(var(--p) * 1%), var(--spec-hairline) 0);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.spec-budget-ring.is-warn {
+  background: conic-gradient(var(--spec-warn) calc(var(--p) * 1%), var(--spec-hairline) 0);
+}
+
+.spec-budget-ring span {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--spec-card);
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--spec-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.spec-midnight-hero-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.spec-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--spec-muted);
+}
+
+.spec-midnight-hero-amt {
+  font-size: clamp(1.85rem, 6.5vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.06;
+  color: var(--spec-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.spec-midnight-hero-sub {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--spec-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stacked Category Bar & Legend */
+.spec-midnight-stack-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  cursor: pointer;
+}
+
+.spec-midnight-stack {
+  display: flex;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  gap: 2px;
+  background: var(--spec-hairline);
+}
+
+.spec-midnight-stack i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.spec-midnight-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  font-size: 0.73rem;
+  color: var(--spec-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.spec-midnight-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.spec-midnight-legend b {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Day Feed Cards & Entries */
+.spec-day-card {
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.spec-day-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.spec-day-card-sum {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--spec-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.spec-day-card-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.spec-entry-icon {
+  background: var(--spec-surface-2) !important;
+  border: 1px solid var(--spec-hairline);
+}
+
+.spec-entry-amt.is-inc {
+  color: var(--spec-good) !important;
+}
+
+/* 4. Bottom Dock: Composer + 4-Tab Bar (Home, History, Stats, Settings) */
+.spec-midnight-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(11, 17, 32, 0) 0%, var(--spec-bg) 28%, var(--spec-bg) 100%);
+  pointer-events: none;
+}
+
+.spec-midnight-composer {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 440px;
+  height: 48px;
+  border-radius: 999px;
+  background: var(--spec-card);
+  border: 1px solid var(--spec-hairline);
+  color: var(--spec-muted);
+  padding: 0 0.4rem 0 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+  transition: transform 0.12s ease, border-color 0.15s ease;
+}
+
+.spec-midnight-composer:hover {
+  border-color: var(--spec-primary);
+}
+
+.spec-composer-placeholder {
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--spec-muted);
+}
+
+.spec-composer-plus {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--spec-primary);
+  color: var(--spec-primary-ink);
+  font-size: 1.2rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spec-midnight-tabbar {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 440px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--spec-card);
+  border: 1px solid var(--spec-hairline);
+  border-radius: 16px;
+  padding: 0.35rem 0.25rem;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.spec-tabbar-item {
+  border: none;
+  background: transparent;
+  color: var(--spec-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.3rem 0.2rem;
+  border-radius: 11px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.spec-tabbar-item svg {
+  width: 19px;
+  height: 19px;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.spec-tabbar-item.is-active {
+  color: var(--spec-primary);
+  background: var(--spec-accent-soft);
+  font-weight: 700;
+}
+
+/* 5. Add Overlay (Screen 3) */
+.spec-add-sheet {
+  justify-content: flex-start;
+  gap: 0.9rem;
+}
+
+.spec-add-top-bar {
+  width: 100%;
+}
+
+.spec-add-input-pill {
+  background: var(--spec-card);
+  border: 2px solid var(--spec-primary);
+  border-radius: 14px;
+  padding: 0.35rem 0.45rem 0.35rem 0.9rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.spec-return-btn {
+  min-height: 34px;
+  padding: 0.3rem 0.85rem;
+  border-radius: 10px;
+  border: none;
+  background: var(--spec-primary);
+  color: var(--spec-primary-ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.spec-midnight-preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.spec-preview-chip {
+  background: var(--spec-surface-2);
+  border-color: var(--spec-hairline);
+  color: var(--spec-ink);
+}
+
+.spec-midnight-hist-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.spec-midnight-hist-chip {
+  padding: 0.42rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--spec-hairline);
+  background: var(--spec-surface-2);
+  color: var(--spec-ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.spec-midnight-hist-chip:hover {
+  border-color: var(--spec-primary);
+}
+
+.spec-midnight-hist-chip span {
+  color: var(--spec-muted);
+  font-weight: 500;
+}
+
+.spec-kp-submit-btn,
+.spec-btn-primary {
+  background: var(--spec-primary);
+  color: var(--spec-primary-ink);
+  font-weight: 700;
+}
+
+.spec-kp-usual-chip.active,
+.spec-group-pill.active {
+  background: var(--spec-primary);
+  color: var(--spec-primary-ink);
+  border-color: var(--spec-primary);
+}
+
+/* 6. History Filter Chips & Search Bar (Screen 5) */
+.spec-search-ico {
+  display: inline-flex;
+  align-items: center;
+  color: var(--spec-muted);
+}
+
+.spec-search-ico svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.spec-midnight-filter-chips {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+}
+
+.spec-filter-chip {
+  flex-shrink: 0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--spec-hairline);
+  background: var(--spec-surface-2);
+  color: var(--spec-ink);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.spec-filter-chip.is-on {
+  background: var(--spec-primary);
+  color: var(--spec-primary-ink);
+  border-color: var(--spec-primary);
+  font-weight: 700;
+}
+
+/* 7. Stats 7-Day Bar Chart & Emerald Callout (Screen 6) */
+.spec-midnight-week-bars {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.45rem;
+  height: 92px;
+  padding-top: 0.35rem;
+}
+
+.spec-midnight-wbar {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.3rem;
+}
+
+.spec-midnight-wbar span {
+  width: 100%;
+  max-width: 28px;
+  border-radius: 5px;
+  background: var(--spec-surface-2);
+  min-height: 6px;
+}
+
+.spec-midnight-wbar.is-on span {
+  background: var(--spec-primary);
+}
+
+.spec-midnight-wbar b {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--spec-muted);
+}
+
+.spec-midnight-insight {
+  border-color: rgba(16, 185, 129, 0.32);
+  background: var(--spec-accent-soft);
+}
+
+.spec-line-swatch.is-emerald {
+  background: var(--spec-primary);
+}
+
+.spec-vbar-fill {
+  background: var(--spec-surface-2);
+}
+
+.spec-vbar-col.is-highlight .spec-vbar-fill {
+  background: var(--spec-primary);
+}
+
+/* 8. Settings Profile & Rows (Screen 8) */
+.spec-midnight-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.spec-midnight-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--spec-primary);
+  color: var(--spec-primary-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.spec-midnight-profile-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.spec-midnight-name-input {
+  border: none;
+  background: transparent;
+  color: var(--spec-ink);
+  font-size: 0.98rem;
+  font-weight: 700;
+  padding: 0;
+  outline: none;
+  width: 100%;
+}
+
+.spec-midnight-name-input:focus {
+  border-bottom: 1px solid var(--spec-primary);
+}
+
+.spec-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--spec-muted);
+  margin-right: 4px;
+}
+
+.spec-status-dot.is-good {
+  background: var(--spec-good);
+  box-shadow: 0 0 8px var(--spec-good);
+}
+
+.spec-ios-switch {
+  accent-color: var(--spec-primary);
+}
+
+/* 9. Edit Sheet & Monthly Wrapped Story Modal in Midnight Theme (Screen 4 & 7) */
+#edit-dialog {
+  background: var(--spec-card, #131c2e);
+  color: var(--spec-ink, #e8edf5);
+  border: 1px solid var(--spec-hairline, #22304a);
+  border-radius: 22px;
+}
+
+#edit-dialog .modal-content {
+  background: var(--spec-card, #131c2e);
+  color: var(--spec-ink, #e8edf5);
+}
+
+#edit-dialog input,
+#edit-dialog select {
+  background: var(--spec-surface-2, #1b2740);
+  border-color: var(--spec-hairline, #22304a);
+  color: var(--spec-ink, #e8edf5);
+}
+
+#edit-dialog .edit-cat-grid-btn.active,
+#edit-dialog .edit-pay-pill-btn.active {
+  background: var(--spec-primary, #10b981);
+  color: var(--spec-primary-ink, #04130d);
+  border-color: var(--spec-primary, #10b981);
+}
+
+.story-dialog,
+.spec-recap-home-card {
+  background: radial-gradient(circle at 30% 10%, #134e4a, #0b1120 75%) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+}
+

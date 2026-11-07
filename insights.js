@@ -4,8 +4,8 @@ import {
   getPaymentMethodById,
   PAYMENT_METHODS,
   toLocalISODate
-} from './parser.js?v=16';
-import { normalizeEntryType, normalizePaymentMethod, normalizeTags } from './sync.js?v=16';
+} from './parser.js?v=22';
+import { normalizeEntryType, normalizePaymentMethod, normalizeTags } from './sync.js?v=22';
 
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FULL_MONTHS = [
@@ -1004,21 +1004,20 @@ export function computeFunFacts(expenses, periodExpenses, spanComp, monthlyBudge
   if (monthlyBudget > 0 && spanComp) {
     const proj = Math.round((totalSpend / Math.max(1, spanComp.elapsedDay)) * spanComp.daysInCurMonth);
     const diff = proj - monthlyBudget;
-    const remDays = Math.max(1, spanComp.daysInCurMonth - spanComp.elapsedDay + 1);
-    const safeDaily = Math.max(0, Math.round((monthlyBudget - totalSpend) / remDays));
+    const remBudget = Math.max(0, monthlyBudget - totalSpend);
     if (diff > 0) {
       facts.push({
         id: 'pace',
         icon: '🎯',
         title: `On track for ${formatCurrency(proj)}`,
-        body: `${formatCurrency(diff)} over budget pace. Keep it to ${formatCurrency(safeDaily)}/day to finish on budget.`
+        body: `${formatCurrency(diff)} over budget pace · ${formatCurrency(remBudget)} left of ${formatCurrency(monthlyBudget)}.`
       });
     } else {
       facts.push({
         id: 'pace',
         icon: '✅',
         title: `On track for ${formatCurrency(proj)}`,
-        body: `${formatCurrency(Math.abs(diff))} under your ${formatCurrency(monthlyBudget)} budget. Allowance: ${formatCurrency(safeDaily)}/day.`
+        body: `${formatCurrency(Math.abs(diff))} under your ${formatCurrency(monthlyBudget)} budget · ${formatCurrency(remBudget)} remaining.`
       });
     }
   }

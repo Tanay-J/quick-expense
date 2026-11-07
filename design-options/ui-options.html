@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>DropSpend — UI/UX Redesign Options</title>
+<style>
+@layer base, gallery, theme, components;
+
+/* ---------- base ---------- */
+@layer base {
+  html { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1d1d1f; background: #ecebe7; }
+  body { margin: 0; }
+  h1, h2, h3, p, ul, figure { margin: 0; }
+  ul { padding: 0; list-style: none; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  svg { display: block; }
+}
+
+/* ---------- gallery chrome (the page around the phones) ---------- */
+@layer gallery {
+  .top {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; justify-content: space-between;
+    padding: 16px 32px; background: rgb(236 235 231 / 0.9); backdrop-filter: blur(12px);
+    border-block-end: 1px solid #d9d7d0;
+
+    h1 { font-size: 20px; letter-spacing: -0.01em; }
+    p { color: #6b6a65; font-size: 13px; margin-block-start: 2px; }
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+  .seg {
+    display: inline-flex; gap: 2px; padding: 3px; margin: 0; border: 0; border-radius: 12px; background: #dcdad3;
+    legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    label {
+      padding: 7px 12px; border-radius: 9px; font-size: 13px; font-weight: 500; color: #55544f; cursor: pointer; white-space: nowrap;
+      &:has(:checked) { background: #fff; color: #111; box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); }
+      &:has(:focus-visible) { outline: 2px solid #2f6f4f; outline-offset: 1px; }
+    }
+    input { position: absolute; opacity: 0; pointer-events: none; }
+    &[hidden] { display: none; }
+  }
+
+  .intro {
+    max-width: 1180px; margin: 28px auto 0; padding: 0 32px;
+    display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px;
+    @media (width < 900px) { grid-template-columns: 1fr; }
+  }
+  .intro-card {
+    background: #fff; border-radius: 20px; padding: 22px 24px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+    h2 { font-size: 22px; letter-spacing: -0.02em; }
+    .tag { display: inline-block; margin-block: 6px 12px; padding: 3px 10px; border-radius: 99px; background: #f0efea; font-size: 12px; font-weight: 600; color: #55544f; }
+    p { font-size: 14px; line-height: 1.55; color: #3d3c39; }
+    ul { margin-block-start: 10px; display: grid; gap: 6px; }
+    li { font-size: 13.5px; line-height: 1.45; color: #3d3c39; padding-inline-start: 18px; position: relative; }
+    li::before { content: "→"; position: absolute; inset-inline-start: 0; color: #9a988f; }
+    .swatches { display: flex; gap: 6px; margin-block-start: 14px; }
+    .swatches span { width: 28px; height: 28px; border-radius: 8px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08); }
+  }
+
+  .gallery {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 44px 36px;
+    padding: 36px 32px 60px; max-width: 1600px; margin-inline: auto;
+  }
+  .shot {
+    width: 330px; display: grid; gap: 14px; align-content: start;
+    figcaption {
+      padding-inline: 6px;
+      h3 { font-size: 15px; display: flex; gap: 8px; align-items: baseline; }
+      h3 small { font-size: 11px; font-weight: 600; color: #8a887f; text-transform: uppercase; letter-spacing: 0.06em; }
+      p { font-size: 13px; line-height: 1.5; color: #55544f; margin-block-start: 4px; }
+    }
+  }
+  .phone {
+    width: 330px; height: 700px; padding: 10px; border-radius: 50px; background: #1a1a1a;
+    box-shadow: 0 30px 60px -20px rgb(0 0 0 / 0.35), inset 0 0 0 2px #3a3a3a;
+  }
+
+  .principles {
+    max-width: 1180px; margin: 0 auto 60px; padding: 0 32px;
+    h2 { font-size: 18px; margin-block-end: 12px; }
+    ol { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; counter-reset: p; }
+    li { background: #fff; border-radius: 16px; padding: 16px 18px; font-size: 13.5px; line-height: 1.5; color: #3d3c39; counter-increment: p; }
+    li::before { content: counter(p); display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #1d1d1f; color: #fff; font-size: 12px; font-weight: 700; margin-inline-end: 8px; }
+    b { color: #111; }
+  }
+}
+
+/* ---------- per-option design tokens ---------- */
+@layer theme {
+  .screen[data-opt="a"] { /* Calm Paper */
+    --bg: #f7f5f0; --surface: #ffffff; --surface-2: #f0ede6; --ink: #1c1b19; --muted: #8a857c; --line: #e8e4db;
+    --accent: #2f6f4f; --accent-ink: #ffffff; --accent-soft: #e3efe8; --danger: #b4432f;
+    --radius: 18px; --radius-sm: 12px;
+    --font: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --num-font: ui-serif, "New York", Georgia, serif;
+    --kbd-bg: #d3d1cb; --key: #fcfcfa; --shadow: 0 1px 2px rgb(40 30 10 / 0.06);
+  }
+  .screen[data-opt="b"] { /* Midnight */
+    color-scheme: dark;
+    --bg: #0b1120; --surface: #131c2e; --surface-2: #1b2740; --ink: #e8edf5; --muted: #8b98ad; --line: #22304a;
+    --accent: #10b981; --accent-ink: #04130d; --accent-soft: rgb(16 185 129 / 0.15); --danger: #f87171;
+    --radius: 20px; --radius-sm: 14px;
+    --font: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --num-font: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --kbd-bg: #1e2433; --key: #3a4256; --shadow: 0 0 0 1px var(--line);
+  }
+  .screen[data-opt="c"] { /* Playful */
+    --bg: #fff7ef; --surface: #ffffff; --surface-2: #f7eee6; --ink: #2a1f3d; --muted: #7c7191; --line: #f0e4d8;
+    --accent: #6d4aff; --accent-ink: #ffffff; --accent-soft: #ece7ff; --danger: #e5484d; --sun: #ffcf4a;
+    --radius: 26px; --radius-sm: 18px;
+    --font: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+    --num-font: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+    --kbd-bg: #f3e9df; --key: #ffffff; --shadow: 0 2px 0 var(--line);
+  }
+}
+
+/* ---------- shared app components ---------- */
+@layer components {
+  .screen {
+    position: relative; height: 100%; border-radius: 40px; overflow: hidden;
+    display: flex; flex-direction: column;
+    background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px;
+  }
+  .status { display: flex; justify-content: space-between; padding: 14px 26px 6px; font-size: 12.5px; font-weight: 600; flex: none; }
+  .scroll { flex: 1; overflow: hidden; padding: 6px 18px 16px; display: flex; flex-direction: column; gap: 14px; }
+  .num { font-family: var(--num-font); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .muted { color: var(--muted); }
+  .eyebrow { font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .big { font-size: 46px; font-weight: 600; line-height: 1.05; }
+  .screen[data-opt="a"] .big { font-weight: 500; font-size: 50px; }
+  .screen[data-opt="c"] .big { font-weight: 800; }
+
+  .hdr {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    h2 { font-size: 22px; letter-spacing: -0.02em; }
+    small { color: var(--muted); font-size: 12.5px; }
+  }
+  .hdr-title { display: flex; align-items: center; gap: 6px; }
+  .icon-btn { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--surface); display: grid; place-items: center; box-shadow: var(--shadow); }
+  .icon-btn svg { width: 19px; height: 19px; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--accent-soft); color: var(--accent); font-weight: 700; display: grid; place-items: center; }
+
+  .card { background: var(--surface); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+  .card-h { display: flex; justify-content: space-between; align-items: baseline; margin-block-end: 4px; font-size: 13px; }
+  .card-h b { font-weight: 650; }
+
+  .bar { height: 8px; border-radius: 99px; background: var(--line); position: relative; overflow: visible; }
+  .bar > span { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: inherit; background: var(--accent); }
+  .bar > i { position: absolute; inset-block: -4px; width: 2px; background: var(--ink); opacity: 0.5; border-radius: 2px; }
+
+  .group { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+  .list { display: grid; }
+  .row {
+    display: grid; grid-template-columns: 38px 1fr auto; gap: 12px; align-items: center; padding-block: 9px;
+    &:not(:last-child) { border-block-end: 1px solid var(--line); }
+    b { font-weight: 550; font-size: 14px; display: block; }
+    small { color: var(--muted); font-size: 12px; }
+    .amt { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .amt.inc { color: var(--accent); }
+  }
+  .ico { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 18px; background: color-mix(in oklab, var(--cat) 16%, var(--surface)); }
+  .screen[data-opt="a"] .ico { border-radius: 50%; background: var(--surface-2); }
+  .screen[data-opt="c"] .ico { border-radius: 14px; background: color-mix(in oklab, var(--cat) 24%, white); }
+
+  /* nav variants */
+  .tabbar {
+    flex: none; display: flex; justify-content: space-around; align-items: center;
+    padding: 8px 10px 22px; background: var(--surface); border-block-start: 1px solid var(--line);
+    a { display: grid; justify-items: center; gap: 3px; font-size: 10.5px; color: var(--muted); text-decoration: none; font-weight: 550; }
+    a svg { width: 22px; height: 22px; }
+    a.on { color: var(--ink); }
+    .plus { width: 52px; height: 52px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; margin-block-start: -26px; box-shadow: 0 8px 18px -6px color-mix(in oklab, var(--accent) 70%, transparent); }
+    .plus svg { width: 24px; height: 24px; }
+  }
+  .screen[data-opt="b"] .tabbar { background: var(--bg); padding-block-start: 6px; }
+  .pill {
+    position: absolute; inset-inline: 0; inset-block-end: 18px; margin-inline: auto; width: max-content;
+    display: flex; gap: 6px; align-items: center; padding: 6px; border-radius: 99px;
+    background: var(--ink); color: #fff; box-shadow: 0 12px 28px -8px rgb(42 31 61 / 0.5);
+    a { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; color: rgb(255 255 255 / 0.6); }
+    a.on { color: #fff; background: rgb(255 255 255 / 0.14); }
+    a svg { width: 21px; height: 21px; }
+    .plus { width: 54px; height: 46px; border-radius: 99px; background: var(--sun); color: var(--ink); }
+  }
+  .composer {
+    flex: none; margin: 0 14px 10px; display: flex; align-items: center; gap: 10px;
+    padding: 6px 6px 6px 18px; border-radius: 99px; background: var(--surface-2); color: var(--muted); font-size: 14.5px;
+    box-shadow: 0 0 0 1px var(--line);
+    span { flex: 1; }
+    button { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
+    button svg { width: 20px; height: 20px; }
+  }
+
+  /* chips */
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 99px;
+    background: var(--surface); box-shadow: 0 0 0 1px var(--line); font-size: 13px; font-weight: 550; white-space: nowrap;
+    &.on { background: var(--ink); color: var(--bg); box-shadow: none; }
+    &.soft { background: var(--accent-soft); color: var(--accent); box-shadow: none; }
+    small { color: var(--muted); font-weight: 500; }
+  }
+  .chips.scroll-x { flex-wrap: nowrap; overflow: hidden; }
+
+  .btn {
+    display: grid; place-items: center; height: 50px; border-radius: 16px; border: 0;
+    background: var(--accent); color: var(--accent-ink); font-weight: 650; font-size: 15px;
+    &.ghost { background: transparent; color: var(--danger); box-shadow: inset 0 0 0 1px var(--line); }
+    &.wide { width: 100%; }
+  }
+  .screen[data-opt="c"] .btn { border-radius: 99px; }
+
+  .field {
+    flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 48px; border-radius: 14px;
+    background: var(--surface); box-shadow: 0 0 0 1px var(--line); font-size: 15px;
+    svg { width: 18px; height: 18px; color: var(--muted); flex: none; }
+    .ph { color: var(--muted); }
+    .caret { display: inline-block; width: 2px; height: 1.1em; background: var(--accent); vertical-align: -3px; margin-inline-start: 1px; }
+  }
+
+  .seg-in { display: flex; padding: 3px; border-radius: 12px; background: var(--surface-2); }
+  .seg-in span { flex: 1; text-align: center; padding: 7px 4px; border-radius: 9px; font-size: 13px; font-weight: 550; color: var(--muted); }
+  .seg-in span.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(0 0 0 / 0.1); }
+  .screen[data-opt="b"] .seg-in span.on { background: var(--line); }
+
+  .switch { width: 44px; height: 26px; border-radius: 99px; background: var(--line); position: relative; flex: none; }
+  .switch::after { content: ""; position: absolute; inset-block-start: 3px; inset-inline-start: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.2); }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { inset-inline-start: 21px; }
+
+  /* home specifics */
+  .hero-a { padding-block: 10px 4px; display: grid; gap: 10px; }
+  .today-strip { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); font-size: 14px; }
+  .today-strip b { font-size: 17px; }
+
+  .hero-b { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+  .hero-b .big { font-size: 34px; }
+  .ring {
+    width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center;
+    background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--line) 0);
+    > div { width: 68px; height: 68px; border-radius: 50%; background: var(--surface); display: grid; place-content: center; text-align: center; }
+    b { font-size: 17px; }
+    small { font-size: 9.5px; color: var(--muted); }
+  }
+  .stack { display: flex; height: 10px; border-radius: 99px; overflow: hidden; gap: 2px; }
+  .stack span { background: var(--c); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--muted); }
+  .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-inline-end: 5px; }
+
+  .hero-c {
+    border-radius: var(--radius); padding: 18px 18px 16px; color: #fff; display: grid; gap: 8px;
+    background: linear-gradient(135deg, #6d4aff, #a855f7 70%, #ec4899);
+    box-shadow: 0 14px 30px -14px #6d4aff;
+    small { opacity: 0.85; font-size: 12.5px; font-weight: 600; }
+    p { font-size: 12.5px; opacity: 0.9; }
+    .bar { background: rgb(255 255 255 / 0.25); }
+    .bar > span { background: #fff; }
+  }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .tile {
+    border-radius: 18px; padding: 10px 6px 9px; display: grid; justify-items: center; gap: 2px; text-align: center;
+    background: color-mix(in oklab, var(--cat) 20%, white);
+    .e { font-size: 20px; }
+    b { font-size: 12px; }
+    small { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+    &.on { box-shadow: inset 0 0 0 2px var(--cat); }
+  }
+
+  /* add screen */
+  .sheet-top { display: flex; justify-content: space-between; align-items: center; }
+  .sheet-top h2 { font-size: 17px; }
+  .preview {
+    display: grid; gap: 12px;
+    .p-amt { font-size: 40px; font-weight: 650; }
+  }
+  .screen[data-opt="a"] .preview .p-amt { font-weight: 500; }
+  .kbd { flex: none; background: var(--kbd-bg); padding: 8px 4px 24px; display: grid; gap: 8px; }
+  .kbd-row { display: flex; justify-content: center; gap: 5px; }
+  .key { width: 25px; height: 36px; border-radius: 6px; background: var(--key); display: grid; place-items: center; font-size: 14px; box-shadow: 0 1px 0 rgb(0 0 0 / 0.2); }
+  .key.wide { width: 140px; font-size: 12px; color: var(--muted); }
+  .key.mid { width: 40px; font-size: 12px; }
+  .keypad { flex: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px 14px 22px; }
+  .keypad span:not(.btn) { height: 46px; border-radius: 16px; background: var(--surface); display: grid; place-items: center; font-size: 20px; font-weight: 650; box-shadow: var(--shadow); }
+  .amount-display { text-align: center; padding-block: 4px; }
+  .amount-display .num { font-size: 52px; font-weight: 800; }
+  .amount-display .note { display: inline-flex; gap: 6px; padding: 6px 14px; border-radius: 99px; background: var(--surface); font-size: 13.5px; color: var(--muted); box-shadow: 0 0 0 1px var(--line); }
+
+  /* edit sheet */
+  .backdrop { position: absolute; inset: 0; background: rgb(0 0 0 / 0.35); }
+  .faux { padding: 50px 18px; display: grid; gap: 12px; opacity: 0.5; }
+  .faux i { display: block; height: 14px; border-radius: 6px; background: var(--line); }
+  .bsheet {
+    position: absolute; inset-inline: 0; inset-block-end: 0; padding: 10px 18px 26px;
+    background: var(--surface); border-start-start-radius: 28px; border-start-end-radius: 28px;
+    display: grid; gap: 14px;
+  }
+  .screen[data-opt="b"] .bsheet { background: var(--surface); box-shadow: 0 -1px 0 var(--line); }
+  .grab { width: 40px; height: 5px; border-radius: 99px; background: var(--line); justify-self: center; }
+  .cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .cat-grid span {
+    display: grid; justify-items: center; gap: 2px; padding: 8px 2px; border-radius: 14px; font-size: 11px; font-weight: 550;
+    background: var(--surface-2); color: var(--muted);
+    em { font-style: normal; font-size: 18px; }
+    &.on { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+  }
+  .kv { display: flex; justify-content: space-between; align-items: center; font-size: 14px; gap: 12px; }
+  .kv small { color: var(--muted); display: block; font-size: 12px; }
+
+  /* stats */
+  .bars { display: flex; align-items: end; gap: 10px; height: 110px; padding-block-start: 6px; }
+  .bars div { flex: 1; display: grid; gap: 6px; justify-items: center; align-content: end; height: 100%; font-size: 10.5px; color: var(--muted); }
+  .bars span { width: 100%; border-radius: 8px 8px 4px 4px; background: color-mix(in oklab, var(--accent) 35%, var(--surface-2)); }
+  .bars div.on span { background: var(--accent); }
+  .bars div.on { color: var(--ink); font-weight: 650; }
+  .cat-rows { display: grid; gap: 11px; }
+  .cat-row { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; font-size: 13.5px; }
+  .cat-row .bar { height: 6px; margin-block-start: 5px; }
+  .cat-row .bar > span { background: var(--cat); }
+  .insight { display: flex; gap: 12px; align-items: start; padding: 14px 16px; border-radius: var(--radius); background: var(--accent-soft); font-size: 13.5px; line-height: 1.45; }
+  .insight b { display: block; }
+  .donut-wrap { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: center; }
+  .donut { width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; }
+  .donut > div { width: 76px; height: 76px; border-radius: 50%; background: var(--surface); display: grid; place-content: center; text-align: center; }
+  .donut b { font-size: 16px; }
+  .donut small { font-size: 10px; color: var(--muted); }
+
+  /* recap */
+  .story { position: absolute; inset: 0; padding: 18px 22px 28px; display: flex; flex-direction: column; gap: 16px; color: #fff; }
+  .screen[data-opt="a"] .story { background: #1f3b2d; }
+  .screen[data-opt="b"] .story { background: radial-gradient(circle at 30% 10%, #134e4a, #0b1120 70%); }
+  .screen[data-opt="c"] .story { background: linear-gradient(160deg, #6d4aff, #ec4899); }
+  .story-prog { display: flex; gap: 4px; margin-block-start: 30px; }
+  .story-prog i { flex: 1; height: 3px; border-radius: 3px; background: rgb(255 255 255 / 0.3); }
+  .story-prog i.on { background: #fff; }
+  .story h2 { font-size: 15px; font-weight: 600; opacity: 0.85; }
+  .story .huge { font-size: 60px; font-weight: 700; line-height: 1; }
+  .screen[data-opt="a"] .story .huge { font-weight: 500; }
+  .story-cards { display: grid; gap: 10px; margin-block-start: auto; }
+  .story-card { background: rgb(255 255 255 / 0.12); border-radius: 18px; padding: 13px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+  .story-card small { display: block; opacity: 0.75; font-size: 12px; }
+  .story-card b { font-size: 16px; }
+  .story-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .story-actions span { height: 48px; border-radius: 99px; display: grid; place-items: center; font-weight: 650; background: rgb(255 255 255 / 0.16); }
+  .story-actions span.pri { background: #fff; color: #111; }
+
+  /* settings */
+  .set-group { display: grid; gap: 6px; }
+  .set-list { background: var(--surface); border-radius: var(--radius-sm); box-shadow: var(--shadow); padding-inline: 14px; }
+  .set-item {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-block: 11px; font-size: 14px; min-height: 26px;
+    &:not(:last-child) { border-block-end: 1px solid var(--line); }
+    .r { color: var(--muted); font-size: 13.5px; display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+    .seg-in { width: 150px; }
+  }
+  .profile { display: flex; gap: 12px; align-items: center; }
+  .profile .avatar { width: 52px; height: 52px; font-size: 20px; }
+  .profile b { font-size: 17px; display: block; }
+
+  /* welcome */
+  .welcome { flex: 1; display: flex; flex-direction: column; padding: 30px 24px 30px; gap: 18px; }
+  .logo { width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; font-size: 30px; font-weight: 700; background: var(--accent); color: var(--accent-ink); }
+  .screen[data-opt="c"] .logo { background: linear-gradient(135deg, #6d4aff, #ec4899); color: #fff; border-radius: 22px; transform: rotate(-6deg); }
+  .welcome h1 { font-size: 30px; letter-spacing: -0.03em; line-height: 1.1; }
+  .screen[data-opt="a"] .welcome h1 { font-family: var(--num-font); font-weight: 500; font-size: 32px; }
+  .demo { display: grid; gap: 8px; margin-block: 6px; }
+  .bubble { justify-self: end; padding: 10px 14px; border-radius: 18px 18px 4px 18px; background: var(--accent); color: var(--accent-ink); font-size: 15px; font-weight: 550; }
+  .parsed { justify-self: start; display: flex; gap: 6px; flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <h1>DropSpend redesign: UI/UX options</h1>
+    <p>3 design directions × 8 screens · Goals: easy to use, nice to look at</p>
+  </div>
+  <div class="controls">
+    <fieldset class="seg" id="view-seg">
+      <legend>View mode</legend>
+      <label><input type="radio" name="view" value="option" checked>All screens of one option</label>
+      <label><input type="radio" name="view" value="page">Compare one screen</label>
+    </fieldset>
+    <fieldset class="seg" id="opt-seg">
+      <legend>Design option</legend>
+      <label><input type="radio" name="opt" value="a">A · Calm Paper</label>
+      <label><input type="radio" name="opt" value="b" checked>B · Midnight (Selected)</label>
+      <label><input type="radio" name="opt" value="c">C · Playful</label>
+    </fieldset>
+    <fieldset class="seg" id="page-seg" hidden>
+      <legend>Screen</legend>
+    </fieldset>
+  </div>
+</header>
+
+<section class="intro" id="intro"></section>
+<main class="gallery" id="gallery"></main>
+
+<section class="principles">
+  <h2>Rules shared by all 3 options</h2>
+  <ol>
+    <li><b>One app, not three.</b> The Classic / Zen / Spec layout switcher goes away. Pick a direction and commit; fewer settings means less to maintain.</li>
+    <li><b>Three places only:</b> Home, History, Stats. Settings sits behind your avatar. Calendar, Patterns, Explore, Compare and Fun facts move into Stats as cards.</li>
+    <li><b>One big number per screen,</b> with clean monthly totals instead of cluttered KPI grids and daily pace lines.</li>
+    <li><b>Add is always one tap away</b> and in thumb reach. Saving takes at most 2 actions: type, then Enter.</li>
+    <li><b>Show what was understood before saving:</b> amount, category, payment and date as chips you can tap to change. No forms.</li>
+    <li><b>Less chrome:</b> no borders where spacing works, at most 1 accent colour, and category colour only on small icons.</li>
+  </ol>
+</section>
+
+<script type="module">
+// ---------- data ----------
+const CAT = {
+  food:   { e: '🍜', n: 'Food',      c: '#f59e0b' },
+  groc:   { e: '🛒', n: 'Groceries', c: '#22c55e' },
+  travel: { e: '⛽', n: 'Transport', c: '#3b82f6' },
+  bills:  { e: '💡', n: 'Bills',     c: '#a855f7' },
+  shop:   { e: '🛍️', n: 'Shopping',  c: '#ec4899' },
+  health: { e: '💊', n: 'Health',    c: '#14b8a6' },
+  fun:    { e: '🎬', n: 'Fun',       c: '#f97316' },
+  home:   { e: '🏠', n: 'Home',      c: '#64748b' },
+};
+const TODAY = [
+  { cat: 'shop',   note: 'Shoes · Myntra',    pay: 'Card', t: '1:35 pm', amt: 1299 },
+  { cat: 'travel', note: 'Fuel · bike',       pay: 'UPI',  t: '10:02 am', amt: 450 },
+  { cat: 'food',   note: 'Coffee & sandwich', pay: 'UPI',  t: '9:12 am', amt: 180 },
+];
+const YDAY = [
+  { cat: 'groc',  note: 'BigBasket',       pay: 'UPI',  t: '7:40 pm', amt: 2340 },
+  { cat: 'bills', note: 'Netflix',         pay: 'Card', t: 'Auto · monthly', amt: 649 },
+  { cat: 'travel', note: 'Auto to office', pay: 'Cash', t: '9:05 am', amt: 220 },
+];
+const THU = [
+  { cat: 'food', note: 'Dinner · Swiggy', pay: 'UPI', t: '9:20 pm', amt: 560 },
+  { cat: 'food', note: 'Salary', pay: 'Bank', t: 'Income', amt: 85000, inc: true, icon: '💰' },
+];
+const MONTH = [['groc', 2340], ['food', 1840], ['shop', 1299], ['travel', 1020], ['bills', 649]];
+const inr = (n) => '₹' + n.toLocaleString('en-IN');
+
+// ---------- icons ----------
+const sv = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const I = {
+  home: sv('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
+  list: sv('<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>'),
+  chart: sv('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  plus: sv('<path d="M12 5v14M5 12h14"/>'),
+  user: sv('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+  gear: sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  search: sv('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
+  back: sv('<path d="m15 18-6-6 6-6"/>'),
+  x: sv('<path d="M18 6 6 18M6 6l12 12"/>'),
+  chev: sv('<path d="m9 18 6-6-6-6"/>'),
+  send: sv('<path d="M5 12h14M13 6l6 6-6 6"/>'),
+};
+
+// ---------- building blocks ----------
+const status = (light) => `<div class="status"${light ? ' style="color:#fff;position:relative;z-index:2"' : ''}><span>9:41</span><span>●●● 100%</span></div>`;
+const row = (e) => {
+  const c = CAT[e.cat];
+  return `<li class="row"><span class="ico" style="--cat:${e.inc ? '#22c55e' : c.c}">${e.icon || c.e}</span>
+    <span><b>${e.note}</b><small>${e.inc ? 'Income · Bank' : `${c.n} · ${e.pay} · ${e.t}`}</small></span>
+    <span class="amt num${e.inc ? ' inc' : ''}">${e.inc ? '+' : ''}${inr(e.amt)}</span></li>`;
+};
+const rows = (arr) => `<ul class="list">${arr.map(row).join('')}</ul>`;
+const stack = () => {
+  const total = MONTH.reduce((s, [, v]) => s + v, 0);
+  return `<div class="stack">${MONTH.map(([k, v]) => `<span style="--c:${CAT[k].c};flex:${v / total}"></span>`).join('')}</div>
+    <div class="legend">${MONTH.map(([k]) => `<span><i style="--c:${CAT[k].c}"></i>${CAT[k].n}</span>`).join('')}</div>`;
+};
+
+function nav(opt, active) {
+  const item = (k, ico, label) => `<a class="${active === k ? 'on' : ''}">${ico}<span>${label}</span></a>`;
+  if (opt === 'a') return `<nav class="tabbar">${item('home', I.home, 'Home')}${item('history', I.list, 'History')}<span class="plus">${I.plus}</span>${item('stats', I.chart, 'Stats')}${item('me', I.user, 'Me')}</nav>`;
+  if (opt === 'b') return `<nav class="tabbar">${item('home', I.home, 'Home')}${item('history', I.list, 'History')}${item('stats', I.chart, 'Stats')}${item('me', I.gear, 'Settings')}</nav>`;
+  const p = (k, ico) => `<a class="${active === k ? 'on' : ''}">${ico}</a>`;
+  return `<nav class="pill">${p('home', I.home)}${p('history', I.list)}<a class="plus">${I.plus}</a>${p('stats', I.chart)}</nav>`;
+}
+
+function keyboard() {
+  const r = (s) => `<div class="kbd-row">${[...s].map((k) => `<span class="key">${k}</span>`).join('')}</div>`;
+  return `<div class="kbd">${r('qwertyuiop')}${r('asdfghjkl')}<div class="kbd-row"><span class="key mid">⇧</span>${[...'zxcvbnm'].map((k) => `<span class="key">${k}</span>`).join('')}<span class="key mid">⌫</span></div>
+    <div class="kbd-row"><span class="key mid">123</span><span class="key wide">space</span><span class="key mid" style="background:var(--accent);color:var(--accent-ink)">Save</span></div></div>`;
+}
+
+// ---------- screens ----------
+const S = {};
+
+S.welcome = (o) => `${status()}
+  <div class="welcome">
+    <div class="logo">₹</div>
+    <div>
+      <h1>${o === 'c' ? 'Money, logged<br>in one line ✨' : 'Log money like<br>you text a friend.'}</h1>
+      <p class="muted" style="margin-top:8px;font-size:14.5px;line-height:1.5">Type what you spent. We figure out the rest. Works offline, free forever.</p>
+    </div>
+    <div class="demo">
+      <span class="bubble">200 fuel bike upi</span>
+      <div class="parsed"><span class="chip soft">₹200</span><span class="chip">⛽ Transport</span><span class="chip">UPI</span><span class="chip">Today</span></div>
+    </div>
+    <div style="margin-top:auto;display:grid;gap:10px">
+      <label class="muted" style="font-size:13px;font-weight:600">What should we call you?</label>
+      <div class="field"><span>Tanay</span><span class="caret"></span></div>
+      <span class="btn wide">Get started</span>
+      <small class="muted" style="text-align:center;font-size:12px">Your data stays on this phone. Google Sheets sync is optional.</small>
+    </div>
+  </div>`;
+
+S.home = (o) => {
+  if (o === 'a') return `${status()}
+    <div class="scroll">
+      <header class="hdr"><div><small>Saturday</small><h2>7 November</h2></div><span class="avatar">T</span></header>
+      <section class="hero-a">
+        <span class="eyebrow">Spent this month</span>
+        <div class="num big">₹7,148</div>
+        <div class="bar"><span style="width:24%"></span><i style="left:23%"></i></div>
+        <p class="muted" style="font-size:13.5px">₹22,852 left of ₹30,000 budget</p>
+      </section>
+      <div class="today-strip"><span class="muted">Today</span><b class="num">₹1,929</b></div>
+      <h3 class="group">Today</h3>${rows(TODAY)}
+      <h3 class="group">Yesterday</h3>${rows(YDAY.slice(0, 2))}
+    </div>${nav('a', 'home')}`;
+
+  if (o === 'b') return `${status()}
+    <div class="scroll">
+      <header class="hdr"><div><small>Sat, 7 Nov</small><h2>Hi Tanay</h2></div><span class="icon-btn">${I.search}</span></header>
+      <section class="card hero-b">
+        <div class="ring" style="--p:24"><div><b class="num">24%</b><small>of budget</small></div></div>
+        <div><span class="eyebrow">November</span><div class="num big">₹7,148</div><p class="muted" style="font-size:12.5px">₹22,852 left of ₹30,000</p></div>
+      </section>
+      <div style="display:grid;gap:8px">${stack()}</div>
+      <section class="card"><div class="card-h"><b>Today</b><span class="num muted">₹1,929</span></div>${rows(TODAY)}</section>
+    </div>
+    <div class="composer"><span>200 coffee upi…</span><button>${I.plus}</button></div>
+    ${nav('b', 'home')}`;
+
+  return `${status()}
+    <div class="scroll">
+      <header class="hdr"><div><h2>Hi Tanay 👋</h2><small>Saturday, 7 Nov</small></div><span class="avatar">T</span></header>
+      <section class="hero-c">
+        <small>Left to spend in November</small>
+        <div class="num big">₹22,852</div>
+        <div class="bar"><span style="width:24%"></span></div>
+        <p>₹7,148 spent of ₹30,000</p>
+      </section>
+      <h3 class="group">Tap to add again</h3>
+      <div class="chips scroll-x"><span class="chip">☕ Coffee <small>₹180</small></span><span class="chip">⛽ Fuel <small>₹450</small></span><span class="chip">🛺 Auto <small>₹220</small></span></div>
+      <div class="tiles">${MONTH.slice(0, 4).map(([k, v]) => `<div class="tile" style="--cat:${CAT[k].c}"><span class="e">${CAT[k].e}</span><b>${CAT[k].n}</b><small>${inr(v)}</small></div>`).join('')}</div>
+      <h3 class="group"><span>Today</span><span>₹1,929</span></h3>${rows(TODAY.slice(0, 2))}
+    </div>${nav('c', 'home')}`;
+};
+
+S.add = (o) => {
+  if (o === 'c') return `${status()}
+    <div class="scroll" style="gap:12px">
+      <div class="sheet-top"><span class="icon-btn">${I.x}</span><div class="seg-in" style="width:170px"><span class="on">Expense</span><span>Income</span></div><span style="width:38px"></span></div>
+      <div class="amount-display"><div class="num">₹180</div><span class="note">✏️ coffee · UPI · Today</span></div>
+      <div class="tiles">${['food', 'groc', 'travel', 'shop', 'bills', 'health', 'fun', 'home'].map((k) => `<div class="tile${k === 'food' ? ' on' : ''}" style="--cat:${CAT[k].c};padding-block:8px"><span class="e">${CAT[k].e}</span><b>${CAT[k].n}</b></div>`).join('')}</div>
+    </div>
+    <div class="keypad">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'].map((k) => `<span>${k}</span>`).join('')}
+      <span class="btn" style="grid-column:1/-1;height:50px;font-size:16px">Save ₹180</span></div>`;
+
+  return `${status()}
+    <div class="scroll">
+      <div class="sheet-top"><span class="icon-btn">${I.x}</span><h2>Add</h2><span style="width:38px"></span></div>
+      <div class="field" style="height:54px;box-shadow:0 0 0 2px var(--accent)"><span>1299 shoes myntra cc</span><span class="caret"></span></div>
+      <section class="card preview">
+        <span class="eyebrow">Will save as</span>
+        <div class="num p-amt">₹1,299</div>
+        <div class="chips"><span class="chip">🛍️ Shopping ▾</span><span class="chip">💳 Card ▾</span><span class="chip">📅 Today ▾</span><span class="chip">shoes myntra</span></div>
+      </section>
+      <h3 class="group">${o === 'a' ? 'Your usuals' : 'From your history'}</h3>
+      <div class="chips"><span class="chip">☕ Coffee ₹180</span><span class="chip">⛽ Fuel ₹450</span><span class="chip">🛺 Auto ₹220</span></div>
+    </div>${keyboard()}`;
+};
+
+S.edit = (o) => `${status()}
+  <div class="faux"><i style="width:40%"></i><i style="height:50px"></i><i></i><i style="width:70%"></i><i></i></div>
+  <div class="backdrop"></div>
+  <div class="bsheet">
+    <div class="grab"></div>
+    <div class="kv"><span class="eyebrow">Edit entry</span><span class="muted" style="font-size:13px">Today · 1:35 pm</span></div>
+    <div class="num" style="font-size:42px;font-weight:${o === 'a' ? 500 : 700}">₹1,299</div>
+    <div class="field"><span>Shoes · Myntra</span></div>
+    <div class="cat-grid">${Object.entries(CAT).map(([k, c]) => `<span class="${k === 'shop' ? 'on' : ''}"><em>${c.e}</em>${c.n}</span>`).join('')}</div>
+    <div class="seg-in"><span>UPI</span><span>Cash</span><span class="on">Card</span><span>Bank</span></div>
+    <div class="kv"><span>Always file "myntra" as Shopping<small>Applies to future entries</small></span><span class="switch on"></span></div>
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px"><span class="btn ghost">Delete</span><span class="btn">Save</span></div>
+  </div>`;
+
+S.history = (o) => `${status()}
+  <div class="scroll">
+    <header class="hdr"><h2>History</h2><span class="icon-btn" title="Export CSV">⇩</span></header>
+    <div class="field">${I.search}<span class="ph">Try "food last week" or "&gt; 500"</span></div>
+    <div class="chips scroll-x"><span class="chip on">All</span><span class="chip">Expenses</span><span class="chip">Income</span><span class="chip">UPI</span><span class="chip">Card</span></div>
+    <p class="muted" style="font-size:13px">November · 14 entries · <b style="color:var(--ink)">₹7,148 out</b> · <b style="color:var(--accent)">₹85,000 in</b></p>
+    <h3 class="group"><span>Today</span><span>₹1,929</span></h3>${rows(TODAY.slice(0, 2))}
+    <h3 class="group"><span>Yesterday</span><span>₹3,209</span></h3>${rows(YDAY.slice(0, 2))}
+    <h3 class="group"><span>Thu, 5 Nov</span><span>₹560</span></h3>${rows(THU)}
+  </div>${nav(o, 'history')}`;
+
+S.stats = (o) => {
+  const days = [['S', 40], ['M', 22], ['T', 30], ['W', 18], ['T', 35], ['F', 55], ['S', 80]];
+  const total = MONTH.reduce((s, [, v]) => s + v, 0);
+  let acc = 0;
+  const conic = MONTH.map(([k, v]) => { const a = acc; acc += (v / total) * 100; return `${CAT[k].c} ${a}% ${acc}%`; }).join(',');
+  const catBlock = o === 'c'
+    ? `<section class="card donut-wrap"><div class="donut" style="background:conic-gradient(${conic})"><div><b class="num">₹7.1k</b><small>5 categories</small></div></div>
+        <div class="cat-rows" style="gap:7px">${MONTH.map(([k, v]) => `<div style="display:flex;justify-content:space-between;font-size:12.5px"><span>${CAT[k].e} ${CAT[k].n}</span><b class="num">${Math.round(v / total * 100)}%</b></div>`).join('')}</div></section>`
+    : `<section class="card"><div class="card-h" style="margin-bottom:10px"><b>Where it went</b><span class="muted">Tap to drill in</span></div>
+        <div class="cat-rows">${MONTH.slice(0, 4).map(([k, v]) => `<div class="cat-row" style="--cat:${CAT[k].c}"><span>${CAT[k].e}</span><div>${CAT[k].n}<div class="bar"><span style="width:${v / MONTH[0][1] * 100}%"></span></div></div><b class="num">${inr(v)}</b></div>`).join('')}</div></section>`;
+  return `${status()}
+    <div class="scroll">
+      <header class="hdr"><h2>Stats</h2><div class="seg-in" style="width:170px"><span>Week</span><span class="on">Month</span><span>Year</span></div></header>
+      <div><span class="eyebrow">November so far</span><div class="num big" style="font-size:38px">₹7,148</div>
+        <p class="muted" style="font-size:13px;margin-top:2px">▼ 18% less than October by this date</p></div>
+      <section class="card"><div class="card-h"><b>This week</b><span class="muted">avg ₹880/day</span></div>
+        <div class="bars">${days.map(([d, h], i) => `<div class="${i === 6 ? 'on' : ''}"><span style="height:${h}px"></span>${d}</div>`).join('')}</div></section>
+      ${catBlock}
+      <div class="insight"><span style="font-size:20px">💡</span><span><b>Saturdays cost the most</b><span class="muted">Avg ₹1,450, mostly Shopping and Food.</span></span></div>
+    </div>${nav(o, 'stats')}`;
+};
+
+S.recap = (o) => `<div class="story">
+    ${status(true).replace('class="status"', 'class="status" style="position:absolute;inset-inline:0;top:0"')}
+    <div class="story-prog"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+    <h2>${o === 'c' ? 'Your October, wrapped 🎁' : 'October, in one look'}</h2>
+    <div><div class="num huge">₹24,310</div><p style="opacity:.8;margin-top:6px">spent across 62 entries</p></div>
+    <div class="story-cards">
+      <div class="story-card"><span><small>Top category</small><b>🍜 Food</b></span><b class="num">31%</b></div>
+      <div class="story-card"><span><small>Biggest day</small><b>Sat, 18 Oct</b></span><b class="num">₹4,120</b></div>
+      <div class="story-card"><span><small>vs September</small><b>8% less 🎉</b></span><b class="num">−₹2,110</b></div>
+    </div>
+    <div class="story-actions"><span>Share</span><span class="pri">Next ›</span></div>
+  </div>`;
+
+S.settings = (o) => `${status()}
+  <div class="scroll" style="gap:16px">
+    <header class="hdr">${o === 'c' ? `<div class="hdr-title"><span class="icon-btn">${I.back}</span><h2>Settings</h2></div>` : '<h2>Settings</h2>'}</header>
+    <div class="profile"><span class="avatar">T</span><span><b>Tanay</b><small class="muted">Tap to edit name</small></span></div>
+    <div class="set-group"><h3 class="group">Money</h3><div class="set-list">
+      <div class="set-item"><span>Monthly budget</span><span class="r num">₹30,000 ${I.chev.replace('<svg', '<svg width="14" height="14"')}</span></div>
+      <div class="set-item"><span>Recurring bills & cards</span><span class="r">3 active ${I.chev.replace('<svg', '<svg width="14" height="14"')}</span></div>
+    </div></div>
+    <div class="set-group"><h3 class="group">Adding</h3><div class="set-list">
+      <div class="set-item"><span>Input</span><div class="seg-in"><span class="${o === 'c' ? '' : 'on'}">Keyboard</span><span class="${o === 'c' ? 'on' : ''}">Keypad</span></div></div>
+      <div class="set-item"><span>Default payment</span><span class="r">UPI ${I.chev.replace('<svg', '<svg width="14" height="14"')}</span></div>
+    </div></div>
+    <div class="set-group"><h3 class="group">Look</h3><div class="set-list">
+      <div class="set-item"><span>Theme</span><div class="seg-in"><span class="${o === 'b' ? '' : 'on'}">Light</span><span class="${o === 'b' ? 'on' : ''}">Dark</span><span>Auto</span></div></div>
+    </div></div>
+    <div class="set-group"><h3 class="group">Data</h3><div class="set-list">
+      <div class="set-item"><span>Google Sheets</span><span class="r"><i class="dot"></i>Synced 2m ago</span></div>
+      <div class="set-item"><span>Export CSV / Backup</span><span class="r">${I.chev.replace('<svg', '<svg width="14" height="14"')}</span></div>
+    </div></div>
+  </div>${o === 'c' ? '' : nav(o, 'me')}`;
+
+// ---------- captions ----------
+const PAGES = [
+  ['welcome', 'Welcome', 'Shows how it works ("200 fuel bike upi" turns into chips) before asking for anything. One field, one button.'],
+  ['home', 'Home', 'One big number with budget ring, category breakdown bar, and today’s entries. No KPI grid or daily spend line.'],
+  ['add', 'Add', 'Type, see what was understood, press Enter. Tap any chip to fix it. Usuals add in one tap.'],
+  ['edit', 'Edit entry', 'Bottom sheet within thumb reach. Category grid + payment toggle, and "always file as" teaches the parser.'],
+  ['history', 'History', 'One search box that understands questions, a few filter chips, entries grouped by day with daily totals.'],
+  ['stats', 'Stats', 'Totals, a weekly chart, where the money went, and 1 insight. Calendar, Patterns and Compare go one level deeper.'],
+  ['recap', 'Monthly recap', 'Shows on the 1st of the month, story style. Three facts, then Share or Next.'],
+  ['settings', 'Settings', 'Cut from ~15 options to 8 in 4 groups. The UI layout switcher and density toggles are gone.'],
+];
+const OPT_NOTES = {
+  a: { home: 'A tick on the bar marks where you should be today, so you can see your pace without reading anything.', add: 'Typing first: the keyboard is open the moment you tap +.' },
+  b: { home: 'The bottom bar is a text box, so you can type "200 coffee upi" right on Home without opening a screen.', add: 'The same flow as today, just tidier: it keeps your current dark emerald look.' },
+  c: { home: '"Left to spend" comes first (feels positive), with one-tap re-add chips and big colourful category tiles.', add: 'Tapping first: keypad, then a category tile, then Save. No typing needed. Switch to the keyboard in Settings.', stats: 'A donut chart instead of bars, which reads friendlier at a glance.' },
+};
+const OPTS = {
+  a: {
+    name: 'A · Calm Paper', tag: 'Light · quiet · type-led',
+    desc: 'Feels like a well-made notebook. Warm off-white, serif numbers, almost no borders, and one deep-green accent. It stays out of the way: open it, see one number, log, close.',
+    pts: ['Best for: daily use without visual noise', 'Navigation: 4 tabs + a raised + button in the middle', 'Adding: keyboard first (your current parser shines here)', 'Effort to build: low, mostly a CSS reskin of the Spec UI'],
+    sw: ['#f7f5f0', '#ffffff', '#1c1b19', '#2f6f4f', '#e3efe8'],
+  },
+  b: {
+    name: 'B · Midnight', tag: 'Dark · focused · chat-first',
+    desc: 'Builds on today’s dark slate and emerald look, but calmer: fewer cards, one budget ring, and a text box that is always at the bottom of Home. It keeps the "drop a message" idea at the centre.',
+    pts: ['Best for: people who log by typing, many times a day', 'Navigation: 4 tabs; Add is the text box (no + button)', 'Adding: type on Home, see the preview, press Enter', 'Effort to build: lowest, closest to the current code'],
+    sw: ['#0b1120', '#131c2e', '#e8edf5', '#10b981', '#22304a'],
+  },
+  c: {
+    name: 'C · Playful', tag: 'Bright · friendly · tap-first',
+    desc: 'Warm, rounded and colourful, like a fintech app you enjoy opening. It leads with what you have left, not what you spent. Adding needs no typing: keypad, category tile, done.',
+    pts: ['Best for: quick logging with one hand; shareable recaps', 'Navigation: floating pill bar with a yellow + in the middle', 'Adding: keypad + tiles (typing still available in Settings)', 'Effort to build: medium, needs new Home and Add layouts'],
+    sw: ['#fff7ef', '#6d4aff', '#ec4899', '#ffcf4a', '#2a1f3d'],
+  },
+};
+
+// ---------- render ----------
+const state = { view: 'option', opt: 'b', page: 'home' };
+const $ = (s) => document.querySelector(s);
+// Deep-link support: ?opt=b, ?view=page&page=add
+const params = new URLSearchParams(location.search);
+for (const k of ['view', 'opt', 'page']) if (params.get(k)) state[k] = params.get(k);
+
+$('#page-seg').insertAdjacentHTML('beforeend', PAGES.map(([k, n], i) =>
+  `<label><input type="radio" name="page" value="${k}">${i + 1}. ${n}</label>`).join(''));
+for (const k of ['view', 'opt', 'page']) {
+  const input = document.querySelector(`input[name="${k}"][value="${state[k]}"]`);
+  if (input) input.checked = true;
+}
+
+function shot(page, opt, idx) {
+  const [, name, note] = PAGES.find(([k]) => k === page);
+  const extra = OPT_NOTES[opt][page];
+  const label = state.view === 'page' ? OPTS[opt].name : `${idx + 1}`;
+  return `<figure class="shot">
+    <div class="phone"><div class="screen" data-opt="${opt}">${S[page](opt)}</div></div>
+    <figcaption><h3><small>${label}</small>${name}</h3><p>${note}</p>${extra ? `<p><b>${OPTS[opt].name.split(' · ')[1]}:</b> ${extra}</p>` : ''}</figcaption>
+  </figure>`;
+}
+
+function introCard(o) {
+  const d = OPTS[o];
+  return `<article class="intro-card"><h2>${d.name}</h2><span class="tag">${d.tag}</span><p>${d.desc}</p>
+    <ul>${d.pts.map((p) => `<li>${p}</li>`).join('')}</ul>
+    <div class="swatches">${d.sw.map((c) => `<span style="background:${c}"></span>`).join('')}</div></article>`;
+}
+
+function draw() {
+  $('#opt-seg').hidden = state.view === 'page';
+  $('#page-seg').hidden = state.view === 'option';
+  if (state.view === 'option') {
+    $('#intro').innerHTML = introCard(state.opt) +
+      `<article class="intro-card"><h2>How to review</h2><span class="tag">Tip</span>
+       <p>Switch options at the top, or pick <b>Compare one screen</b> to see A, B and C side by side. You can mix and match, for example Option A’s look with Option C’s keypad Add.</p>
+       <ul><li>Each phone shows real-looking data for 7 Nov</li><li>Captions explain why each screen changed</li><li>Nothing here touches the live app</li></ul></article>`;
+    $('#intro').style.display = '';
+    $('#gallery').innerHTML = PAGES.map(([k], i) => shot(k, state.opt, i)).join('');
+  } else {
+    $('#intro').style.display = 'none';
+    $('#gallery').innerHTML = ['a', 'b', 'c'].map((o) => shot(state.page, o)).join('');
+  }
+}
+
+document.querySelector('.controls').addEventListener('change', (e) => {
+  state[e.target.name] = e.target.value;
+  draw();
+});
+draw();
+</script>
+</body>
+</html>
