@@ -2908,6 +2908,8 @@ function openRecurringModal(initialTab = 'utility') {
 function focusExpenseInput() {
   if (!els.expenseInput || isAnyDialogOpen()) return;
   if (state.uiDesign === 'tabs' && state.activeView === 'insights') return;
+  if (state.uiDesign === 'spec') return;
+  if (els.expenseInput.offsetParent === null) return;
   requestSoftKeyboard(els.expenseInput);
 }
 
@@ -4187,38 +4189,11 @@ function setupEventListeners() {
     // Ignore URL errors
   }
 
-  // Clicking or touching anywhere non-interactive on the Quick Log screen focuses input & opens mobile keyboard
-  const handleQuickLogSurfaceTap = (e) => {
-    if (isAnyDialogOpen()) return;
-    if (state.uiDesign === 'tabs' && state.activeView === 'insights') return;
-    const interactive = e.target.closest(
-      'button, input, select, textarea, a, label, dialog, .expense-item, .preview-edit-row, .usual-chip, .history-ac-item, .question-answer-card'
-    );
-    if (!interactive) {
-      focusExpenseInput();
-    }
-  };
-  document.addEventListener('touchend', handleQuickLogSurfaceTap, { passive: true });
-  document.addEventListener('click', handleQuickLogSurfaceTap);
-
-  // Re-focus input & open keyboard when returning to the app / tab
-  window.addEventListener('pageshow', () => {
-    focusExpenseInput();
-  });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      focusExpenseInput();
-    }
-  });
-  window.addEventListener('focus', () => {
-    if (document.activeElement === document.body || !document.activeElement) {
-      focusExpenseInput();
-    }
-  });
-  els.syncDialog?.addEventListener('close', () => focusExpenseInput());
-  els.editDialog?.addEventListener('close', () => focusExpenseInput());
-  els.recurringDialog?.addEventListener('close', () => focusExpenseInput());
-  els.storyDialog?.addEventListener('close', () => focusExpenseInput());
+  // Clean modal close listeners
+  els.syncDialog?.addEventListener('close', () => {});
+  els.editDialog?.addEventListener('close', () => {});
+  els.recurringDialog?.addEventListener('close', () => {});
+  els.storyDialog?.addEventListener('close', () => {});
 
   // 3D / 6D: Header Theme Cycle Button (Dark -> Clean -> Receipt)
   els.themeCycleBtn?.addEventListener('click', () => {

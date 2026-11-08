@@ -34,10 +34,6 @@ class MainActivity : Activity() {
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
 
     companion object {
-        // Master code-level feature flag: Set to false to completely remove/disable this feature
-        const val FEATURE_REMOTE_NOTIF_SYNC = true
-        const val KEY_REMOTE_NOTIF_SYNC_ENABLED = "remote_notif_sync_enabled"
-
         const val PREFS_NAME = "dropspend_native_prefs"
         const val KEY_WIDGET_JSON = "widget_snapshot_json"
         const val KEY_PENDING_ADDS = "pending_quick_adds_json"
@@ -109,11 +105,6 @@ class MainActivity : Activity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                webView.postDelayed({
-                    webView.requestFocus()
-                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-                    imm?.showSoftInput(webView, InputMethodManager.SHOW_IMPLICIT)
-                }, 120)
             }
 
             override fun shouldOverrideUrlLoading(
@@ -158,40 +149,11 @@ class MainActivity : Activity() {
         val startQuery = buildStartQuery(intent)
         webView.loadUrl("https://appassets.androidplatform.net/assets/public/index.html$startQuery")
 
-        // Schedule periodic sync (4 times a day = every 6 hours)
-        schedulePeriodicNotificationSync()
-
         // Pull any latest git push from GitHub main silently in background
         syncOtaFromGitHub(reloadOnChange = false)
     }
 
-    private fun schedulePeriodicNotificationSync() {
-        if (!FEATURE_REMOTE_NOTIF_SYNC) {
-            try {
-                androidx.work.WorkManager.getInstance(applicationContext).cancelUniqueWork("DropSpend4xDailySync")
-            } catch (_: Exception) {}
-            return
-        }
-        try {
-            val constraints = androidx.work.Constraints.Builder()
-                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
-                .build()
 
-            // 6 hours interval = 4 times a day
-            val workRequest = androidx.work.PeriodicWorkRequestBuilder<NotificationSyncWorker>(
-                6, java.util.concurrent.TimeUnit.HOURS
-            )
-            .setConstraints(constraints)
-            .build()
-
-            androidx.work.WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
-                "DropSpend4xDailySync",
-                androidx.work.ExistingPeriodicWorkPolicy.KEEP,
-                workRequest
-            )
-        } catch (_: Exception) {
-        }
-    }
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
@@ -376,58 +338,6 @@ class MainActivity : Activity() {
         fun minimizeApp() {
             runOnUiThread {
                 moveTaskToBack(true)
-            }
-        }
-
-        @JavascriptInterface
-        fun isNotificationListenerEnabled(): Boolean {
-            return try {
-                val flat = android.provider.Settings.Secure.getString(
-                    contentResolver,
-                    "enabled_notification_listeners"
-                ) ?: return false
-                flat.contains(packageName)
-            } catch (e: Exception) {
-                false
-            }
-        }
-
-        @JavascriptInterface
-        fun openNotificationListenerSettings() {
-            runOnUiThread {
-                try {
-                    val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    try {
-                        val fallback = Intent(android.provider.Settings.ACTION_SETTINGS)
-                        fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        startActivity(fallback)
-                    } catch (_: Exception) {}
-                }
-            }
-        }
-
-        @JavascriptInterface
-        fun isRemoteNotificationSyncFeatureActive(): Boolean {
-            return FEATURE_REMOTE_NOTIF_SYNC
-        }
-
-        @JavascriptInterface
-        fun isNotificationSyncEnabled(): Boolean {
-            if (!FEATURE_REMOTE_NOTIF_SYNC) return false
-            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            return prefs.getBoolean(KEY_REMOTE_NOTIF_SYNC_ENABLED, false)
-        }
-
-        @JavascriptInterface
-        fun setNotificationSyncEnabled(enabled: Boolean) {
-            if (!FEATURE_REMOTE_NOTIF_SYNC) return
-            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().putBoolean(KEY_REMOTE_NOTIF_SYNC_ENABLED, enabled).apply()
-            if (!enabled) {
-                prefs.edit().putString(NotificationSyncWorker.KEY_BUFFERED_NOTIFS, "[]").apply()
             }
         }
     }

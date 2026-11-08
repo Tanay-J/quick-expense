@@ -2734,10 +2734,14 @@ export function createSpecController(ctx) {
               }
               window.DropSpendNative.openNotificationListenerSettings();
             } else {
-              window.alert(
-                '📱 Android Notification Access Required\n\n' +
-                'Please update to the latest DropSpend APK build, or open Android Settings > Apps > Special App Access > Device & app notifications and enable DropSpend.'
+              const wantUpdate = window.confirm(
+                '⚡ One-Time Update Required\n\n' +
+                'Your installed DropSpend app needs a quick update so it can launch Android Settings directly with 1 tap.\n\n' +
+                'Tap OK to download the latest update now.'
               );
+              if (wantUpdate) {
+                window.location.href = 'https://github.com/Tanay-J/quick-expense/releases/latest/download/DropSpend.apk';
+              }
             }
             return;
           }

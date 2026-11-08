@@ -1,7 +1,7 @@
 import { extractTags, getPaymentMethodById, isIncomeCategory } from './parser.js?v=22';
 
 // Master code-level feature flag: Set to false to completely remove/disable this feature across the app
-export const FEATURE_REMOTE_NOTIF_SYNC = true;
+export const FEATURE_REMOTE_NOTIF_SYNC = false;
 
 const STORAGE_KEY = 'qe_expenses_v1';
 const TOMBSTONES_KEY = 'qe_tombstones_v1';
