@@ -2430,10 +2430,10 @@ export function createSpecController(ctx) {
             </div>
             <div class="spec-setting-row" id="spec-open-recurring-modal" style="cursor:pointer">
               <div>
-                <strong>Credit cards &amp; recurring bills</strong>
-                <div class="spec-muted-sm">Statement cycles, due reminders &amp; monthly subscriptions</div>
+                <strong>Utility bills &amp; credit cards</strong>
+                <div class="spec-muted-sm">Electricity, gas, property tax, cards &amp; due reminders</div>
               </div>
-              <span class="spec-muted-sm">${(settings.creditCards || []).length || 1} ${(settings.creditCards || []).length === 1 ? 'card' : 'cards'} · ${ctx.state.recurringRules.length} bills ›</span>
+              <span class="spec-muted-sm">${(ctx.state.utilityBills || []).length} utilities · ${(settings.creditCards || []).length || 1} cards ›</span>
             </div>
           </div>
         </div>
@@ -2635,7 +2635,7 @@ export function createSpecController(ctx) {
       }
     });
     root.querySelector('#spec-open-recurring-modal')?.addEventListener('click', () => {
-      ctx.openRecurringModal();
+      ctx.openRecurringModal('utility');
     });
     root.querySelectorAll('[data-set-homestyle]').forEach((btn) => {
       btn.addEventListener('click', () => {

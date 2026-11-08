@@ -1191,3 +1191,125 @@ export function computeMonthlyRecap(expenses, monthlyBudget, targetYear, targetM
     slides
   };
 }
+
+/**
+ * Compute the current cycle key for a utility bill based on its cadence.
+ * - monthly: 'YYYY-MM'
+ * - bimonthly: 'YYYY-MXX'
+ * - quarterly: 'YYYY-QX'
+ * - yearly: 'YYYY'
+ */
+export function getUtilityBillCurrentCycleKey(bill, date = new Date()) {
+  const y = date.getFullYear();
+  const m = date.getMonth();
+  const cadence = bill.cadence || 'monthly';
+
+  if (cadence === 'yearly') {
+    return String(y);
+  }
+  if (cadence === 'quarterly') {
+    const q = Math.floor(m / 3) + 1;
+    return `${y}-Q${q}`;
+  }
+  if (cadence === 'bimonthly') {
+    const startM = Number(bill.bimonthlyStartMonth) || 0;
+    const baseMonth = m - ((m - startM + 12) % 2);
+    return `${y}-M${String(baseMonth + 1).padStart(2, '0')}`;
+  }
+  return `${y}-${String(m + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Compute the next due date and status for a utility bill.
+ */
+export function computeUtilityBillStatus(bill, refDate = new Date()) {
+  const cadence = bill.cadence || 'monthly';
+  const day = Math.min(28, Math.max(1, Number(bill.dayOfMonth) || 12));
+  const today = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate());
+  const curCycleKey = getUtilityBillCurrentCycleKey(bill, today);
+  const isPaidThisCycle = Boolean(bill.lastPaidCycle && bill.lastPaidCycle === curCycleKey);
+
+  let targetYear = today.getFullYear();
+  let targetMonth = today.getMonth();
+
+  if (cadence === 'yearly') {
+    targetMonth = Number(bill.annualMonth) >= 0 ? Number(bill.annualMonth) : 11;
+    let candidate = new Date(targetYear, targetMonth, day);
+    if (isPaidThisCycle || candidate < today) {
+      targetYear += 1;
+      candidate = new Date(targetYear, targetMonth, day);
+    }
+    const diffDays = Math.round((candidate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return formatBillStatusOutput(bill, candidate, diffDays, isPaidThisCycle, curCycleKey);
+  }
+
+  if (cadence === 'bimonthly') {
+    const startM = Number(bill.bimonthlyStartMonth) || 0;
+    let curCycleMonth = today.getMonth() - ((today.getMonth() - startM + 12) % 2);
+    let candidate = new Date(today.getFullYear(), curCycleMonth, day);
+
+    if (isPaidThisCycle || candidate < today) {
+      curCycleMonth += 2;
+      candidate = new Date(today.getFullYear(), curCycleMonth, day);
+    }
+    const diffDays = Math.round((candidate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return formatBillStatusOutput(bill, candidate, diffDays, isPaidThisCycle, curCycleKey);
+  }
+
+  if (cadence === 'quarterly') {
+    const qStart = Math.floor(today.getMonth() / 3) * 3;
+    let candidate = new Date(today.getFullYear(), qStart, day);
+    if (isPaidThisCycle || candidate < today) {
+      candidate = new Date(today.getFullYear(), qStart + 3, day);
+    }
+    const diffDays = Math.round((candidate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return formatBillStatusOutput(bill, candidate, diffDays, isPaidThisCycle, curCycleKey);
+  }
+
+  // Monthly
+  let candidate = new Date(today.getFullYear(), today.getMonth(), day);
+  if (isPaidThisCycle || candidate < today) {
+    candidate = new Date(today.getFullYear(), today.getMonth() + 1, day);
+  }
+  const diffDays = Math.round((candidate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return formatBillStatusOutput(bill, candidate, diffDays, isPaidThisCycle, curCycleKey);
+}
+
+function formatBillStatusOutput(bill, dueDate, diffDays, isPaidThisCycle, cycleKey) {
+  const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dueFormatted = `${SHORT_MONTHS[dueDate.getMonth()]} ${dueDate.getDate()}`;
+  const now = new Date();
+  const isDueThisMonth = dueDate.getMonth() === now.getMonth() && dueDate.getFullYear() === now.getFullYear();
+
+  let statusLabel = '';
+  let statusClass = 'upcoming';
+
+  if (isPaidThisCycle) {
+    statusLabel = '✓ Paid for this cycle';
+    statusClass = 'ok';
+  } else if (diffDays < 0) {
+    statusLabel = `Overdue by ${Math.abs(diffDays)}d`;
+    statusClass = 'overdue';
+  } else if (diffDays === 0) {
+    statusLabel = 'Due today!';
+    statusClass = 'urgent';
+  } else if (diffDays <= (Number(bill.remindDaysBefore) || 4)) {
+    statusLabel = `Due in ${diffDays}d`;
+    statusClass = 'urgent';
+  } else {
+    statusLabel = `In ${diffDays} days`;
+    statusClass = 'upcoming';
+  }
+
+  return {
+    bill,
+    dueDate,
+    dueFormatted,
+    diffDays,
+    isPaidThisCycle,
+    cycleKey,
+    isDueThisMonth,
+    statusLabel,
+    statusClass
+  };
+}

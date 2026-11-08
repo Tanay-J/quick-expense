@@ -6,6 +6,7 @@ export const FEATURE_REMOTE_NOTIF_SYNC = true;
 const STORAGE_KEY = 'qe_expenses_v1';
 const TOMBSTONES_KEY = 'qe_tombstones_v1';
 const RECURRING_KEY = 'qe_recurring_v1';
+const UTILITY_BILLS_KEY = 'qe_utility_bills_v1';
 const SETTINGS_KEY = 'qe_settings_v1';
 const ANON_DEVICE_KEY = 'qe_anon_device_id_v1';
 const PUBLIC_COUNTER_CACHE_KEY = 'qe_usage_stats_cache_v1';
@@ -257,6 +258,78 @@ export function saveRecurringRules(rules) {
   }
 }
 
+export const DEFAULT_UTILITY_BILLS = [
+  {
+    id: 'bill_electricity_01',
+    name: 'Electricity Bill',
+    icon: '⚡',
+    cadence: 'monthly',
+    dayOfMonth: 12,
+    estimatedAmount: 2400,
+    paymentMethod: 'upi',
+    category: 'bills',
+    remindDaysBefore: 4,
+    notificationsEnabled: true,
+    lastPaidCycle: '',
+    updatedAt: 1731000000000,
+    deleted: false
+  },
+  {
+    id: 'bill_gas_02',
+    name: 'MNGL Piped Gas',
+    icon: '🔥',
+    cadence: 'bimonthly',
+    dayOfMonth: 25,
+    bimonthlyStartMonth: 0,
+    estimatedAmount: 950,
+    paymentMethod: 'upi',
+    category: 'bills',
+    remindDaysBefore: 5,
+    notificationsEnabled: true,
+    lastPaidCycle: '',
+    updatedAt: 1731000000000,
+    deleted: false
+  },
+  {
+    id: 'bill_property_tax_03',
+    name: 'Property Tax',
+    icon: '🏛️',
+    cadence: 'yearly',
+    dayOfMonth: 31,
+    annualMonth: 11,
+    estimatedAmount: 6800,
+    paymentMethod: 'netbanking',
+    category: 'bills',
+    remindDaysBefore: 15,
+    notificationsEnabled: true,
+    lastPaidCycle: '',
+    updatedAt: 1731000000000,
+    deleted: false
+  }
+];
+
+export function loadUtilityBills() {
+  try {
+    const raw = localStorage.getItem(UTILITY_BILLS_KEY);
+    if (!raw) {
+      localStorage.setItem(UTILITY_BILLS_KEY, JSON.stringify(DEFAULT_UTILITY_BILLS));
+      return DEFAULT_UTILITY_BILLS;
+    }
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : DEFAULT_UTILITY_BILLS;
+  } catch {
+    return DEFAULT_UTILITY_BILLS;
+  }
+}
+
+export function saveUtilityBills(bills) {
+  try {
+    localStorage.setItem(UTILITY_BILLS_KEY, JSON.stringify(bills));
+  } catch {
+    // ignore
+  }
+}
+
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -494,6 +567,7 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
 
   const localExpenses = loadExpenses();
   const tombstones = loadTombstones();
+  const localUtilityBills = loadUtilityBills();
 
   const dirtyExpenses = forceAll
     ? localExpenses
@@ -535,7 +609,8 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           action: 'sync',
-          items: payloadItems
+          items: payloadItems,
+          utilityBills: localUtilityBills
         })
       });
     } else {
@@ -608,6 +683,20 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
       if (a.date !== b.date) return b.date.localeCompare(a.date);
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     });
+
+    if (Array.isArray(data.utilityBills)) {
+      const remoteBills = data.utilityBills;
+      const localMap = new Map(localUtilityBills.map((b) => [b.id, b]));
+      for (const rb of remoteBills) {
+        if (!rb || !rb.id) continue;
+        const cur = localMap.get(rb.id);
+        if (!cur || (rb.updatedAt || 0) >= (cur.updatedAt || 0)) {
+          localMap.set(rb.id, { ...cur, ...rb });
+        }
+      }
+      const mergedBills = Array.from(localMap.values()).filter((b) => !b.deleted);
+      saveUtilityBills(mergedBills);
+    }
 
     saveExpenses(mergedList);
     saveTombstones([]);

@@ -867,18 +867,114 @@
         </form>
       </div>
 
-      <!-- Segmented Top Tabs: Credit Cards vs Recurring -->
-      <div class="cc-modal-seg" role="tablist" aria-label="Cards and Recurring Tabs">
-        <button type="button" role="tab" id="cc-tab-cards" class="cc-seg-btn active" data-cc-tab="cards" aria-selected="true">
+      <!-- Segmented Top Tabs: Utility Bills vs Credit Cards vs Recurring -->
+      <div class="cc-modal-seg" role="tablist" aria-label="Cards, Utilities and Recurring Tabs">
+        <button type="button" role="tab" id="cc-tab-utility" class="cc-seg-btn active" data-cc-tab="utility" aria-selected="true">
+          ⚡ Utility Bills
+        </button>
+        <button type="button" role="tab" id="cc-tab-cards" class="cc-seg-btn" data-cc-tab="cards" aria-selected="false">
           💳 Credit Cards
         </button>
         <button type="button" role="tab" id="cc-tab-recurring" class="cc-seg-btn" data-cc-tab="recurring" aria-selected="false">
-          🔁 Recurring
+          🔁 Subs
         </button>
       </div>
 
+      <!-- TAB 0: Utility Bills & Multi-Cadence Reminders (Screen 2) -->
+      <div id="cc-pane-utility" class="cc-tab-pane">
+        <!-- Summary Stats Strip -->
+        <div class="utility-summary-grid">
+          <div class="utility-stat-chip">
+            <span class="utility-stat-lbl">Due This Month</span>
+            <span class="utility-stat-val" id="utility-stat-month">₹0</span>
+          </div>
+          <div class="utility-stat-chip">
+            <span class="utility-stat-lbl">Annual Projected</span>
+            <span class="utility-stat-val" id="utility-stat-year">₹0</span>
+          </div>
+        </div>
+
+        <!-- Cadence Filter Pills -->
+        <div class="utility-filter-bar" role="group" aria-label="Filter bills by cadence">
+          <button type="button" class="utility-filter-pill active" data-cadence-filter="all">All</button>
+          <button type="button" class="utility-filter-pill" data-cadence-filter="monthly">Monthly</button>
+          <button type="button" class="utility-filter-pill" data-cadence-filter="bimonthly">2-Month</button>
+          <button type="button" class="utility-filter-pill" data-cadence-filter="yearly">Yearly</button>
+        </div>
+
+        <!-- Flat List of Utility Bills -->
+        <div id="utility-bills-list" class="cc-flat-list utility-bills-flat-list"></div>
+
+        <!-- Add Utility Bill Form -->
+        <form id="add-utility-bill-form" class="cc-add-inline-box" action="#" method="POST">
+          <div class="cc-add-inline-head">
+            <span class="cc-add-inline-lbl">+ Add Utility Bill</span>
+            <span class="cc-add-inline-sub">Flexible Cadence Reminders</span>
+          </div>
+          <div class="utility-form-grid">
+            <div class="utility-form-row">
+              <select id="util-icon-inp" class="cc-inp-sm" style="width:52px; font-size:16px;">
+                <option value="⚡">⚡</option>
+                <option value="🔥">🔥</option>
+                <option value="🏛️">🏛️</option>
+                <option value="💧">💧</option>
+                <option value="🌐">🌐</option>
+                <option value="📱">📱</option>
+                <option value="🚗">🚗</option>
+                <option value="🛡️">🛡️</option>
+              </select>
+              <input
+                type="text"
+                id="util-name-inp"
+                class="cc-inp-sm"
+                placeholder="Bill name (e.g. Electricity, Gas, Tax)"
+                maxlength="40"
+                required
+              />
+            </div>
+            <div class="utility-form-row">
+              <select id="util-cadence-inp" class="cc-inp-sm" style="flex:1;">
+                <option value="monthly">📅 Monthly</option>
+                <option value="bimonthly">🔁 Every 2 Months</option>
+                <option value="quarterly">🗓️ Quarterly (3 Mo)</option>
+                <option value="yearly">🏛️ Yearly (Annual)</option>
+              </select>
+              <input
+                type="number"
+                id="util-day-inp"
+                class="cc-inp-sm is-center num"
+                min="1"
+                max="28"
+                value="12"
+                placeholder="Due day"
+                title="Due day of month (1-28)"
+                style="width:72px;"
+                required
+              />
+              <input
+                type="number"
+                id="util-amount-inp"
+                class="cc-inp-sm num"
+                placeholder="₹ Est. amount"
+                style="width:105px;"
+              />
+            </div>
+            <div class="utility-form-row" style="justify-content: flex-end;">
+              <select id="util-remind-inp" class="cc-inp-sm" style="flex:1;">
+                <option value="3">🔔 Remind 3 days before</option>
+                <option value="5" selected>🔔 Remind 5 days before</option>
+                <option value="1">🔔 Remind 1 day before</option>
+                <option value="10">🔔 Remind 10 days before</option>
+                <option value="15">🔔 Remind 15 days before</option>
+              </select>
+              <button type="submit" class="cc-btn-save-sm" style="padding: 7px 16px;">Add Bill</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
       <!-- TAB 1: Credit Cards & Due-Date Reminders -->
-      <div id="cc-pane-cards" class="cc-tab-pane">
+      <div id="cc-pane-cards" class="cc-tab-pane" hidden>
         <!-- 1-Line Notification Bar -->
         <div class="cc-notify-bar">
           <div class="cc-notify-left">

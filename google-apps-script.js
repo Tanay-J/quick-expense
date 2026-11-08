@@ -18,6 +18,8 @@
 
 const SHEET_NAME = 'Expenses';
 const HEADERS = ['id', 'date', 'amount', 'category', 'note', 'raw', 'updatedAt', 'deleted', 'type', 'paymentMethod'];
+const UTILITY_BILLS_SHEET_NAME = 'UtilityBills';
+const UTILITY_BILLS_HEADERS = ['id', 'name', 'icon', 'cadence', 'dayOfMonth', 'annualMonth', 'bimonthlyStartMonth', 'estimatedAmount', 'paymentMethod', 'category', 'remindDaysBefore', 'notificationsEnabled', 'lastPaidCycle', 'updatedAt', 'deleted'];
 const STATS_SHEET_NAME = 'UsageStats';
 const STATS_HEADERS = ['deviceId', 'userName', 'firstSeen', 'lastSeen', 'sessions', 'txCount', 'activeDays', 'platform', 'timezone'];
 // Optional: If you create this script at https://script.google.com instead of Extensions -> Apps Script,
@@ -59,6 +61,51 @@ function getOrCreateStatsSheet() {
     sheet.getRange(1, 1, 1, STATS_HEADERS.length).setValues([STATS_HEADERS]).setFontWeight('bold').setBackground('#ecfdf5');
   }
   return sheet;
+}
+
+function getOrCreateUtilityBillsSheet() {
+  const ss = getSpreadsheet();
+  let sheet = ss.getSheetByName(UTILITY_BILLS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(UTILITY_BILLS_SHEET_NAME);
+    sheet.appendRow(UTILITY_BILLS_HEADERS);
+    sheet.getRange(1, 1, 1, UTILITY_BILLS_HEADERS.length).setFontWeight('bold').setBackground('#fef3c7');
+    sheet.setFrozenRows(1);
+  } else if (sheet.getLastColumn() < UTILITY_BILLS_HEADERS.length) {
+    sheet.getRange(1, 1, 1, UTILITY_BILLS_HEADERS.length).setValues([UTILITY_BILLS_HEADERS]).setFontWeight('bold').setBackground('#fef3c7');
+  }
+  return sheet;
+}
+
+function readAllUtilityBills(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
+  const colCount = Math.max(sheet.getLastColumn(), UTILITY_BILLS_HEADERS.length);
+  const values = sheet.getRange(2, 1, lastRow - 1, colCount).getValues();
+  const items = [];
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    if (!row[0]) continue;
+    items.push({
+      rowIndex: i + 2,
+      id: String(row[0]),
+      name: String(row[1] || 'Utility Bill'),
+      icon: String(row[2] || '⚡'),
+      cadence: String(row[3] || 'monthly'),
+      dayOfMonth: Number(row[4]) || 12,
+      annualMonth: Number(row[5]) || 0,
+      bimonthlyStartMonth: Number(row[6]) || 0,
+      estimatedAmount: Number(row[7]) || 0,
+      paymentMethod: String(row[8] || 'upi'),
+      category: String(row[9] || 'bills'),
+      remindDaysBefore: Number(row[10]) || 4,
+      notificationsEnabled: row[11] === true || row[11] === 'true',
+      lastPaidCycle: String(row[12] || ''),
+      updatedAt: Number(row[13]) || Date.now(),
+      deleted: row[14] === true || row[14] === 'true'
+    });
+  }
+  return items;
 }
 
 function recordTelemetry(telemetry) {
@@ -195,9 +242,11 @@ function doGet(e) {
   try {
     const sheet = getOrCreateSheet();
     const items = readAllRows(sheet).filter((item) => !item.deleted);
+    const billSheet = getOrCreateUtilityBillsSheet();
+    const utilityBills = readAllUtilityBills(billSheet).filter((b) => !b.deleted);
     const usageSummary = getUsageSummary();
     return ContentService.createTextOutput(
-      JSON.stringify({ ok: true, items, usageSummary, serverTime: Date.now() })
+      JSON.stringify({ ok: true, items, utilityBills, usageSummary, serverTime: Date.now() })
     ).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(
@@ -252,9 +301,48 @@ function doPost(e) {
       }
     }
 
+    if (Array.isArray(payload.utilityBills)) {
+      const billSheet = getOrCreateUtilityBillsSheet();
+      const existingBills = readAllUtilityBills(billSheet);
+      const billsById = new Map();
+      for (const b of existingBills) {
+        billsById.set(b.id, b);
+      }
+      for (const b of payload.utilityBills) {
+        if (!b || !b.id) continue;
+        const cur = billsById.get(String(b.id));
+        const rowData = [
+          String(b.id),
+          String(b.name || 'Utility Bill'),
+          String(b.icon || '⚡'),
+          String(b.cadence || 'monthly'),
+          Number(b.dayOfMonth) || 12,
+          Number(b.annualMonth) || 0,
+          Number(b.bimonthlyStartMonth) || 0,
+          Number(b.estimatedAmount) || 0,
+          String(b.paymentMethod || 'upi'),
+          String(b.category || 'bills'),
+          Number(b.remindDaysBefore) || 4,
+          Boolean(b.notificationsEnabled),
+          String(b.lastPaidCycle || ''),
+          Number(b.updatedAt) || Date.now(),
+          Boolean(b.deleted)
+        ];
+        if (cur) {
+          if ((Number(b.updatedAt) || 0) >= cur.updatedAt) {
+            billSheet.getRange(cur.rowIndex, 1, 1, UTILITY_BILLS_HEADERS.length).setValues([rowData]);
+          }
+        } else {
+          billSheet.appendRow(rowData);
+        }
+      }
+    }
+
     const updatedItems = readAllRows(sheet).filter((item) => !item.deleted);
+    const billSheet = getOrCreateUtilityBillsSheet();
+    const updatedUtilityBills = readAllUtilityBills(billSheet).filter((b) => !b.deleted);
     return ContentService.createTextOutput(
-      JSON.stringify({ ok: true, items: updatedItems, usageSummary: getUsageSummary(), serverTime: Date.now() })
+      JSON.stringify({ ok: true, items: updatedItems, utilityBills: updatedUtilityBills, usageSummary: getUsageSummary(), serverTime: Date.now() })
     ).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(

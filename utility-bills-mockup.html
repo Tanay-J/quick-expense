@@ -1,0 +1,1123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DropSpend — Utility Bills & Reminders Mockup (Midnight)</title>
+<style>
+  :root {
+    --bg: #070b14;
+    --surface: #0f172a;
+    --surface-card: #131c2e;
+    --surface-hover: #1e293b;
+    --border: #22304a;
+    --border-light: #2d3f5e;
+    --ink: #f1f5f9;
+    --ink-sub: #cbd5e1;
+    --muted: #94a3b8;
+    --emerald: #10b981;
+    --emerald-soft: rgba(16, 185, 129, 0.14);
+    --amber: #f59e0b;
+    --amber-soft: rgba(245, 158, 11, 0.14);
+    --rose: #ef4444;
+    --rose-soft: rgba(239, 68, 68, 0.14);
+    --cyan: #06b6d4;
+    --cyan-soft: rgba(6, 182, 212, 0.14);
+    --indigo: #6366f1;
+    --indigo-soft: rgba(99, 102, 241, 0.14);
+    --purple: #a855f7;
+    --purple-soft: rgba(168, 85, 247, 0.14);
+    --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    line-height: 1.5;
+    padding: 32px 20px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .header {
+    max-width: 1400px;
+    margin: 0 auto 32px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+  }
+
+  .header-left h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .badge-tag {
+    background: var(--emerald-soft);
+    color: var(--emerald);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+  }
+
+  .header-left p {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 6px;
+  }
+
+  .tab-nav {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .tab-nav button {
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .tab-nav button:hover {
+    color: var(--ink);
+  }
+
+  .tab-nav button.active {
+    background: var(--surface-hover);
+    color: var(--ink);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  /* Grid Layout for Mockups */
+  .mockups-grid {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+    gap: 28px;
+    align-items: start;
+  }
+
+  .mockup-column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .col-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink-sub);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .col-title small {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 12px;
+  }
+
+  /* Phone Mockup Frame */
+  .phone-frame {
+    background: #090e1a;
+    border: 3px solid #1e293b;
+    border-radius: 40px;
+    box-shadow: 0 25px 60px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 780px;
+    position: relative;
+  }
+
+  .phone-status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .phone-notch {
+    width: 120px;
+    height: 18px;
+    background: #111827;
+    border-radius: 0 0 12px 12px;
+    margin: 0 auto;
+  }
+
+  .phone-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 16px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .phone-content::-webkit-scrollbar { width: 4px; }
+  .phone-content::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+
+  /* App Headers inside Phone */
+  .app-hdr {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 4px;
+  }
+
+  .app-hdr-greeting {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  .app-hdr-date {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  /* Reminder Banner on Home Screen */
+  .reminder-home-banner {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(15, 23, 42, 0.95) 100%);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    box-shadow: 0 4px 16px -2px rgba(245, 158, 11, 0.08);
+  }
+
+  .banner-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .banner-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--amber);
+    letter-spacing: 0.04em;
+  }
+
+  .banner-tag::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber);
+  }
+
+  .banner-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .banner-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .banner-info-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .bill-icon-box {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .banner-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .banner-sub {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .banner-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .btn-action-primary {
+    background: var(--emerald);
+    color: #04130d;
+    font-weight: 750;
+    font-size: 12px;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: filter 0.15s;
+  }
+
+  .btn-action-primary:hover { filter: brightness(1.1); }
+
+  .btn-action-secondary {
+    background: rgba(255,255,255,0.07);
+    color: var(--ink-sub);
+    font-weight: 600;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+  }
+
+  /* Utility Summary Pills */
+  .summary-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-chip {
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .stat-chip-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .stat-chip-val {
+    font-size: 18px;
+    font-weight: 800;
+    margin-top: 4px;
+    color: var(--ink);
+  }
+
+  /* Cadence Filters */
+  .cadence-filter-bar {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .cadence-filter-bar::-webkit-scrollbar { display: none; }
+
+  .cadence-pill {
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .cadence-pill.active {
+    background: var(--indigo-soft);
+    border-color: var(--indigo);
+    color: #c7d2fe;
+  }
+
+  /* Bill Item Card in List */
+  .bill-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+
+  .bill-card:hover {
+    border-color: var(--border-light);
+  }
+
+  .bill-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .bill-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .bill-meta-name {
+    font-size: 14px;
+    font-weight: 750;
+    color: var(--ink);
+  }
+
+  .bill-meta-sub {
+    font-size: 11.5px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .cadence-tag {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    color: var(--ink-sub);
+  }
+
+  .cadence-tag.monthly { color: #6ee7b7; background: rgba(16, 185, 129, 0.1); }
+  .cadence-tag.bimonthly { color: #93c5fd; background: rgba(59, 130, 246, 0.1); }
+  .cadence-tag.yearly { color: #fca5a5; background: rgba(239, 68, 68, 0.1); }
+  .cadence-tag.quarterly { color: #fde047; background: rgba(234, 179, 8, 0.1); }
+
+  .bill-right {
+    text-align: right;
+  }
+
+  .bill-amount {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  .due-pill {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-top: 3px;
+  }
+
+  .due-pill.urgent { background: var(--amber-soft); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+  .due-pill.overdue { background: var(--rose-soft); color: var(--rose); border: 1px solid rgba(239, 68, 68, 0.3); }
+  .due-pill.ok { background: var(--emerald-soft); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+  .due-pill.upcoming { background: rgba(255,255,255,0.05); color: var(--muted); }
+
+  .bill-bottom-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(255,255,255,0.06);
+    margin-top: 2px;
+  }
+
+  .reminder-info {
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .btn-mark-paid {
+    background: transparent;
+    color: var(--emerald);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-mark-paid:hover {
+    background: var(--emerald);
+    color: #04130d;
+  }
+
+  /* Form Elements in Mockup 3 */
+  .form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .form-group label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--ink-sub);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .form-input, .form-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13.5px;
+    outline: none;
+  }
+
+  .form-input:focus, .form-select:focus {
+    border-color: var(--indigo);
+  }
+
+  .frequency-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .freq-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transition: all 0.15s;
+  }
+
+  .freq-card.active {
+    border-color: var(--indigo);
+    background: var(--indigo-soft);
+  }
+
+  .freq-title {
+    font-size: 13px;
+    font-weight: 750;
+    color: var(--ink);
+  }
+
+  .freq-desc {
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+
+  .toast-mockup {
+    position: absolute;
+    bottom: 24px;
+    left: 20px;
+    right: 20px;
+    background: #1e293b;
+    border: 1px solid var(--emerald);
+    color: var(--ink);
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.25s ease;
+    pointer-events: none;
+  }
+
+  .toast-mockup.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  /* Highlights Box */
+  .features-strip {
+    max-width: 1400px;
+    margin: 36px auto 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+  }
+
+  .feat-box h4 {
+    font-size: 14.5px;
+    font-weight: 750;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .feat-box p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>
+      Utility Bills &amp; Due Date Reminders
+      <span class="badge-tag">Design Prototype</span>
+    </h1>
+    <p>Flexible cadences for recurring utilities: Monthly (Electricity 12th), Bi-Monthly (Piped Gas), and Annual (Property Tax).</p>
+  </div>
+  <div class="tab-nav">
+    <button class="active" onclick="switchView('all')">Show All 3 Screens</button>
+    <button onclick="switchView('home')">1. Home Screen Reminder</button>
+    <button onclick="switchView('hub')">2. Bills Management Hub</button>
+    <button onclick="switchView('add')">3. Add/Edit Bill Drawer</button>
+  </div>
+</div>
+
+<div class="mockups-grid" id="mockupsGrid">
+
+  <!-- ==================== COLUMN 1: HOME SCREEN BANNER ==================== -->
+  <div class="mockup-column" id="col-home">
+    <div class="col-title">
+      <span>Screen 1: Home Screen Widget</span>
+      <small>Unobtrusive Reminder 4 Days Out</small>
+    </div>
+
+    <div class="phone-frame">
+      <div class="phone-status-bar">
+        <span>9:41</span>
+        <div class="phone-notch"></div>
+        <span>5G · 98%</span>
+      </div>
+
+      <div class="phone-content">
+        <div class="app-hdr">
+          <div>
+            <div class="app-hdr-date">SUNDAY, NOV 8</div>
+            <div class="app-hdr-greeting">Hi Tanay</div>
+          </div>
+          <span style="font-size:20px; cursor:pointer;">⚙</span>
+        </div>
+
+        <!-- NEW: SMART UTILITY REMINDER BANNER -->
+        <div class="reminder-home-banner">
+          <div class="banner-head">
+            <span class="banner-tag">Due in 4 Days (Nov 12)</span>
+            <button class="banner-close" onclick="this.closest('.reminder-home-banner').style.display='none'">✕</button>
+          </div>
+          <div class="banner-body">
+            <div class="banner-info-left">
+              <div class="bill-icon-box" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">⚡</div>
+              <div>
+                <div class="banner-title">Electricity Bill (MSEB)</div>
+                <div class="banner-sub">Monthly due · ~₹2,400 est.</div>
+              </div>
+            </div>
+          </div>
+          <div class="banner-actions">
+            <button class="btn-action-primary" onclick="showMockToast('✅ Logged ₹2,400 Electricity Bill to Expenses!')">
+              ⚡ Pay &amp; Log ₹2,400
+            </button>
+            <button class="btn-action-secondary" onclick="showMockToast('⏰ Reminding you again tomorrow morning')">
+              Snooze 1D
+            </button>
+          </div>
+        </div>
+
+        <!-- MOCK HERO SPEND CARD -->
+        <div style="background: var(--surface-card); border: 1px solid var(--border); border-radius: 18px; padding: 18px;">
+          <div style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">Spent in November</div>
+          <div style="font-size:28px; font-weight:800; margin-top:4px;">₹14,850 <small style="font-size:14px; color:var(--muted); font-weight:500;">/ ₹30,000</small></div>
+          <div style="height:6px; background:#1e293b; border-radius:3px; margin:12px 0 8px; overflow:hidden;">
+            <div style="width:49.5%; height:100%; background:var(--emerald); border-radius:3px;"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted);">
+            <span>49.5% of budget</span>
+            <span>22 days left</span>
+          </div>
+        </div>
+
+        <!-- UPCOMING CYCLE STRIP -->
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;">Next 30 Days Bills</span>
+          <span style="font-size:12px; color:var(--indigo); font-weight:600; cursor:pointer;" onclick="switchView('hub')">View All (4) ›</span>
+        </div>
+
+        <!-- MINI STRIP -->
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="background:var(--surface-card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span>🔥</span>
+              <div>
+                <div style="font-size:13px; font-weight:700;">MNGL Piped Gas</div>
+                <div style="font-size:11px; color:var(--muted);">Every 2 Months · Nov 25</div>
+              </div>
+            </div>
+            <span class="due-pill upcoming">In 17 days</span>
+          </div>
+
+          <div style="background:var(--surface-card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span>🏛️</span>
+              <div>
+                <div style="font-size:13px; font-weight:700;">Nagpur Property Tax</div>
+                <div style="font-size:11px; color:var(--muted);">Annual · Dec 31</div>
+              </div>
+            </div>
+            <span class="due-pill upcoming">In 53 days</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Toast Mockup -->
+      <div class="toast-mockup" id="toast-col-1">
+        <span id="toast-txt-1">Done</span>
+        <span style="color:var(--emerald); cursor:pointer;">✕</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== COLUMN 2: UTILITY BILLS HUB ==================== -->
+  <div class="mockup-column" id="col-hub">
+    <div class="col-title">
+      <span>Screen 2: Utility Bills &amp; Reminders Hub</span>
+      <small>Manage All Cadences &amp; Cycles</small>
+    </div>
+
+    <div class="phone-frame">
+      <div class="phone-status-bar">
+        <span>9:41</span>
+        <div class="phone-notch"></div>
+        <span>5G · 98%</span>
+      </div>
+
+      <div class="phone-content">
+        <div class="app-hdr">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="cursor:pointer;" onclick="switchView('home')">←</span>
+            <div class="app-hdr-greeting">Utility Reminders</div>
+          </div>
+          <button class="btn-action-primary" style="padding: 5px 10px; font-size:11.5px;" onclick="switchView('add')">
+            + New Bill
+          </button>
+        </div>
+
+        <!-- STATS -->
+        <div class="summary-stat-grid">
+          <div class="stat-chip">
+            <div class="stat-chip-label">Due This Month</div>
+            <div class="stat-chip-val" style="color:var(--amber);">₹3,343</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:2px;">Electricity + Gas</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-chip-label">Annual Projected</div>
+            <div class="stat-chip-val">₹48,200</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:2px;">6 registered bills</div>
+          </div>
+        </div>
+
+        <!-- CADENCE FILTER PILLS -->
+        <div class="cadence-filter-bar">
+          <div class="cadence-pill active" onclick="filterCadence(this, 'all')">All (5)</div>
+          <div class="cadence-pill" onclick="filterCadence(this, 'monthly')">Monthly (2)</div>
+          <div class="cadence-pill" onclick="filterCadence(this, 'bimonthly')">Every 2 Mo (1)</div>
+          <div class="cadence-pill" onclick="filterCadence(this, 'yearly')">Yearly (2)</div>
+        </div>
+
+        <!-- BILL CARDS LIST -->
+        <div style="display:flex; flex-direction:column; gap:12px;" id="billItemsList">
+
+          <!-- Bill 1: Electricity (Monthly) -->
+          <div class="bill-card" data-cadence="monthly">
+            <div class="bill-card-top">
+              <div class="bill-left">
+                <div class="bill-icon-box" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">⚡</div>
+                <div>
+                  <div class="bill-meta-name">Electricity Bill</div>
+                  <div class="bill-meta-sub">
+                    <span class="cadence-tag monthly">Monthly</span>
+                    <span>Due on 12th</span>
+                  </div>
+                </div>
+              </div>
+              <div class="bill-right">
+                <div class="bill-amount">~₹2,400</div>
+                <span class="due-pill urgent">Due in 4 days</span>
+              </div>
+            </div>
+            <div class="bill-bottom-actions">
+              <div class="reminder-info">🔔 3 days before (Nov 9)</div>
+              <button class="btn-mark-paid" onclick="markPaid(this, 'Electricity')">✓ Mark Paid</button>
+            </div>
+          </div>
+
+          <!-- Bill 2: MNGL Gas (Every 2 Months) -->
+          <div class="bill-card" data-cadence="bimonthly">
+            <div class="bill-card-top">
+              <div class="bill-left">
+                <div class="bill-icon-box" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">🔥</div>
+                <div>
+                  <div class="bill-meta-name">MNGL Piped Gas</div>
+                  <div class="bill-meta-sub">
+                    <span class="cadence-tag bimonthly">Every 2 Months</span>
+                    <span>Nov 25</span>
+                  </div>
+                </div>
+              </div>
+              <div class="bill-right">
+                <div class="bill-amount">~₹943</div>
+                <span class="due-pill upcoming">In 17 days</span>
+              </div>
+            </div>
+            <div class="bill-bottom-actions">
+              <div class="reminder-info">🔔 Next: Jan 2027 cycle</div>
+              <button class="btn-mark-paid" onclick="markPaid(this, 'MNGL Gas')">✓ Mark Paid</button>
+            </div>
+          </div>
+
+          <!-- Bill 3: Property Tax (Yearly) -->
+          <div class="bill-card" data-cadence="yearly">
+            <div class="bill-card-top">
+              <div class="bill-left">
+                <div class="bill-icon-box" style="background: rgba(239, 68, 68, 0.15); color: #f87171;">🏛️</div>
+                <div>
+                  <div class="bill-meta-name">Nagpur Property Tax</div>
+                  <div class="bill-meta-sub">
+                    <span class="cadence-tag yearly">Yearly</span>
+                    <span>Dec 31 every year</span>
+                  </div>
+                </div>
+              </div>
+              <div class="bill-right">
+                <div class="bill-amount">₹6,800</div>
+                <span class="due-pill upcoming">In 53 days</span>
+              </div>
+            </div>
+            <div class="bill-bottom-actions">
+              <div class="reminder-info">🔔 Remind 15 days before</div>
+              <button class="btn-mark-paid" onclick="markPaid(this, 'Property Tax')">✓ Mark Paid</button>
+            </div>
+          </div>
+
+          <!-- Bill 4: Airtel Fiber (Monthly - Paid) -->
+          <div class="bill-card" data-cadence="monthly">
+            <div class="bill-card-top">
+              <div class="bill-left">
+                <div class="bill-icon-box" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">🌐</div>
+                <div>
+                  <div class="bill-meta-name">Airtel Xstream Fiber</div>
+                  <div class="bill-meta-sub">
+                    <span class="cadence-tag monthly">Monthly</span>
+                    <span>Due on 1st</span>
+                  </div>
+                </div>
+              </div>
+              <div class="bill-right">
+                <div class="bill-amount">₹943</div>
+                <span class="due-pill ok">✓ Paid for Nov</span>
+              </div>
+            </div>
+            <div class="bill-bottom-actions">
+              <div class="reminder-info">🔔 Next: Dec 1, 2026</div>
+              <span style="font-size:11px; color:var(--emerald);">Logged to Expenses</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="toast-mockup" id="toast-col-2">
+        <span id="toast-txt-2">Done</span>
+        <span style="color:var(--emerald); cursor:pointer;">✕</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== COLUMN 3: ADD/EDIT BILL DRAWER ==================== -->
+  <div class="mockup-column" id="col-add">
+    <div class="col-title">
+      <span>Screen 3: Add / Edit Utility Bill</span>
+      <small>Cadence &amp; Notification Rules</small>
+    </div>
+
+    <div class="phone-frame">
+      <div class="phone-status-bar">
+        <span>9:41</span>
+        <div class="phone-notch"></div>
+        <span>5G · 98%</span>
+      </div>
+
+      <div class="phone-content">
+        <div class="app-hdr">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="cursor:pointer;" onclick="switchView('hub')">←</span>
+            <div class="app-hdr-greeting">Add Utility Bill</div>
+          </div>
+          <span style="font-size:12px; color:var(--muted); cursor:pointer;" onclick="switchView('hub')">Cancel</span>
+        </div>
+
+        <div class="form-section">
+          <!-- NAME & ICON -->
+          <div class="form-group">
+            <label>Bill Name &amp; Icon</label>
+            <div style="display:flex; gap:8px;">
+              <select class="form-select" style="width:70px; font-size:16px;">
+                <option>⚡</option>
+                <option>🔥</option>
+                <option>🏛️</option>
+                <option>💧</option>
+                <option>🌐</option>
+                <option>📱</option>
+                <option>🚗</option>
+              </select>
+              <input type="text" class="form-input" style="flex:1;" placeholder="e.g. Electricity, Gas, Property Tax" value="Electricity Bill" />
+            </div>
+          </div>
+
+          <!-- FREQUENCY / CADENCE SELECTOR -->
+          <div class="form-group">
+            <label>Frequency (Cadence)</label>
+            <div class="frequency-grid">
+              <div class="freq-card active" onclick="selectFreq(this)">
+                <span class="freq-title">📅 Monthly</span>
+                <span class="freq-desc">Every month (e.g. 12th)</span>
+              </div>
+              <div class="freq-card" onclick="selectFreq(this)">
+                <span class="freq-title">🔁 Every 2 Mo</span>
+                <span class="freq-desc">Bi-monthly (e.g. Piped gas)</span>
+              </div>
+              <div class="freq-card" onclick="selectFreq(this)">
+                <span class="freq-title">🗓️ Quarterly</span>
+                <span class="freq-desc">Every 3 months</span>
+              </div>
+              <div class="freq-card" onclick="selectFreq(this)">
+                <span class="freq-title">🏛️ Yearly</span>
+                <span class="freq-desc">Annual (e.g. Property tax)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- DUE DATE CONFIG -->
+          <div class="form-group">
+            <label>Due Date Rule</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+              <div>
+                <span style="font-size:11px; color:var(--muted);">Day of month</span>
+                <input type="number" class="form-input" style="width:100%; margin-top:4px;" value="12" min="1" max="31" />
+              </div>
+              <div>
+                <span style="font-size:11px; color:var(--muted);">Next Due Month</span>
+                <select class="form-select" style="width:100%; margin-top:4px;">
+                  <option>November 2026</option>
+                  <option>December 2026</option>
+                  <option>January 2027</option>
+                  <option>March 2027 (Annual)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- ESTIMATED AMOUNT -->
+          <div class="form-group">
+            <label>Estimated Amount (Optional)</label>
+            <div style="position:relative;">
+              <span style="position:absolute; left:12px; top:11px; color:var(--muted); font-weight:700;">₹</span>
+              <input type="number" class="form-input" style="padding-left:28px; width:100%;" placeholder="2400" value="2400" />
+            </div>
+            <small style="font-size:11px; color:var(--muted);">Amounts can fluctuate; this helps budget calculations.</small>
+          </div>
+
+          <!-- REMINDER LEAD TIME -->
+          <div class="form-group">
+            <label>Reminder Lead Time</label>
+            <select class="form-select">
+              <option>3 days before due date</option>
+              <option>5 days before due date</option>
+              <option>1 day before due date</option>
+              <option>On due date only</option>
+              <option>10 days before (Recommended for taxes)</option>
+            </select>
+          </div>
+
+          <!-- NOTIFICATION TOGGLE -->
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid var(--border);">
+            <div>
+              <div style="font-size:13px; font-weight:700;">System Notification Reminder</div>
+              <div style="font-size:11px; color:var(--muted);">Push alert on phone status bar</div>
+            </div>
+            <input type="checkbox" checked style="accent-color: var(--emerald); width:18px; height:18px;" />
+          </div>
+
+          <button class="btn-action-primary" style="width:100%; justify-content:center; padding:12px; font-size:14px; margin-top:8px;" onclick="showMockToast('✨ Saved Electricity Bill rule!')">
+            Save Reminder Rule
+          </button>
+        </div>
+
+      </div>
+
+      <div class="toast-mockup" id="toast-col-3">
+        <span id="toast-txt-3">Done</span>
+        <span style="color:var(--emerald); cursor:pointer;">✕</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- HIGHLIGHTS OF THIS PROPOSED ARCHITECTURE -->
+<div class="features-strip">
+  <div class="feat-box">
+    <h4>⚡ Flexible Cadence Engine</h4>
+    <p>Supports <strong>Monthly</strong> (Electricity, WiFi), <strong>Every 2 Months</strong> (Piped gas/water), <strong>Quarterly</strong> (Society maintenance), and <strong>Annual</strong> (Property tax, Term insurance).</p>
+  </div>
+  <div class="feat-box">
+    <h4>🔔 Unobtrusive Due Alerts</h4>
+    <p>Configurable lead times (e.g. 3 days before for electricity, 15 days before for property tax). Appears as a top banner on Home screen only when approaching.</p>
+  </div>
+  <div class="feat-box">
+    <h4>💳 1-Tap "Pay &amp; Log" Sync</h4>
+    <p>Tapping "Pay &amp; Log" records the expense directly into DropSpend's <code>Expenses</code> database with category and tags, and advances the bill's cycle to the next due period automatically.</p>
+  </div>
+  <div class="feat-box">
+    <h4>🔒 100% Free &amp; Offline</h4>
+    <p>Stored locally in <code>localStorage</code> (key <code>qe_utility_reminders_v1</code>) and synced optionally to your personal Google Sheet. No paid cloud servers needed.</p>
+  </div>
+</div>
+
+<script>
+  function switchView(view) {
+    const cols = {
+      home: document.getElementById('col-home'),
+      hub: document.getElementById('col-hub'),
+      add: document.getElementById('col-add')
+    };
+
+    document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
+
+    if (view === 'all') {
+      cols.home.style.display = 'flex';
+      cols.hub.style.display = 'flex';
+      cols.add.style.display = 'flex';
+      document.querySelector('.tab-nav button:nth-child(1)').classList.add('active');
+    } else {
+      cols.home.style.display = view === 'home' ? 'flex' : 'none';
+      cols.hub.style.display = view === 'hub' ? 'flex' : 'none';
+      cols.add.style.display = view === 'add' ? 'flex' : 'none';
+
+      if (view === 'home') document.querySelector('.tab-nav button:nth-child(2)').classList.add('active');
+      if (view === 'hub') document.querySelector('.tab-nav button:nth-child(3)').classList.add('active');
+      if (view === 'add') document.querySelector('.tab-nav button:nth-child(4)').classList.add('active');
+    }
+  }
+
+  function selectFreq(el) {
+    document.querySelectorAll('.freq-card').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function filterCadence(el, cadence) {
+    document.querySelectorAll('.cadence-pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+
+    const cards = document.querySelectorAll('#billItemsList .bill-card');
+    cards.forEach(c => {
+      if (cadence === 'all' || c.dataset.cadence === cadence) {
+        c.style.display = 'flex';
+      } else {
+        c.style.display = 'none';
+      }
+    });
+  }
+
+  function markPaid(btn, name) {
+    const card = btn.closest('.bill-card');
+    const pill = card.querySelector('.due-pill');
+    pill.className = 'due-pill ok';
+    pill.textContent = '✓ Paid for this cycle';
+    btn.style.display = 'none';
+    showMockToast(`✅ Marked ${name} as paid! Logged to expenses.`);
+  }
+
+  function showMockToast(msg) {
+    ['toast-col-1', 'toast-col-2', 'toast-col-3'].forEach((id, idx) => {
+      const el = document.getElementById(id);
+      const txt = document.getElementById(`toast-txt-${idx+1}`);
+      if (el && txt) {
+        txt.textContent = msg;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 3000);
+      }
+    });
+  }
+</script>
+
+</body>
+</html>

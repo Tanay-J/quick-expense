@@ -26,6 +26,7 @@ import {
   loadRecurringRules,
   loadSettings,
   loadTombstones,
+  loadUtilityBills,
   normalizeEntryType,
   normalizePaymentMethod,
   normalizeTags,
@@ -33,6 +34,7 @@ import {
   saveRecurringRules,
   saveSettings,
   saveTombstones,
+  saveUtilityBills,
   syncWithGoogleSheets,
   trackAppUsage
 } from './sync.js?v=28';
@@ -45,8 +47,10 @@ import {
   computeMonthlyRecap,
   computeSameSpanComparison,
   computeUsuals,
+  computeUtilityBillStatus,
   evaluateQuestionQuery,
-  filterExpensesByQuery
+  filterExpensesByQuery,
+  getUtilityBillCurrentCycleKey
 } from './insights.js?v=28';
 
 import { createSpecController } from './spec-ui.js?v=28';
@@ -88,6 +92,7 @@ function getInitialDesign() {
 const state = {
   expenses: loadExpenses(),
   recurringRules: loadRecurringRules(),
+  utilityBills: loadUtilityBills(),
   settings: loadSettings(),
   uiDesign: getInitialDesign(), // 'spotlight' | 'tabs' | 'chat' | 'pocket' | 'classic'
   activeView: 'log', // 'log' | 'insights' (used in 'tabs' design)
@@ -300,10 +305,22 @@ const els = {
   editRecurring: document.getElementById('edit-recurring'),
   deleteExpenseBtn: document.getElementById('delete-expense-btn'),
   recurringDialog: document.getElementById('recurring-dialog'),
+  ccTabUtility: document.getElementById('cc-tab-utility'),
   ccTabCards: document.getElementById('cc-tab-cards'),
   ccTabRecurring: document.getElementById('cc-tab-recurring'),
+  ccPaneUtility: document.getElementById('cc-pane-utility'),
   ccPaneCards: document.getElementById('cc-pane-cards'),
   ccPaneRecurring: document.getElementById('cc-pane-recurring'),
+  utilityBillsList: document.getElementById('utility-bills-list'),
+  utilityStatMonth: document.getElementById('utility-stat-month'),
+  utilityStatYear: document.getElementById('utility-stat-year'),
+  addUtilityBillForm: document.getElementById('add-utility-bill-form'),
+  utilIconInp: document.getElementById('util-icon-inp'),
+  utilNameInp: document.getElementById('util-name-inp'),
+  utilCadenceInp: document.getElementById('util-cadence-inp'),
+  utilDayInp: document.getElementById('util-day-inp'),
+  utilAmountInp: document.getElementById('util-amount-inp'),
+  utilRemindInp: document.getElementById('util-remind-inp'),
   ccCardsList: document.getElementById('cc-cards-list'),
   ccCardNameInput: document.getElementById('cc-card-name-input'),
   ccNotifyToggleBtn: document.getElementById('cc-notify-toggle-btn'),
@@ -2342,22 +2359,227 @@ function getBankBadgeInfo(cardName) {
   return { label: firstWord.slice(0, 5).toUpperCase(), cls: 'hdfc' };
 }
 
+let currentUtilityCadenceFilter = 'all';
+
 function switchCcModalTab(tabName) {
-  const isRecurring = tabName === 'recurring';
+  const activeTab = tabName === 'cards' ? 'cards' : (tabName === 'recurring' ? 'recurring' : 'utility');
+  if (els.ccTabUtility) {
+    els.ccTabUtility.classList.toggle('active', activeTab === 'utility');
+    els.ccTabUtility.setAttribute('aria-selected', String(activeTab === 'utility'));
+  }
   if (els.ccTabCards) {
-    els.ccTabCards.classList.toggle('active', !isRecurring);
-    els.ccTabCards.setAttribute('aria-selected', String(!isRecurring));
+    els.ccTabCards.classList.toggle('active', activeTab === 'cards');
+    els.ccTabCards.setAttribute('aria-selected', String(activeTab === 'cards'));
   }
   if (els.ccTabRecurring) {
-    els.ccTabRecurring.classList.toggle('active', isRecurring);
-    els.ccTabRecurring.setAttribute('aria-selected', String(isRecurring));
+    els.ccTabRecurring.classList.toggle('active', activeTab === 'recurring');
+    els.ccTabRecurring.setAttribute('aria-selected', String(activeTab === 'recurring'));
+  }
+  if (els.ccPaneUtility) {
+    els.ccPaneUtility.hidden = activeTab !== 'utility';
   }
   if (els.ccPaneCards) {
-    els.ccPaneCards.hidden = isRecurring;
+    els.ccPaneCards.hidden = activeTab !== 'cards';
   }
   if (els.ccPaneRecurring) {
-    els.ccPaneRecurring.hidden = !isRecurring;
+    els.ccPaneRecurring.hidden = activeTab !== 'recurring';
   }
+}
+
+function renderUtilityBillsModalList(activeCadence = currentUtilityCadenceFilter) {
+  currentUtilityCadenceFilter = activeCadence;
+  if (!els.utilityBillsList) return;
+  els.utilityBillsList.replaceChildren();
+
+  const bills = state.utilityBills || [];
+  const statuses = bills.map((b) => computeUtilityBillStatus(b));
+
+  if (els.ccTabUtility) {
+    els.ccTabUtility.textContent = `⚡ Utility Bills (${bills.length})`;
+  }
+
+  // Calculate Due This Month & Annual Projected
+  let dueThisMonthTotal = 0;
+  let annualProjectedTotal = 0;
+
+  for (const st of statuses) {
+    const amt = Number(st.bill.estimatedAmount) || 0;
+    if (st.isDueThisMonth && !st.isPaidThisCycle) {
+      dueThisMonthTotal += amt;
+    }
+    const cadence = st.bill.cadence || 'monthly';
+    if (cadence === 'yearly') annualProjectedTotal += amt;
+    else if (cadence === 'quarterly') annualProjectedTotal += amt * 4;
+    else if (cadence === 'bimonthly') annualProjectedTotal += amt * 6;
+    else annualProjectedTotal += amt * 12;
+  }
+
+  if (els.utilityStatMonth) {
+    els.utilityStatMonth.textContent = formatCurrency(dueThisMonthTotal);
+  }
+  if (els.utilityStatYear) {
+    els.utilityStatYear.textContent = formatCurrency(annualProjectedTotal);
+  }
+
+  const filterPills = document.querySelectorAll('.utility-filter-pill');
+  filterPills.forEach((p) => {
+    p.classList.toggle('active', p.dataset.cadenceFilter === currentUtilityCadenceFilter);
+  });
+
+  const filtered = statuses.filter((st) => {
+    if (currentUtilityCadenceFilter === 'all') return true;
+    return (st.bill.cadence || 'monthly') === currentUtilityCadenceFilter;
+  });
+
+  if (filtered.length === 0) {
+    const emptyEl = document.createElement('div');
+    emptyEl.style.padding = '20px 12px';
+    emptyEl.style.textAlign = 'center';
+    emptyEl.style.color = '#8b98ad';
+    emptyEl.style.fontSize = '12px';
+    emptyEl.textContent = 'No utility bills in this filter. Add one below!';
+    els.utilityBillsList.appendChild(emptyEl);
+    return;
+  }
+
+  for (const st of filtered) {
+    const bill = st.bill;
+    const card = document.createElement('div');
+    card.className = 'utility-bill-card';
+
+    const topRow = document.createElement('div');
+    topRow.className = 'utility-bill-card-top';
+
+    const left = document.createElement('div');
+    left.className = 'utility-bill-left';
+
+    const iconBox = document.createElement('div');
+    iconBox.className = 'utility-bill-icon';
+    iconBox.textContent = bill.icon || '⚡';
+
+    const meta = document.createElement('div');
+    const nameEl = document.createElement('div');
+    nameEl.className = 'utility-bill-name';
+    nameEl.textContent = bill.name;
+
+    const subEl = document.createElement('div');
+    subEl.className = 'utility-bill-sub';
+
+    const cadenceTag = document.createElement('span');
+    cadenceTag.className = `cadence-tag ${bill.cadence || 'monthly'}`;
+    const cadenceLabels = {
+      monthly: 'Monthly',
+      bimonthly: '2-Month',
+      quarterly: 'Quarterly',
+      yearly: 'Yearly'
+    };
+    cadenceTag.textContent = cadenceLabels[bill.cadence] || 'Monthly';
+
+    const dueTxt = document.createElement('span');
+    dueTxt.textContent = `Due ${st.dueFormatted}`;
+
+    subEl.append(cadenceTag, dueTxt);
+    meta.append(nameEl, subEl);
+    left.append(iconBox, meta);
+
+    const right = document.createElement('div');
+    right.style.textAlign = 'right';
+
+    const amtEl = document.createElement('div');
+    amtEl.className = 'num';
+    amtEl.style.fontSize = '13.5px';
+    amtEl.style.fontWeight = '750';
+    amtEl.style.color = '#e8edf5';
+    amtEl.textContent = bill.estimatedAmount ? `~${formatCurrency(bill.estimatedAmount)}` : 'Variable';
+
+    const statusPill = document.createElement('span');
+    statusPill.className = `due-pill ${st.statusClass}`;
+    statusPill.textContent = st.statusLabel;
+
+    right.append(amtEl, statusPill);
+    topRow.append(left, right);
+
+    const bottomRow = document.createElement('div');
+    bottomRow.className = 'utility-bill-bottom';
+
+    const remindInfo = document.createElement('span');
+    remindInfo.className = 'utility-bill-reminder';
+    remindInfo.textContent = `🔔 ${bill.remindDaysBefore || 4}d alert`;
+
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.alignItems = 'center';
+    actions.style.gap = '8px';
+
+    if (!st.isPaidThisCycle) {
+      const payBtn = document.createElement('button');
+      payBtn.type = 'button';
+      payBtn.className = 'cc-btn-xs is-emerald';
+      payBtn.textContent = '✓ Pay & Log';
+      payBtn.title = 'Log expense and advance cycle';
+      payBtn.addEventListener('click', () => markUtilityBillPaid(bill, st));
+      actions.appendChild(payBtn);
+    }
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'cc-btn-del';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Remove utility reminder';
+    delBtn.addEventListener('click', () => deleteUtilityBill(bill.id));
+    actions.appendChild(delBtn);
+
+    bottomRow.append(remindInfo, actions);
+    card.append(topRow, bottomRow);
+    els.utilityBillsList.appendChild(card);
+  }
+}
+
+function markUtilityBillPaid(bill, statusObj) {
+  const amountToLog = Number(bill.estimatedAmount) || 0;
+  const now = new Date();
+  const dateIso = toLocalISODate(now);
+
+  if (amountToLog > 0) {
+    const newEntry = {
+      id: `exp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      date: dateIso,
+      amount: amountToLog,
+      category: bill.category || 'bills',
+      note: bill.name,
+      raw: `${amountToLog} ${bill.name} ${bill.paymentMethod || 'upi'}`,
+      updatedAt: Date.now(),
+      synced: false,
+      type: 'expense',
+      paymentMethod: bill.paymentMethod || 'upi'
+    };
+    state.expenses.unshift(newEntry);
+    saveExpenses(state.expenses);
+  }
+
+  const currentKey = statusObj.cycleKey || getUtilityBillCurrentCycleKey(bill, now);
+  bill.lastPaidCycle = currentKey;
+  bill.updatedAt = Date.now();
+  saveUtilityBills(state.utilityBills);
+
+  renderAll();
+  renderUtilityBillsModalList();
+  triggerBackgroundSync(false);
+
+  showToast(
+    amountToLog > 0
+      ? `✅ Logged ${formatCurrency(amountToLog)} for ${bill.name} and advanced cycle!`
+      : `✅ Marked ${bill.name} as paid for this cycle!`
+  );
+}
+
+function deleteUtilityBill(billId) {
+  const target = state.utilityBills.find((b) => b.id === billId);
+  state.utilityBills = state.utilityBills.filter((b) => b.id !== billId);
+  saveUtilityBills(state.utilityBills);
+  renderUtilityBillsModalList();
+  triggerBackgroundSync(false);
+  showToast(`Removed utility reminder: ${target?.name || 'Bill'}`);
 }
 
 function renderCreditCardsModalList() {
@@ -2666,7 +2888,7 @@ function renderRecurringModalList() {
   }
 }
 
-function openRecurringModal(initialTab = 'cards') {
+function openRecurringModal(initialTab = 'utility') {
   if (els.ccStatementDayInput) {
     els.ccStatementDayInput.value = '15';
   }
@@ -2676,7 +2898,8 @@ function openRecurringModal(initialTab = 'cards') {
   if (els.ccCardNameInput) {
     els.ccCardNameInput.value = '';
   }
-  switchCcModalTab(initialTab === 'recurring' ? 'recurring' : 'cards');
+  switchCcModalTab(initialTab);
+  renderUtilityBillsModalList();
   renderCreditCardsModalList();
   renderRecurringModalList();
   els.recurringDialog?.showModal();
@@ -2994,7 +3217,7 @@ const specController = createSpecController({
   markCardPaid: (cardId, paid) => markCreditCardPaid(cardId, paid),
   openEditModal: (exp) => openEditModal(exp),
   openStoryModal: (recap) => openStoryModal(recap),
-  openRecurringModal: () => openRecurringModal(),
+  openRecurringModal: (tab = 'utility') => openRecurringModal(tab),
   openSyncAndSettingsModal: () => openSyncAndSettingsModal(),
   exportCsv: (items) => {
     exportToCSV(items);
@@ -4131,8 +4354,48 @@ function setupEventListeners() {
   els.openCcSettingsBtn?.addEventListener('click', () => openRecurringModal('cards'));
   els.quickOpenRecurringBtn?.addEventListener('click', () => openRecurringModal('cards'));
 
+  els.ccTabUtility?.addEventListener('click', () => switchCcModalTab('utility'));
   els.ccTabCards?.addEventListener('click', () => switchCcModalTab('cards'));
   els.ccTabRecurring?.addEventListener('click', () => switchCcModalTab('recurring'));
+
+  document.querySelectorAll('.utility-filter-pill').forEach((pill) => {
+    pill.addEventListener('click', (e) => {
+      renderUtilityBillsModalList(e.target.dataset.cadenceFilter || 'all');
+    });
+  });
+
+  els.addUtilityBillForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = (els.utilNameInp?.value || '').trim();
+    if (!name) return;
+
+    const newBill = {
+      id: `bill_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      icon: els.utilIconInp?.value || '⚡',
+      cadence: els.utilCadenceInp?.value || 'monthly',
+      dayOfMonth: Math.min(28, Math.max(1, Number(els.utilDayInp?.value) || 12)),
+      annualMonth: new Date().getMonth(),
+      bimonthlyStartMonth: new Date().getMonth() % 2,
+      estimatedAmount: Number(els.utilAmountInp?.value) || 0,
+      paymentMethod: 'upi',
+      category: 'bills',
+      remindDaysBefore: Number(els.utilRemindInp?.value) || 5,
+      notificationsEnabled: true,
+      lastPaidCycle: '',
+      updatedAt: Date.now(),
+      deleted: false
+    };
+
+    state.utilityBills.push(newBill);
+    saveUtilityBills(state.utilityBills);
+    if (els.utilNameInp) els.utilNameInp.value = '';
+    if (els.utilAmountInp) els.utilAmountInp.value = '';
+
+    renderUtilityBillsModalList();
+    triggerBackgroundSync(false);
+    showToast(`✨ Added ${newBill.icon} ${name} reminder!`);
+  });
 
   els.ccMarkPaidBtn?.addEventListener('click', () => {
     const ccInfo = computeCreditCardCycleInfo();
@@ -4600,6 +4863,7 @@ function setupEventListeners() {
       exportedAt: new Date().toISOString(),
       expenses: state.expenses,
       recurringRules: state.recurringRules,
+      utilityBills: state.utilityBills,
       learnedKeywords: getLearnedKeywords(),
       settings: {
         currency: state.settings.currency || '₹',
@@ -4638,6 +4902,10 @@ function setupEventListeners() {
         if (Array.isArray(parsed.recurringRules)) {
           state.recurringRules = parsed.recurringRules;
           saveRecurringRules(state.recurringRules);
+        }
+        if (Array.isArray(parsed.utilityBills)) {
+          state.utilityBills = parsed.utilityBills;
+          saveUtilityBills(state.utilityBills);
         }
         if (parsed.settings) {
           state.settings = saveSettings({
