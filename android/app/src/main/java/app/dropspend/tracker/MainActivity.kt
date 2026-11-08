@@ -381,17 +381,31 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun isNotificationListenerEnabled(): Boolean {
-            val flat = android.provider.Settings.Secure.getString(
-                contentResolver,
-                "enabled_notification_listeners"
-            ) ?: return false
-            return flat.contains(packageName)
+            return try {
+                val flat = android.provider.Settings.Secure.getString(
+                    contentResolver,
+                    "enabled_notification_listeners"
+                ) ?: return false
+                flat.contains(packageName)
+            } catch (e: Exception) {
+                false
+            }
         }
 
         @JavascriptInterface
         fun openNotificationListenerSettings() {
             runOnUiThread {
-                startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+                try {
+                    val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    try {
+                        val fallback = Intent(android.provider.Settings.ACTION_SETTINGS)
+                        fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(fallback)
+                    } catch (_: Exception) {}
+                }
             }
         }
 

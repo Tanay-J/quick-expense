@@ -2545,14 +2545,35 @@ export function createSpecController(ctx) {
           <div class="spec-section-kicker">ANDROID APP &amp; NOTIFICATIONS</div>
           <div class="spec-card spec-settings-card" id="TODO-HERE-11">
             <!-- TODO-HERE-11 -->
-            ${FEATURE_REMOTE_NOTIF_SYNC ? `
+            ${FEATURE_REMOTE_NOTIF_SYNC ? (() => {
+              let permDesc = 'Sync notifications from configured utility apps to dedicated Google Sheet';
+              let permStyle = '';
+              if (!window.DropSpendNative) {
+                if (settings.remoteNotificationSyncEnabled) {
+                  permDesc = '🧪 Browser simulation mode active (Requires DropSpend APK on Android)';
+                  permStyle = 'color:#38bdf8;';
+                } else {
+                  permDesc = 'Runs in Android APK · Browser test simulation available';
+                }
+              } else {
+                const granted = Boolean(window.DropSpendNative.isNotificationListenerEnabled?.());
+                if (granted) {
+                  permDesc = '✅ Device & app notification access granted';
+                  permStyle = 'color:#34d399;';
+                } else if (settings.remoteNotificationSyncEnabled) {
+                  permDesc = '⚠️ Action required: enable in Android Settings';
+                  permStyle = 'color:#fbbf24;';
+                }
+              }
+              return `
             <div class="spec-setting-row">
               <div>
                 <strong>Store data locally on this phone</strong>
               </div>
               <input type="checkbox" id="spec-set-remote-notif-sync" class="spec-ios-switch" ${settings.remoteNotificationSyncEnabled ? 'checked' : ''} />
             </div>
-            ` : ''}
+            `;
+            })() : ''}
             <div class="spec-setting-row" id="spec-open-widget-sim" style="cursor:pointer">
               <div>
                 <strong>📱 Preview Android Home Widget</strong>
@@ -2660,21 +2681,63 @@ export function createSpecController(ctx) {
     if (FEATURE_REMOTE_NOTIF_SYNC) {
       const syncToggle = root.querySelector('#spec-set-remote-notif-sync');
 
-      syncToggle?.addEventListener('change', (e) => {
+      syncToggle?.addEventListener('change', async (e) => {
         const isChecked = e.target.checked;
 
         if (isChecked) {
-          // Preemptive check: Is Android Notification Listener permission granted?
-          const isPermGranted = window.DropSpendNative?.isNotificationListenerEnabled
-            ? window.DropSpendNative.isNotificationListenerEnabled()
-            : false;
+          // Check if running in browser vs native Android APK
+          if (!window.DropSpendNative) {
+            let browserPerm = 'default';
+            if ('Notification' in window) {
+              try {
+                browserPerm = await Notification.requestPermission();
+              } catch (_) {}
+            }
+
+            const allowSim = window.confirm(
+              '📱 Android Notification Access Required\n\n' +
+              'On mobile devices, this feature intercepts notifications from whitelisted utility apps using Android\'s "Device & app notifications" service (DropSpend APK).\n\n' +
+              (browserPerm === 'granted'
+                ? '✅ Browser notification permission granted!\n\nEnable simulation mode for local browser testing?'
+                : 'Enable simulation mode for local browser testing?')
+            );
+
+            if (!allowSim) {
+              e.target.checked = false;
+              return;
+            }
+
+            ctx.updateSettings({ remoteNotificationSyncEnabled: true });
+            setRemoteNotificationSync(true);
+            const permStatusEl = root.querySelector('#spec-notif-perm-status');
+            if (permStatusEl) {
+              permStatusEl.textContent = '🧪 Browser simulation mode active (Requires DropSpend APK on Android)';
+              permStatusEl.style.color = '#38bdf8';
+            }
+            if (ctx.showToast) {
+              ctx.showToast('🧪 Remote notification sync enabled in browser simulation mode');
+            }
+            return;
+          }
+
+          // We ARE inside native Android APK!
+          const canCheckPerm = typeof window.DropSpendNative?.isNotificationListenerEnabled === 'function';
+          const isPermGranted = canCheckPerm ? window.DropSpendNative.isNotificationListenerEnabled() : false;
 
           if (!isPermGranted) {
-            // Revert switch to OFF until granted in system settings
+            // Revert switch to OFF until granted in Android system settings
             e.target.checked = false;
-            // Directly launch Android's system settings screen — no intermediate popup
-            if (window.DropSpendNative?.openNotificationListenerSettings) {
+
+            if (typeof window.DropSpendNative?.openNotificationListenerSettings === 'function') {
+              if (ctx.showToast) {
+                ctx.showToast('Opening Android Settings — enable DropSpend under Notification Access');
+              }
               window.DropSpendNative.openNotificationListenerSettings();
+            } else {
+              window.alert(
+                '📱 Android Notification Access Required\n\n' +
+                'Please update to the latest DropSpend APK build, or open Android Settings > Apps > Special App Access > Device & app notifications and enable DropSpend.'
+              );
             }
             return;
           }
@@ -2683,16 +2746,32 @@ export function createSpecController(ctx) {
         // Permission is granted (or user turned it OFF)
         ctx.updateSettings({ remoteNotificationSyncEnabled: isChecked });
         setRemoteNotificationSync(isChecked);
+        const permStatusEl = root.querySelector('#spec-notif-perm-status');
+        if (permStatusEl) {
+          if (!isChecked) {
+            permStatusEl.textContent = 'Sync notifications from configured utility apps to dedicated Google Sheet';
+            permStatusEl.style.color = '';
+          } else {
+            permStatusEl.textContent = '✅ Device & app notification access granted';
+            permStatusEl.style.color = '#34d399';
+          }
+        }
         if (ctx.showToast) {
           ctx.showToast(isChecked ? 'Remote notification sync enabled' : 'Remote notification sync disabled');
         }
       });
 
       // Auto-detect when user returns from Android Settings
-      window.addEventListener('focus', () => {
-        if (syncToggle && !syncToggle.checked) {
-          const isNowGranted = window.DropSpendNative?.isNotificationListenerEnabled?.();
-          if (isNowGranted && !ctx.getSettings()?.remoteNotificationSyncEnabled) {
+      const syncPermFromSystem = () => {
+        if (!syncToggle || !window.DropSpendNative) return;
+        const isNowGranted = Boolean(window.DropSpendNative.isNotificationListenerEnabled?.());
+        const permStatusEl = root.querySelector('#spec-notif-perm-status');
+        if (isNowGranted) {
+          if (permStatusEl) {
+            permStatusEl.textContent = '✅ Device & app notification access granted';
+            permStatusEl.style.color = '#34d399';
+          }
+          if (!syncToggle.checked) {
             syncToggle.checked = true;
             ctx.updateSettings({ remoteNotificationSyncEnabled: true });
             setRemoteNotificationSync(true);
@@ -2700,8 +2779,25 @@ export function createSpecController(ctx) {
               ctx.showToast('✅ Notification access verified — sync enabled!');
             }
           }
+        } else {
+          if (permStatusEl) {
+            permStatusEl.textContent = '⚠️ Requires "Device & app notifications" access in Android Settings';
+            permStatusEl.style.color = '#fbbf24';
+          }
+          if (syncToggle.checked) {
+            syncToggle.checked = false;
+            ctx.updateSettings({ remoteNotificationSyncEnabled: false });
+            setRemoteNotificationSync(false);
+          }
         }
-      }, { once: true });
+      };
+
+      window.addEventListener('focus', syncPermFromSystem);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          syncPermFromSystem();
+        }
+      });
     }
     root.querySelector('#spec-open-widget-sim')?.addEventListener('click', () => {
       toggleWidgetSimulator(true);
