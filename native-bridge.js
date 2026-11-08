@@ -21,6 +21,19 @@ export const WIDGET_SNAPSHOT_KEY = 'qe_widget_snapshot_v1';
 export const WIDGET_PENDING_QUEUE_KEY = 'qe_widget_pending_adds_v1';
 export const OTA_META_KEY = 'qe_ota_meta_v1';
 
+export function setRemoteNotificationSync(enabled) {
+  if (window.DropSpendNative?.setNotificationSyncEnabled) {
+    window.DropSpendNative.setNotificationSyncEnabled(Boolean(enabled));
+  }
+}
+
+export function isRemoteNotificationSyncEnabled() {
+  if (window.DropSpendNative?.isNotificationSyncEnabled) {
+    return Boolean(window.DropSpendNative.isNotificationSyncEnabled());
+  }
+  return false;
+}
+
 /**
  * Detect whether we are running inside the Native Android APK shell / Capacitor
  */

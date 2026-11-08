@@ -1,5 +1,8 @@
 import { extractTags, getPaymentMethodById, isIncomeCategory } from './parser.js?v=22';
 
+// Master code-level feature flag: Set to false to completely remove/disable this feature across the app
+export const FEATURE_REMOTE_NOTIF_SYNC = true;
+
 const STORAGE_KEY = 'qe_expenses_v1';
 const TOMBSTONES_KEY = 'qe_tombstones_v1';
 const RECURRING_KEY = 'qe_recurring_v1';
@@ -331,6 +334,7 @@ export function loadSettings() {
       ],
       ccRemindDays: 5,
       ccNotificationsEnabled: true,
+      remoteNotificationSyncEnabled: false, //TODO-HERE-11
       hapticsEnabled: true,
       homeStyle: 'accordions',
       theme: 'dark',

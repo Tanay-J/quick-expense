@@ -11,23 +11,21 @@ import java.util.regex.Pattern
 class DropSpendNotificationService : NotificationListenerService() {
 
     companion object {
-        // Broad payment, banking, and UPI packages
-        private val PAYMENT_PACKAGES = setOf(
-            "com.google.android.apps.nbu.paisa.user", // Google Pay
-            "com.phonepe.app",                        // PhonePe
-            "net.one97.paytm",                        // Paytm
-            "in.org.npci.upiapp",                     // BHIM
-            "com.dreamplug.androidapp",               // CRED
-            "com.axis.mobile",                        // Axis Mobile
-            "com.hdfcbank.payzapp",                   // PayZapp
-            "com.snapwork.hdfc",                      // HDFC Bank MobileBanking
-            "com.csam.icici.bank.imobile",            // iMobile Pay
-            "com.sbi.lotusintouch"                    // YONO SBI
+        // Configurable whitelist of allowed utility applications (e.g. Internet Speed Tracker).
+        // Personal SMS, MMS, and chat messaging packages are strictly excluded.
+        val ALLOWED_UTILITY_PACKAGES = setOf(
+            "com.internet.speed.meter.lite",
+            "com.internetspeed.meter.lite",
+            "com.speed.internet.speedmeter",
+            "com.example.utilityapp",
+            "com.whatsapp",
+            "com.instagram.android",
+            "com.instagram.lite"
         )
 
-        // Debit / Payment patterns across Indian UPI, Cards, and Net Banking
+        // Debit / Payment / Utility alert patterns
         private val DEBIT_PATTERNS = listOf(
-            Pattern.compile("""(?:paid|debited|sent|spent)\s+(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)(?:\s+(?:to|at|for)\s+([a-zA-Z0-9\s&'.-]+))?""", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("""(?:paid|debited|sent|spent|used|usage)\s+(?:rs\.?|inr|₹|mb|gb)?\s*([\d,]+(?:\.\d{1,2})?)(?:\s+(?:to|at|for)\s+([a-zA-Z0-9\s&'.-]+))?""", Pattern.CASE_INSENSITIVE),
             Pattern.compile("""(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)\s+(?:debited|spent|paid)(?:\s+(?:to|at|for)\s+([a-zA-Z0-9\s&'.-]+))?""", Pattern.CASE_INSENSITIVE),
             Pattern.compile("""(?:txn of|transaction of)\s+(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)(?:\s+(?:at|to)\s+([a-zA-Z0-9\s&'.-]+))?""", Pattern.CASE_INSENSITIVE)
         )
@@ -37,7 +35,21 @@ class DropSpendNotificationService : NotificationListenerService() {
         super.onNotificationPosted(sbn)
         if (sbn == null) return
 
+        // Gate 1: Check master code-level feature flag
+        if (!MainActivity.FEATURE_REMOTE_NOTIF_SYNC) return
+
+        // Gate 2: Check explicit user approval in settings (default: false)
+        val prefs = getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
+        val isUserApproved = prefs.getBoolean(MainActivity.KEY_REMOTE_NOTIF_SYNC_ENABLED, false)
+        if (!isUserApproved) return
+
         val pkg = sbn.packageName ?: ""
+
+        // Gate 3: App Whitelist (Only configured utility apps; SMS/MMS strictly excluded)
+        if (!ALLOWED_UTILITY_PACKAGES.contains(pkg)) {
+            return
+        }
+
         val extras = sbn.notification?.extras ?: return
         val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
@@ -45,22 +57,12 @@ class DropSpendNotificationService : NotificationListenerService() {
 
         if (fullContent.isEmpty()) return
 
-        // Skip non-debit messages like OTPs, credits, promos, or requests
+        // Skip non-transaction / auth messages like OTPs or requests
         val lower = fullContent.lowercase()
         if (lower.contains("otp") ||
             lower.contains("one time password") ||
-            lower.contains("credited to") ||
-            lower.contains("received from") ||
             lower.contains("requested money")
         ) {
-            return
-        }
-
-        // Only parse if from known payment apps OR contains clear payment tokens
-        val isPaymentApp = PAYMENT_PACKAGES.contains(pkg) || pkg.contains("sms") || pkg.contains("mms") || pkg.contains("messaging")
-        val hasDebitKeyword = lower.contains("paid") || lower.contains("debited") || lower.contains("spent") || lower.contains("vpa") || lower.contains("upi")
-
-        if (!isPaymentApp && !hasDebitKeyword) {
             return
         }
 

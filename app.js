@@ -2974,6 +2974,7 @@ const specController = createSpecController({
     state.settings = saveSettings(patch);
     updateThemeMetaAndButton();
   },
+  showToast: (msg) => showToast(msg),
   setUiDesign,
   formatCurrency,
   getPeriodExpenses,

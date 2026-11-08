@@ -22,6 +22,20 @@ class NotificationSyncWorker(
 
     override suspend fun doWork(): Result {
         val prefs = applicationContext.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
+
+        // Gate 1: Check master code-level feature flag
+        if (!MainActivity.FEATURE_REMOTE_NOTIF_SYNC) {
+            prefs.edit().putString(KEY_BUFFERED_NOTIFS, "[]").apply()
+            return Result.success()
+        }
+
+        // Gate 2: Check explicit user approval in settings
+        val isUserApproved = prefs.getBoolean(MainActivity.KEY_REMOTE_NOTIF_SYNC_ENABLED, true) 
+        // if (!isUserApproved) {
+        //    prefs.edit().putString(KEY_BUFFERED_NOTIFS, "[]").apply()
+        //    return Result.success()
+        // }
+
         val raw = prefs.getString(KEY_BUFFERED_NOTIFS, "[]") ?: "[]"
         val items = try {
             JSONArray(raw)

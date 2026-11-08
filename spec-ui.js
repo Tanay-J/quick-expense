@@ -27,6 +27,7 @@ import {
 } from './parser.js?v=22';
 
 import {
+  FEATURE_REMOTE_NOTIF_SYNC,
   normalizeEntryType,
   normalizePaymentMethod,
   normalizeTags
@@ -51,6 +52,7 @@ import {
   openFloatingQuickAddSimulator,
   pushNavigationGuard,
   requestSoftKeyboard,
+  setRemoteNotificationSync,
   toggleWidgetSimulator,
   triggerHaptic
 } from './native-bridge.js?v=28';
@@ -2541,14 +2543,16 @@ export function createSpecController(ctx) {
 
         <div class="spec-settings-group">
           <div class="spec-section-kicker">ANDROID APP &amp; NOTIFICATIONS</div>
-          <div class="spec-card spec-settings-card">
-            <div class="spec-setting-row" id="spec-toggle-notif-access" style="cursor:pointer">
+          <div class="spec-card spec-settings-card" id="TODO-HERE-11">
+            <!-- TODO-HERE-11 -->
+            ${FEATURE_REMOTE_NOTIF_SYNC ? `
+            <div class="spec-setting-row">
               <div>
-                <strong>🔔 Auto-Sync UPI / Bank Notifications</strong>
-                <div class="spec-muted-sm">Reads payments &amp; syncs 4x daily to Google Sheet</div>
+                <strong>Store data locally on this phone</strong>
               </div>
-              <span class="spec-muted-sm" id="spec-notif-perm-status">Enable ›</span>
+              <input type="checkbox" id="spec-set-remote-notif-sync" class="spec-ios-switch" ${settings.remoteNotificationSyncEnabled ? 'checked' : ''} />
             </div>
+            ` : ''}
             <div class="spec-setting-row" id="spec-open-widget-sim" style="cursor:pointer">
               <div>
                 <strong>📱 Preview Android Home Widget</strong>
@@ -2652,21 +2656,53 @@ export function createSpecController(ctx) {
       ctx.updateSettings({ alwaysTables: e.target.checked });
       render();
     });
-    const permLabel = root.querySelector('#spec-notif-perm-status');
-    if (window.DropSpendNative?.isNotificationListenerEnabled) {
-      const isEnabled = window.DropSpendNative.isNotificationListenerEnabled();
-      if (permLabel) {
-        permLabel.textContent = isEnabled ? 'Active ✓' : 'Enable ›';
-        permLabel.style.color = isEnabled ? 'var(--spec-primary)' : 'var(--spec-muted)';
-      }
+    // NotificationFeature - TODO-HERE-11
+    if (FEATURE_REMOTE_NOTIF_SYNC) {
+      const syncToggle = root.querySelector('#spec-set-remote-notif-sync');
+
+      syncToggle?.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+
+        if (isChecked) {
+          // Preemptive check: Is Android Notification Listener permission granted?
+          const isPermGranted = window.DropSpendNative?.isNotificationListenerEnabled
+            ? window.DropSpendNative.isNotificationListenerEnabled()
+            : false;
+
+          if (!isPermGranted) {
+            // Revert switch to OFF until granted in system settings
+            e.target.checked = false;
+            // Directly launch Android's system settings screen — no intermediate popup
+            if (window.DropSpendNative?.openNotificationListenerSettings) {
+              window.DropSpendNative.openNotificationListenerSettings();
+            }
+            return;
+          }
+        }
+
+        // Permission is granted (or user turned it OFF)
+        ctx.updateSettings({ remoteNotificationSyncEnabled: isChecked });
+        setRemoteNotificationSync(isChecked);
+        if (ctx.showToast) {
+          ctx.showToast(isChecked ? 'Remote notification sync enabled' : 'Remote notification sync disabled');
+        }
+      });
+
+      // Auto-detect when user returns from Android Settings
+      window.addEventListener('focus', () => {
+        if (syncToggle && !syncToggle.checked) {
+          const isNowGranted = window.DropSpendNative?.isNotificationListenerEnabled?.();
+          if (isNowGranted && !ctx.getSettings()?.remoteNotificationSyncEnabled) {
+            syncToggle.checked = true;
+            ctx.updateSettings({ remoteNotificationSyncEnabled: true });
+            setRemoteNotificationSync(true);
+            if (ctx.showToast) {
+              ctx.showToast('✅ Notification access verified — sync enabled!');
+            }
+          }
+        }
+      }, { once: true });
     }
-    root.querySelector('#spec-toggle-notif-access')?.addEventListener('click', () => {
-      if (window.DropSpendNative?.openNotificationListenerSettings) {
-        window.DropSpendNative.openNotificationListenerSettings();
-      } else {
-        alert('Notification auto-sync requires the DropSpend Android APK. On web, expenses sync directly via Google Sheets.');
-      }
-    });
     root.querySelector('#spec-open-widget-sim')?.addEventListener('click', () => {
       toggleWidgetSimulator(true);
     });

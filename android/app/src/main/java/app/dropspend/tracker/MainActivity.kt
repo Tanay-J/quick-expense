@@ -34,6 +34,10 @@ class MainActivity : Activity() {
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
 
     companion object {
+        // Master code-level feature flag: Set to false to completely remove/disable this feature
+        const val FEATURE_REMOTE_NOTIF_SYNC = true
+        const val KEY_REMOTE_NOTIF_SYNC_ENABLED = "remote_notif_sync_enabled"
+
         const val PREFS_NAME = "dropspend_native_prefs"
         const val KEY_WIDGET_JSON = "widget_snapshot_json"
         const val KEY_PENDING_ADDS = "pending_quick_adds_json"
@@ -162,6 +166,12 @@ class MainActivity : Activity() {
     }
 
     private fun schedulePeriodicNotificationSync() {
+        if (!FEATURE_REMOTE_NOTIF_SYNC) {
+            try {
+                androidx.work.WorkManager.getInstance(applicationContext).cancelUniqueWork("DropSpend4xDailySync")
+            } catch (_: Exception) {}
+            return
+        }
         try {
             val constraints = androidx.work.Constraints.Builder()
                 .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
@@ -382,6 +392,28 @@ class MainActivity : Activity() {
         fun openNotificationListenerSettings() {
             runOnUiThread {
                 startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+            }
+        }
+
+        @JavascriptInterface
+        fun isRemoteNotificationSyncFeatureActive(): Boolean {
+            return FEATURE_REMOTE_NOTIF_SYNC
+        }
+
+        @JavascriptInterface
+        fun isNotificationSyncEnabled(): Boolean {
+            if (!FEATURE_REMOTE_NOTIF_SYNC) return false
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            return prefs.getBoolean(KEY_REMOTE_NOTIF_SYNC_ENABLED, false)
+        }
+
+        @JavascriptInterface
+        fun setNotificationSyncEnabled(enabled: Boolean) {
+            if (!FEATURE_REMOTE_NOTIF_SYNC) return
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putBoolean(KEY_REMOTE_NOTIF_SYNC_ENABLED, enabled).apply()
+            if (!enabled) {
+                prefs.edit().putString(NotificationSyncWorker.KEY_BUFFERED_NOTIFS, "[]").apply()
             }
         }
     }
