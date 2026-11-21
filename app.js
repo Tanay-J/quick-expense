@@ -5594,7 +5594,7 @@ function init() {
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker
-      .register('./sw.js?v=33')
+      .register('./sw.js?v=34')
       .catch(() => {});
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data?.type === 'DROPSPEND_NOTIFICATION_CLICK') {

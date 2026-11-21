@@ -7112,6 +7112,94 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+/* Inline Month Switcher inside Home Hero Card */
+.spec-hero-month-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-bottom: 1px;
+}
+
+.spec-hero-month-arrow {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1px solid var(--spec-hairline, #22304a);
+  background: var(--spec-surface-2, #172338);
+  color: var(--spec-ink-2, #b8c4d6);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.14s ease;
+}
+
+.spec-hero-month-arrow:hover {
+  border-color: var(--spec-primary, #10b981);
+  color: var(--spec-primary, #10b981);
+}
+
+.spec-hero-month-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--spec-muted, #8b98ad);
+  min-width: 72px;
+  text-align: center;
+}
+
+.spec-hero-today-jump {
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.14);
+  color: #6ee7b7;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* History Category Filter Row (Combinable with Payment Mode chips) */
+.spec-history-cat-chips {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  scrollbar-width: none;
+}
+
+.spec-history-cat-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.spec-cat-filter-chip {
+  flex-shrink: 0;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--spec-hairline, #22304a);
+  background: var(--spec-card, #131c2e);
+  color: var(--spec-ink-2, #b8c4d6);
+  font-size: 0.73rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.spec-cat-filter-chip.is-on {
+  background: rgba(42, 120, 214, 0.22);
+  border-color: #38bdf8;
+  color: #f8fafc;
+  font-weight: 700;
+}
+
 /* Stacked Category Bar & Legend */
 .spec-midnight-stack-block {
   display: flex;

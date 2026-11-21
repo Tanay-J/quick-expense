@@ -191,6 +191,11 @@ export function isRentExpense(item) {
   return /\b(rent|house\s+rent|flat\s+rent|room\s+rent|pg\s+rent|apartment\s+rent|home\s+rent|office\s+rent|shop\s+rent)\b/i.test(text);
 }
 
+export function isFamilyPaidExpense(item) {
+  if (!item || normalizeEntryType(item) === 'income') return false;
+  return normalizePaymentMethod(item) === 'family_paid';
+}
+
 export function normalizeEntryType(item) {
   if (item?.type === 'income' || item?.type === 'expense') {
     return item.type;

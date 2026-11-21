@@ -33,11 +33,12 @@ export const DEFAULT_INCOME_CATEGORIES = [
 
 export const DEFAULT_PAYMENT_METHODS = [
   { id: 'upi', name: 'UPI', shortName: 'UPI', icon: '⚡', hue: '198', keywords: ['upi', 'gpay', 'google pay', 'phonepe', 'paytm', 'bhim', 'cred upi', 'supermoney', 'famapp'] },
-  { id: 'credit_card', name: 'Credit Card', shortName: 'Credit Card', icon: '💳', hue: '268', keywords: ['credit card', 'cc', 'amex', 'infinia', 'regalia', 'millennia', 'icici cc', 'hdfc cc', 'sbi cc', 'axis cc'] },
+  { id: 'credit_card', name: 'Credit Card', shortName: 'Credit Card', icon: '💳', hue: '268', keywords: ['credit card', 'cc', 'amex', 'infinia', 'regalia', 'millennia', 'icici cc', 'hdfc cc', 'sbi cc', 'axis cc', 'hdfccc', 'amazoncc', 'apaycc', 'icicicc', 'sbicc', 'axiscc', 'flipkartcc', 'kotakcc', 'onecard'] },
   { id: 'cash', name: 'Cash', shortName: 'Cash', icon: '💵', hue: '145', keywords: ['cash'] },
   { id: 'cashback_wallet', name: 'Cashback / Wallet', shortName: 'Cashback', icon: '🎁', hue: '325', keywords: ['wallet', 'amazon pay', 'apay', 'paytm wallet', 'mobikwik', 'freecharge', 'pluxee', 'sodexo', 'reward points', 'gift card', 'voucher'] },
   { id: 'debit_card', name: 'Debit Card', shortName: 'Debit Card', icon: '🏧', hue: '36', keywords: ['debit card', 'dc', 'atm card'] },
-  { id: 'bank', name: 'Bank Transfer', shortName: 'Bank', icon: '🏦', hue: '215', keywords: ['netbanking', 'net banking', 'bank transfer', 'neft', 'imps', 'rtgs', 'cheque', 'auto debit', 'nach'] }
+  { id: 'bank', name: 'Bank Transfer', shortName: 'Bank', icon: '🏦', hue: '215', keywords: ['netbanking', 'net banking', 'bank transfer', 'neft', 'imps', 'rtgs', 'cheque', 'auto debit', 'nach'] },
+  { id: 'family_paid', name: 'Paid by Family / Others', shortName: 'Family', icon: '💝', hue: '340', keywords: ['paid by mom', 'paid by mother', 'paid by aai', 'paid by dad', 'paid by father', 'paid by baba', 'paid by parents', 'paid by brother', 'paid by sister', 'paid by wife', 'paid by husband', 'paid by family', 'by mom', 'by aai', 'by dad', 'by baba', 'by parents', 'mom paid', 'aai paid', 'dad paid', 'baba paid', 'parents paid', 'family paid', 'sponsored'] }
 ];
 
 export const EXPENSE_CATEGORIES = [...DEFAULT_EXPENSE_CATEGORIES];
@@ -151,10 +152,16 @@ export function loadCustomTaxonomy() {
     incList.push(normalizeCategoryRecord(DEFAULT_INCOME_CATEGORIES[DEFAULT_INCOME_CATEGORIES.length - 1], 'income'));
   }
 
+  const deletedPayIds = Array.isArray(stored?.deletedPaymentIds) ? stored.deletedPaymentIds : [];
   const payList =
     Array.isArray(stored?.paymentMethods) && stored.paymentMethods.length > 0
       ? stored.paymentMethods.map((p) => normalizePaymentRecord(p))
       : DEFAULT_PAYMENT_METHODS.map((p) => normalizePaymentRecord(p));
+
+  if (!payList.some((p) => p.id === 'family_paid') && !deletedPayIds.includes('family_paid')) {
+    const famDef = DEFAULT_PAYMENT_METHODS.find((p) => p.id === 'family_paid');
+    if (famDef) payList.push(normalizePaymentRecord(famDef));
+  }
 
   EXPENSE_CATEGORIES.splice(0, EXPENSE_CATEGORIES.length, ...expList);
   INCOME_CATEGORIES.splice(0, INCOME_CATEGORIES.length, ...incList);
@@ -334,7 +341,7 @@ export const DEFAULT_KEYWORDS = {
   ],
   shopping: [
     'amazon', 'flipkart', 'myntra', 'ajio', 'meesho', 'nykaa', 'zara', 'h&m',
-    'uniqlo', 'decathlon', 'shoes', 'shirt', 'tshirt', 'jeans', 'clothes',
+    'uniqlo', 'decathlon', 'shoes', 'shirt', 'tshirt', 'jeans', 'clothes', 'jacket',
     'dress', 'watch', 'bag', 'backpack', 'electronics', 'charger', 'cable',
     'earphones', 'gift', 'present', 'ikea', 'furniture'
   ],
@@ -668,7 +675,7 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
     if (allTokens.length === 0) continue;
     // Skip built-in default ids here if they haven't been customized so specialized regex order below still runs,
     // OR match custom payment types and custom keywords directly
-    const isBuiltInId = ['upi', 'credit_card', 'cash', 'cashback_wallet', 'debit_card', 'bank'].includes(pm.id);
+    const isBuiltInId = ['upi', 'credit_card', 'cash', 'cashback_wallet', 'debit_card', 'bank', 'family_paid'].includes(pm.id);
     const defaultPm = DEFAULT_PAYMENT_METHODS.find((d) => d.id === pm.id);
     const customTokens = isBuiltInId
       ? allTokens.filter((t) => !(defaultPm?.keywords || []).includes(t))
@@ -687,6 +694,22 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
         };
       }
     }
+  }
+
+  // 0b. Paid by Family / Others ("paid by mom", "by aai", "mom paid", "sponsored", etc.)
+  const familyPayRegex = /\b(?:(?:paid\s+by|covered\s+by|sponsored\s+by|by)\s+(?:mom|mother|aai|dad|father|baba|parents|family|brother|sister|bro|sis|wife|husband|partner|company|office)|(?:mom|mother|aai|dad|father|baba|parents|family)\s+paid|sponsored)\b/i;
+  if (familyPayRegex.test(working)) {
+    const matchStr = working.match(familyPayRegex)?.[0] || '';
+    const whoMatch = matchStr.match(/\b(mom|mother|aai|dad|father|baba|parents|family|brother|sister|bro|sis|wife|husband|partner|company|office)\b/i);
+    const whoCap = whoMatch ? whoMatch[1].charAt(0).toUpperCase() + whoMatch[1].slice(1).toLowerCase() : '';
+    working = working.replace(familyPayRegex, ' ');
+    return {
+      paymentMethod: 'family_paid',
+      explicitPayment: true,
+      forcesExpense: true,
+      payerLabel: whoCap ? `Paid by ${whoCap}` : 'Sponsored',
+      cleanedText: working
+    };
   }
 
   // 1. Explicit "from/via/using cashback" or wallet phrases -> expense paid using Cashback/Wallet
@@ -713,14 +736,59 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
     };
   }
 
-  // 3. Credit Card (cc, credit card, amex, infinia, regalia, etc.)
-  const ccRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:credit\s+card|cc|amex|infinia|regalia|millennia|icici\s+cc|hdfc\s+cc|sbi\s+cc|axis\s+cc)\b/i;
+  // 3. Credit Card (supports concatenated shorthands like hdfccc, amazoncc, apaycc, icicicc, sbicc, axiscc, flipkartcc, kotakcc, onecard, amex, or any custom <name>cc!)
+  const specificCcRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:(hdfc|amazon|apay|icici|sbi|axis|flipkart|kotak|amex|infinia|regalia|millennia|one|hsbc|idfc|indusind|au|sc|citi|rbl|yes)(?:\s*cc|\s+credit\s+card|\s+card)?|(onecard|amex|infinia|regalia|millennia)|([a-z]{3,14})cc)\b/i;
+  const ccMatch = working.match(specificCcRegex);
+  if (ccMatch && PAYMENT_METHODS.some((p) => p.id === 'credit_card')) {
+    const rawToken = (ccMatch[0] || '').trim().toLowerCase();
+    const bankTok = (ccMatch[1] || ccMatch[2] || ccMatch[3] || '').toLowerCase();
+    // Only treat bare bank name (like "hdfc" or "amazon") as CC if it had "cc"/"card" OR is an unambiguous card brand (amex/infinia/regalia/millennia/onecard)
+    const hasCcSuffix = /cc\b|card\b/i.test(rawToken) || ['amex', 'infinia', 'regalia', 'millennia', 'onecard'].includes(bankTok);
+    if (hasCcSuffix) {
+      const cardTagMap = {
+        hdfc: 'HDFC',
+        amazon: 'Amazon',
+        apay: 'Amazon',
+        icici: 'ICICI',
+        sbi: 'SBI',
+        axis: 'Axis',
+        flipkart: 'Flipkart',
+        kotak: 'Kotak',
+        amex: 'Amex',
+        infinia: 'Infinia',
+        regalia: 'Regalia',
+        millennia: 'Millennia',
+        one: 'OneCard',
+        onecard: 'OneCard',
+        hsbc: 'HSBC',
+        idfc: 'IDFC',
+        indusind: 'IndusInd',
+        au: 'AU',
+        sc: 'StanChart',
+        citi: 'Citi',
+        rbl: 'RBL',
+        yes: 'Yes'
+      };
+      const creditCardTag = cardTagMap[bankTok] || (bankTok ? bankTok.toUpperCase() : null);
+      working = working.replace(specificCcRegex, ' ');
+      return {
+        paymentMethod: 'credit_card',
+        explicitPayment: true,
+        forcesExpense: false,
+        creditCardTag,
+        cleanedText: working
+      };
+    }
+  }
+
+  const ccRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:credit\s+card|cc)\b/i;
   if (ccRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'credit_card')) {
     working = working.replace(ccRegex, ' ');
     return {
       paymentMethod: 'credit_card',
       explicitPayment: true,
       forcesExpense: false,
+      creditCardTag: null,
       cleanedText: working
     };
   }
@@ -812,6 +880,41 @@ export function extractRecurring(text) {
 }
 
 /**
+ * Extract split expense shorthand:
+ * - "1200 dinner /3" or "1200 / 3 dinner"
+ * - "1200 dinner split 3" or "1200 dinner split by 3"
+ * Returns { splitDivisor, cleanedText }
+ */
+export function extractSplitShorthand(text) {
+  if (!text) return { splitDivisor: 1, cleanedText: '' };
+  let working = text;
+
+  // Match "/3" or "÷3" (when preceded by whitespace or a digit, and not part of a date like 12/11/2026 or "/-")
+  const slashRegex = /(?:^|\s|(?<=\d))\s*(?:\/|÷)\s*([2-9]|1\d|20)\b(?!\s*\/)/i;
+  const slashMatch = working.match(slashRegex);
+  if (slashMatch) {
+    const div = parseInt(slashMatch[1], 10);
+    if (div >= 2 && div <= 20) {
+      working = working.replace(slashRegex, ' ').replace(/\s+/g, ' ').trim();
+      return { splitDivisor: div, cleanedText: working };
+    }
+  }
+
+  // Match "split 3" or "split by 3" or "split with 3"
+  const wordRegex = /\bsplit(?:\s+(?:by|with|among|into))?\s+([2-9]|1\d|20)\b/i;
+  const wordMatch = working.match(wordRegex);
+  if (wordMatch) {
+    const div = parseInt(wordMatch[1], 10);
+    if (div >= 2 && div <= 20) {
+      working = working.replace(wordRegex, ' ').replace(/\s+/g, ' ').trim();
+      return { splitDivisor: div, cleanedText: working };
+    }
+  }
+
+  return { splitDivisor: 1, cleanedText: working };
+}
+
+/**
  * Parse a single expense or income segment like:
  * - "200 fuel bike"
  * - "1500 shoes myntra cc #goa"
@@ -838,11 +941,16 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
     paymentMethod: extractedPayment,
     explicitPayment,
     forcesExpense,
+    creditCardTag,
+    payerLabel,
     cleanedText: paymentCleanedText
   } = extractPaymentMethod(dateCleanedText, defaultPayment);
 
+  // Extract split shorthand ("1200 dinner /3" or "1200 dinner split 3")
+  const { splitDivisor, cleanedText: splitCleanedText } = extractSplitShorthand(paymentCleanedText);
+
   // Evaluate simple inline addition expressions like "120+80 lunch" or "100 + 50 snacks"
-  const mathCleanedText = paymentCleanedText.replace(
+  const mathCleanedText = splitCleanedText.replace(
     /\b(\d+(?:\.\d{1,2})?(?:\s*\+\s*\d+(?:\.\d{1,2})?)+)\b/g,
     (expr) => {
       const sum = expr
@@ -870,7 +978,12 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
   let amount = parseFloat(`${intPart}${decPart}`);
   if (Number.isNaN(amount) || amount <= 0) return null;
   if (isK) amount *= 1000;
-  amount = Math.round(amount * 100) / 100;
+  const totalBeforeSplit = Math.round(amount * 100) / 100;
+  if (splitDivisor > 1) {
+    amount = Math.round((totalBeforeSplit / splitDivisor) * 100) / 100;
+  } else {
+    amount = totalBeforeSplit;
+  }
 
   // Remove the matched amount token from text to get the item description
   const matchIndex = cleanedText.indexOf(fullMatch);
@@ -884,13 +997,13 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
 
   const effectiveExplicitType = forcesExpense && explicitType !== 'income' ? 'expense' : explicitType;
   const forcedType = effectiveExplicitType || (defaultType === 'income' ? 'income' : null);
-  const categoryId = inferCategory(note || paymentCleanedText, forcedType);
+  const categoryId = inferCategory(note || splitCleanedText, forcedType);
   const resolvedType = isIncomeCategory(categoryId)
     ? 'income'
     : (effectiveExplicitType || defaultType || 'expense');
   const finalCategoryId =
     resolvedType === 'income' && !isIncomeCategory(categoryId)
-      ? inferCategory(note || paymentCleanedText, 'income')
+      ? inferCategory(note || splitCleanedText, 'income')
       : categoryId;
   const categoryObj = getCategoryById(finalCategoryId);
 
@@ -906,6 +1019,17 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
     note = note.charAt(0).toUpperCase() + note.slice(1);
   }
 
+  if (splitDivisor > 1) {
+    const fmtTotal = totalBeforeSplit.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    note = `${note} (₹${fmtTotal} ÷ ${splitDivisor})`;
+  }
+  if (payerLabel && !note.toLowerCase().includes(payerLabel.toLowerCase())) {
+    note = `${note} (${payerLabel})`;
+  }
+  if (creditCardTag && !note.toLowerCase().includes(creditCardTag.toLowerCase())) {
+    note = `${note} · ${creditCardTag}`;
+  }
+
   return {
     type: resolvedType,
     amount,
@@ -913,6 +1037,10 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
     category: finalCategoryId,
     paymentMethod: finalPaymentMethod,
     explicitPayment,
+    creditCardTag: creditCardTag || null,
+    payerLabel: payerLabel || null,
+    splitDivisor,
+    totalBeforeSplit: splitDivisor > 1 ? totalBeforeSplit : null,
     tags,
     recurring,
     date: dateStr,
@@ -973,6 +1101,8 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
       paymentMethod: extractedPayment,
       explicitPayment,
       forcesExpense,
+      creditCardTag,
+      payerLabel,
       cleanedText: paymentCleanedText
     } = extractPaymentMethod(dateCleanedText, defaultPayment);
 
@@ -1005,6 +1135,13 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
       note = note.charAt(0).toUpperCase() + note.slice(1);
     }
 
+    if (payerLabel && !note.toLowerCase().includes(payerLabel.toLowerCase())) {
+      note = `${note} (${payerLabel})`;
+    }
+    if (creditCardTag && !note.toLowerCase().includes(creditCardTag.toLowerCase())) {
+      note = `${note} · ${creditCardTag}`;
+    }
+
     drafts.push({
       type: resolvedType,
       amount: null,
@@ -1012,6 +1149,8 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
       category: finalCategoryId,
       paymentMethod: finalPaymentMethod,
       explicitPayment,
+      creditCardTag: creditCardTag || null,
+      payerLabel: payerLabel || null,
       tags,
       recurring,
       date: dateStr,

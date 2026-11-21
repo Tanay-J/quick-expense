@@ -45,7 +45,13 @@
   2. Widget `updatePeriodMillis` increased from 30m to 6h (92% fewer background wakeups).
   3. `syncWidgetSnapshot()` memoized by data signature so UI tab switches don't re-broadcast `ACTION_APPWIDGET_UPDATE`.
   4. Automatic GitHub OTA checks throttled to a 7-day cooldown (manual check in Settings remains instant).
-  5. Service Worker (`dropspend-v33`) switched to stale-while-revalidate and `trackAppUsage` restricted to once per launch.
+  5. Service Worker (`dropspend-v34`) switched to stale-while-revalidate and `trackAppUsage` restricted to once per launch.
+- **UX & Natural-Language Enhancements (`parser.js`, `spec-ui.js`, `sync.js`, `styles.css`):**
+  1. **Split Expense Shorthand:** `"1200 dinner /3"` or `"900 cab split 2"` logs your share (`₹400` / `₹450`) and appends `(₹1,200 ÷ 3)` to the note.
+  2. **Type-Based Specific Credit Card Shorthand:** Supports concatenated/spaced card names (`amazoncc`, `apaycc`, `hdfccc`, `icicicc`, `sbicc`, `axiscc`, `flipkartcc`, `kotakcc`, `onecard`, `amex`, or `<custom>cc`), displaying `💳 HDFC CC` in the live preview chip and attributing spend to that card's billing cycle.
+  3. **`💝 Paid by Family / Others` Payment Mode (`family_paid`):** Auto-detected from `"paid by mom"`, `"by aai"`, `"by dad"`, `"sponsored"`, etc. Keeps the true item category (`Shopping`, `Food`, `Health`) while excluding the amount from the Home monthly spend ring, Home category bar, and Android widget (with quiet `Excludes ₹X paid by family` subtext on Home).
+  4. **Home Hero Inline Month Switcher:** `‹ NOVEMBER ›` arrows + `Nov ↺` jump-to-today pill directly inside the Home Hero card.
+  5. **History Combinable Category + Payment Mode Filter Chips:** Second scrollable category chip row in History that intersects with the payment mode chip row.
 
 ### C. Keyboard Auto-Popup Bug (Fixed)
 - **Bug:** Touching/tapping anywhere on the screen opened the mobile keyboard.

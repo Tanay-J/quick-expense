@@ -14,7 +14,7 @@ import {
   getPaymentMethodById,
   toLocalISODate
 } from './parser.js?v=22';
-import { isRentExpense, normalizeEntryType } from './sync.js?v=22';
+import { isFamilyPaidExpense, isRentExpense, normalizeEntryType } from './sync.js?v=22';
 import { computeSameSpanComparison, computeUsuals } from './insights.js?v=22';
 
 export const WIDGET_SNAPSHOT_KEY = 'qe_widget_snapshot_v1';
@@ -262,6 +262,7 @@ export function syncWidgetSnapshot(expenses, settings) {
     (e) =>
       e.date?.startsWith(monthPrefix) &&
       normalizeEntryType(e) !== 'income' &&
+      !isFamilyPaidExpense(e) &&
       (!excludeRent || !isRentExpense(e))
   );
   const monthTotal = Math.round(

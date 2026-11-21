@@ -30,6 +30,7 @@ import {
 
 import {
   FEATURE_REMOTE_NOTIF_SYNC,
+  isFamilyPaidExpense,
   isRentExpense,
   normalizeEntryType,
   normalizePaymentMethod,
@@ -174,7 +175,8 @@ export function createSpecController(ctx) {
     overrideMode: null,
     overrideDate: null,
     historyQuery: '',
-    historyChip: 'all', // 'all' | 'expense' | 'income' | 'upi' | 'card' | 'cash'
+    historyChip: 'all', // 'all' | 'expense' | 'income' | 'upi' | 'card' | 'cash' | ...
+    historyCategory: 'all', // 'all' | category.id
     exploreFromQuestion: null,
     homeAccordions: {
       pace: false,
@@ -395,9 +397,11 @@ export function createSpecController(ctx) {
     const excludeRent = Boolean(settings.excludeRentOnHome);
     const excludedRentItems = excludeRent ? allMonthExpenses.filter((e) => isRentExpense(e)) : [];
     const excludedRentTotal = excludedRentItems.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const monthExpenses = excludeRent
-      ? allMonthExpenses.filter((e) => !isRentExpense(e))
-      : allMonthExpenses;
+    const familyPaidItems = allMonthExpenses.filter((e) => isFamilyPaidExpense(e));
+    const familyPaidTotal = familyPaidItems.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const monthExpenses = allMonthExpenses.filter(
+      (e) => !isFamilyPaidExpense(e) && (!excludeRent || !isRentExpense(e))
+    );
 
     const monthTotal = monthExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const todayTotal = monthExpenses
@@ -412,11 +416,16 @@ export function createSpecController(ctx) {
       monthTotal <= budget
         ? `${ctx.formatCurrency(leftAmt)} left of ${ctx.formatCurrency(budget)}`
         : `${ctx.formatCurrency(monthTotal - budget)} over ${ctx.formatCurrency(budget)} budget`;
-    const excludedRentSubText = excludeRent
-      ? excludedRentTotal > 0
-        ? `Excludes ${ctx.formatCurrency(excludedRentTotal)} rent`
-        : 'Excludes rent'
-      : '';
+    const exclParts = [];
+    if (excludeRent) {
+      exclParts.push(excludedRentTotal > 0 ? `${ctx.formatCurrency(excludedRentTotal)} rent` : 'rent');
+    }
+    if (familyPaidTotal > 0) {
+      exclParts.push(`${ctx.formatCurrency(familyPaidTotal)} paid by family`);
+    }
+    const excludedRentSubText = exclParts.length > 0 ? `Excludes ${exclParts.join(' & ')}` : '';
+    const isCurrentMonthSelected =
+      ctx.state.selectedYear === now.getFullYear() && ctx.state.selectedMonth === now.getMonth();
 
     // Category breakdown stacked bar + dot legend
     const catTotals = {};
@@ -548,7 +557,16 @@ export function createSpecController(ctx) {
             </div>
           </div>
           <div class="spec-midnight-hero-body">
-            <span class="spec-eyebrow">${esc(FULL_MONTHS[ctx.state.selectedMonth])}</span>
+            <div class="spec-hero-month-bar">
+              <button type="button" class="spec-hero-month-arrow" id="spec-home-prev-month" title="Previous month" aria-label="Previous month">‹</button>
+              <span class="spec-hero-month-label">${esc(FULL_MONTHS[ctx.state.selectedMonth])}</span>
+              <button type="button" class="spec-hero-month-arrow" id="spec-home-next-month" title="Next month" aria-label="Next month">›</button>
+              ${
+                !isCurrentMonthSelected
+                  ? `<button type="button" class="spec-hero-today-jump" id="spec-home-jump-today" title="Jump back to current month">${esc(SHORT_MONTHS[now.getMonth()])} ↺</button>`
+                  : ''
+              }
+            </div>
             <h1 class="spec-midnight-hero-amt num">${ctx.formatCurrency(monthTotal)}</h1>
             <p class="spec-midnight-hero-sub">${esc(budgetSubText)}</p>
             ${excludedRentSubText ? `<p class="spec-midnight-hero-sub-note">${esc(excludedRentSubText)}</p>` : ''}
@@ -648,6 +666,24 @@ export function createSpecController(ctx) {
 
     root.querySelector('#spec-open-add-pill')?.addEventListener('click', () => openAddPalette(''));
     root.querySelector('#spec-open-add-empty')?.addEventListener('click', () => openAddPalette(''));
+    root.querySelector('#spec-home-prev-month')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ctx.changeMonth(-1);
+      render();
+    });
+    root.querySelector('#spec-home-next-month')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ctx.changeMonth(1);
+      render();
+    });
+    root.querySelector('#spec-home-jump-today')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const curNow = new Date();
+      ctx.state.selectedYear = curNow.getFullYear();
+      ctx.state.selectedMonth = curNow.getMonth();
+      ctx.state.selectedCalendarDate = null;
+      render();
+    });
     root.querySelector('#spec-dismiss-recap-btn')?.addEventListener('click', (e) => {
       e.stopPropagation();
       ctx.dismissRecap(prevRecap.monthKey);
@@ -984,7 +1020,7 @@ export function createSpecController(ctx) {
                 ${specState.overrideCategory ? '<small class="spec-learned-tag">saved</small>' : ''}
               </button>
               <button type="button" class="spec-preview-chip ${isDefaultMode ? 'is-dimmed' : ''}" id="spec-cycle-mode-chip">
-                💳 ${esc(payObj.shortName)} ${isDefaultMode ? '<small>default</small>' : ''} ▾
+                ${payObj.icon || '💳'} ${esc(firstDraft.creditCardTag && activeModeId === 'credit_card' ? `${firstDraft.creditCardTag} CC` : payObj.shortName)} ${isDefaultMode ? '<small>default</small>' : ''} ▾
               </button>
               <label class="spec-preview-chip">
                 <span>📅 ${esc(firstDraft.dateLabel || 'Today')} ▾</span>
@@ -2275,10 +2311,11 @@ export function createSpecController(ctx) {
     bindCommonClicks(root);
   }
 
-  // 3C: HISTORY SCREEN (Midnight Redesign with Filter Chips & Out/In Summary)
+  // 3C: HISTORY SCREEN (Midnight Redesign with Filter Chips, Category Chips & Out/In Summary)
   function renderHistoryScreen(root, expenses) {
     const rawQ = specState.historyQuery.trim();
     const activeChip = specState.historyChip || 'all';
+    const activeCat = specState.historyCategory || 'all';
     const parsedQ = rawQ ? parseQuestionQuery(rawQ, new Date()) : null;
     let filtered = [...expenses];
     let filterLabel = FULL_MONTHS[ctx.state.selectedMonth];
@@ -2308,6 +2345,16 @@ export function createSpecController(ctx) {
       filtered = filtered.filter((e) => normalizePaymentMethod(e) === activeChip);
     }
 
+    if (activeCat !== 'all') {
+      filtered = filtered.filter((e) => e.category === activeCat);
+      const catObj = getCategoryById(activeCat);
+      filterLabel = `${catObj.icon} ${catObj.shortName || catObj.name}`;
+    }
+    if (activeChip !== 'all' && activeChip !== 'expense' && activeChip !== 'income') {
+      const payObj = getPaymentMethodById(activeChip);
+      filterLabel = `${filterLabel} · ${payObj.icon} ${payObj.shortName}`;
+    }
+
     const totalOut = filtered
       .filter((e) => normalizeEntryType(e) !== 'income')
       .reduce((s, e) => s + (Number(e.amount) || 0), 0);
@@ -2332,7 +2379,13 @@ export function createSpecController(ctx) {
       ['all', 'All'],
       ['expense', 'Expenses'],
       ['income', 'Income'],
-      ...PAYMENT_METHODS.map((p) => [p.id, p.shortName])
+      ...PAYMENT_METHODS.map((p) => [p.id, `${p.icon} ${p.shortName}`])
+    ];
+
+    const catPool = activeChip === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+    const catChips = [
+      ['all', 'All Cats'],
+      ...catPool.map((c) => [c.id, `${c.icon} ${c.shortName || c.name}`])
     ];
 
     root.innerHTML = `
@@ -2352,6 +2405,15 @@ export function createSpecController(ctx) {
             .map(
               ([id, lbl]) =>
                 `<button type="button" class="spec-filter-chip ${activeChip === id ? 'is-on' : ''}" data-hist-chip="${id}">${lbl}</button>`
+            )
+            .join('')}
+        </div>
+
+        <div class="spec-history-cat-chips">
+          ${catChips
+            .map(
+              ([id, lbl]) =>
+                `<button type="button" class="spec-cat-filter-chip ${activeCat === id ? 'is-on' : ''}" data-hist-cat="${id}">${lbl}</button>`
             )
             .join('')}
         </div>
@@ -2416,6 +2478,13 @@ export function createSpecController(ctx) {
     root.querySelectorAll('[data-hist-chip]').forEach((btn) => {
       btn.addEventListener('click', () => {
         specState.historyChip = btn.dataset.histChip || 'all';
+        renderHistoryScreen(root, expenses);
+      });
+    });
+    root.querySelectorAll('[data-hist-cat]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const clicked = btn.dataset.histCat || 'all';
+        specState.historyCategory = specState.historyCategory === clicked && clicked !== 'all' ? 'all' : clicked;
         renderHistoryScreen(root, expenses);
       });
     });
