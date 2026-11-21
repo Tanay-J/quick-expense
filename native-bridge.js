@@ -383,7 +383,7 @@ export function consumePendingWidgetAdds(quickAddFn) {
   return addedCount;
 }
 
-const OTA_AUTO_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours between automatic background checks
+const OTA_AUTO_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days between automatic background checks (manual check in Settings is always instant)
 
 /**
  * Check and apply OTA updates from GitHub (`Tanay-J/quick-expense` main branch)

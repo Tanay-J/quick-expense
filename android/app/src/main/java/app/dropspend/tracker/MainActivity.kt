@@ -45,7 +45,7 @@ class MainActivity : Activity() {
         const val KEY_WIDGET_JSON = "widget_snapshot_json"
         const val KEY_PENDING_ADDS = "pending_quick_adds_json"
         const val KEY_LAST_OTA_CHECK_MS = "last_ota_check_ms"
-        private const val OTA_COOLDOWN_MS = 2 * 60 * 60 * 1000L // 2 hours
+        private const val OTA_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000L // 7 days (manual check in Settings is always instant)
         private const val FILE_CHOOSER_REQ = 1001
 
         private val OTA_FILES = listOf(

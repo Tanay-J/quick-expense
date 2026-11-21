@@ -44,7 +44,7 @@
   1. `MainActivity.onPause()` pauses the WebView + freezes JS timers after a 3s sync grace period (0% background CPU).
   2. Widget `updatePeriodMillis` increased from 30m to 6h (92% fewer background wakeups).
   3. `syncWidgetSnapshot()` memoized by data signature so UI tab switches don't re-broadcast `ACTION_APPWIDGET_UPDATE`.
-  4. Automatic GitHub OTA checks throttled to a 2h cooldown (manual check in Settings remains instant).
+  4. Automatic GitHub OTA checks throttled to a 7-day cooldown (manual check in Settings remains instant).
   5. Service Worker (`dropspend-v33`) switched to stale-while-revalidate and `trackAppUsage` restricted to once per launch.
 
 ### C. Keyboard Auto-Popup Bug (Fixed)
