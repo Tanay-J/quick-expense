@@ -305,31 +305,13 @@ export function getPaymentMethodById(id) {
   return PAYMENT_METHODS.find((m) => m.id === normId || m.id === id) || PAYMENT_METHODS[0] || DEFAULT_PAYMENT_METHODS[0];
 }
 
-export function getCategoryDisplayName(cat, lang = 'en', short = false) {
+export function getCategoryDisplayName(cat, _lang = 'en', short = false) {
   if (!cat) return '';
-  if (lang === 'mr') {
-    const defCat = [...DEFAULT_EXPENSE_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES].find((d) => d.id === cat.id);
-    if (defCat) {
-      const isDefaultName = !cat.name || cat.name === defCat.name;
-      const isDefaultShort = !cat.shortName || cat.shortName === defCat.shortName || cat.shortName === defCat.name;
-      if (short && isDefaultShort && defCat.shortNameMr) return defCat.shortNameMr;
-      if (!short && isDefaultName && defCat.nameMr) return defCat.nameMr;
-    }
-  }
   return short ? (cat.shortName || cat.name || '') : (cat.name || cat.shortName || '');
 }
 
-export function getPaymentDisplayName(pm, lang = 'en', short = false) {
+export function getPaymentDisplayName(pm, _lang = 'en', short = false) {
   if (!pm) return '';
-  if (lang === 'mr') {
-    const defPm = DEFAULT_PAYMENT_METHODS.find((d) => d.id === pm.id);
-    if (defPm) {
-      const isDefaultName = !pm.name || pm.name === defPm.name;
-      const isDefaultShort = !pm.shortName || pm.shortName === defPm.shortName || pm.shortName === defPm.name;
-      if (short && isDefaultShort && defPm.shortNameMr) return defPm.shortNameMr;
-      if (!short && isDefaultName && defPm.nameMr) return defPm.nameMr;
-    }
-  }
   return short ? (pm.shortName || pm.name || '') : (pm.name || pm.shortName || '');
 }
 
@@ -770,11 +752,11 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
       const whoCap = whoMatch[1].charAt(0).toUpperCase() + whoMatch[1].slice(1).toLowerCase();
       payerLabel = `Paid by ${whoCap}`;
     } else if (/aai|आई/i.test(matchStr)) {
-      payerLabel = /आई/.test(matchStr) ? 'आईने दिले' : 'Paid by Aai';
+      payerLabel = 'Paid by Aai';
     } else if (/baba|बाबा/i.test(matchStr)) {
-      payerLabel = /बाबा/.test(matchStr) ? 'बाबांनी दिले' : 'Paid by Baba';
+      payerLabel = 'Paid by Baba';
     } else if (/ghar|kutumb|घर|कुटुंब/i.test(matchStr)) {
-      payerLabel = /घर|कुटुंब/.test(matchStr) ? 'कुटुंबाने दिले' : 'Paid by Family';
+      payerLabel = 'Paid by Family';
     }
     working = working.replace(familyPayRegex, ' ');
     return {

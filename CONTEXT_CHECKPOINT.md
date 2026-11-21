@@ -18,14 +18,16 @@
 ## 2. Key File Directory & Responsibilities
 | File | Responsibility |
 |------|----------------|
-| `app.js` | Core application logic, event listeners, modal handling, credit card calculations, utility bills tab rendering. |
-| `spec-ui.js` | Midnight theme UI controller, navigation (`home`, `stats`, `history`, `settings`), settings toggles. |
-| `insights.js` | Analytics calculations, utility bill cadence cycles (`computeUtilityBillStatus`, `getUtilityBillCurrentCycleKey`). |
-| `sync.js` | 2-way sync engine for Google Sheets, local storage keys, data models (`UTILITY_BILLS_KEY`). |
-| `google-apps-script.js` | Google Sheets backend handling `Expenses`, `Categories`, and `UtilityBills` sheets. |
-| `native-bridge.js` | Android Kotlin/Capacitor bridge interface (haptics, widget snapshots, soft keyboard). |
-| `android/.../MainActivity.kt` | Native Android activity, WebView config, widget bridge, asset loader. |
-| `android/.../AndroidManifest.xml` | App manifest (permissions: `INTERNET`, `VIBRATE`). |
+| `app.js` | Core application logic, event listeners, modal handling, credit card calculations, utility bills tab rendering, custom taxonomy CRUD modal (`#taxonomy-dialog`), launch/resume due-date notifications (`checkAndFireAllDueNotifications`). |
+| `spec-ui.js` | Midnight theme UI controller (`home`, `stats`, `history`, `settings`), inline month switcher, combinable History category filter chips, bilingual (`English` \| `मराठी`) UI localization (`t()`, `getMonthFull()`, `getMonthShort()`). |
+| `parser.js` | Offline natural-language parser (English + Marathi Devanagari + Roman Marathi "Minglish"), Devanagari digit normalization (`०`–`९`), custom taxonomy state (`qe_custom_taxonomy_v1`), split shorthand (`/3`, `split 3`), type-based credit card shorthand (`amazoncc`, `hdfccc`, etc.), `family_paid` mode (`💝 Paid by Family / Others`), localized display name helpers (`getCategoryDisplayName`, `getPaymentDisplayName`). |
+| `insights.js` | Analytics calculations, utility bill cadence cycles (`computeUtilityBillStatus`, `getUtilityBillCurrentCycleKey`), Monthly Wrapped Recaps, 90-day patterns, question query evaluator. |
+| `sync.js` | 2-way sync engine for Google Sheets, `localStorage` keys (`qe_expenses_v1`, `qe_settings_v1`, `qe_utility_bills_v1`), `isRentExpense()` (English + Marathi), `isFamilyPaidExpense()`. |
+| `google-apps-script.js` | Google Sheets backend handling `Expenses`, `Categories`, `UtilityBills`, and `UsageStats` sheets. |
+| `native-bridge.js` | Android Kotlin/Capacitor bridge interface (haptics, memoized widget snapshots, 7-day cooldown OTA update checks, soft keyboard). |
+| `sw.js` | Service Worker (`dropspend-v35`) using stale-while-revalidate caching + `notificationclick` handler for due-date alerts. |
+| `android/.../MainActivity.kt` | Native Android activity, WebView lifecycle (`onPause`/`pauseTimers` after 3s grace, `onResume`/`resumeTimers`, `onDestroy`), widget bridge, 7-day cooldown GitHub OTA sync. |
+| `android/.../AndroidManifest.xml` | App manifest (permissions: `INTERNET`, `VIBRATE`, `POST_NOTIFICATIONS`). |
 
 ---
 
@@ -53,7 +55,19 @@
   4. **Home Hero Inline Month Switcher:** `‹ NOVEMBER ›` arrows + `Nov ↺` jump-to-today pill directly inside the Home Hero card.
   5. **History Combinable Category + Payment Mode Filter Chips:** Second scrollable category chip row in History that intersects with the payment mode chip row.
 
-### C. Keyboard Auto-Popup Bug (Fixed)
+### C. Marathi Language Support — Level 1 (Parser) + Level 2 (Optional Bilingual UI Toggle) (`bb5bad0`)
+- **0.00% Battery Impact & Zero Default Visual Change:** Default `settings.lang` is `'en'`. In English mode, the UI is 100% unchanged except for the `Language / भाषा` (`English` | `मराठी`) pill switch under **Settings → LOOK & LANGUAGE** (and in `#sync-dialog`).
+- **Level 1 — Marathi Devanagari & Roman Marathi ("Minglish") Input Parser (`parser.js`, `sync.js`):**
+  - Always active in both `English` and `मराठी` UI modes.
+  - Normalizes Devanagari digits (`०१२३४५६७८९` → `0123456789`) via `normalizeDevanagariDigits()` before parsing amounts, splits, dates, or queries.
+  - Supports Marathi & Minglish keywords across all Expense & Income categories (`भाजी`/`bhaji`, `चहा`/`chaha`, `नाश्ता`/`nashta`, `जेवण`/`jevan`, `वडापाव`/`vadapav`, `पोहे`/`pohe`, `मिसळ`/`misal`, `किराणा`/`kirana`, `दूध`/`dudh`, `फळे`/`phale`, `रिक्षा`/`riksha`, `पेट्रोल`, `गाडी`/`gadi`, `घरभाडे`/`भाडे`/`bhade`, `लाईट बिल`/`light bill`, `कामवाली`/`kamwali`, `औषध`/`aushadh`, `दवाखाना`/`davakhana`, `कपडे`/`kapde`, `पगार`/`pagar`, `बोनस`, `परतावा`/`partava`, `आहेर`/`aher`).
+  - Supports Marathi dates (`आज`/`aaj`, `काल`/`kal`, `परवा`/`parva`, `N दिवसापूर्वी`) and payment modes (`रोख`/`rokh`, `कार्ड`/`क्रेडिट कार्ड`, `बँक`, `आईने दिले`/`aai ne dile`/`बाबांनी दिले`/`घरच्यांनी दिले` → `family_paid`).
+  - `isRentExpense()` in `sync.js` recognizes Marathi house rent (`घरभाडे`, `भाडे`, `ghar bhade`, `bhade`) while excluding vehicle rentals (`गाडी भाडे`, `gadi bhade`).
+- **Level 2 — Bilingual UI Toggle (`English` | `मराठी`) (`spec-ui.js`, `parser.js`, `sync.js`, `index.html`, `app.js`):**
+  - Toggling `मराठी` translates bottom navigation (`मुख्य`, `इतिहास`, `आकडेवारी`, `सेटिंग्ज`), Home greeting (`नमस्कार <Name>`), Marathi month switcher (`नोव्हेंबर`), budget ring & subtexts (`₹३०,००० पैकी ₹११,५८० शिल्लक`, `₹२०,००० घरभाडे वगळून`), Add/Keypad overlay, History headers, Stats tabs, and Settings screen.
+  - **Categories & Payment Modes stay in English (`Food`, `Groceries`, `Transport`, `Bills`, `UPI`, `Cash`, `Credit Card`, `Family`):** Both in stored data (`item.category` / `item.paymentMethod`) and on UI chips/charts/stats so analytics, charts, CSV exports, and Google Sheets data processing stay 100% consistent and compact.
+
+### D. Keyboard Auto-Popup Bug (Fixed)
 - **Bug:** Touching/tapping anywhere on the screen opened the mobile keyboard.
 - **Root Cause:** Aggressive `handleQuickLogSurfaceTap` listener on `document.addEventListener('touchend')` in `app.js`, plus forced `showSoftInput` in `MainActivity.kt:onPageFinished`.
 - **Fix:** Completely removed the global surface tap handler and background focus hooks. Keyboard now only opens when the user intentionally taps an input or "+ Add".
@@ -84,7 +98,17 @@
 
 ---
 
-## 6. Git Status & Active Constraints
+## 6. Technical Invariants & Gotchas for Future Edits
+- **Home View Cache Signature (`lastHomeSignature` in `spec-ui.js`):** `spec-ui.js` caches the `#spec-view-home` DOM and only re-renders when `homeSig` changes. Any new setting or total that affects Home rendering (such as `settings.lang`, `settings.excludeRentOnHome`, `familyPaidTotal`, taxonomy edits) **must** be included in `homeSig`.
+- **Devanagari Unicode Regexes in `parser.js`:**
+  - Standard JS `\b` only matches ASCII `[a-zA-Z0-9_]`. Always use `(?:^|\s)` and `(?=\s|$)` boundaries for Devanagari tokens.
+  - Devanagari vowel signs/matras (`ा`, `ि`, `ी`, `ु`, `ू`, `े`, `ै`, `ो`, `ौ`, `ं`, `्`) are Unicode Combining Marks (`\p{M}`), not `\p{L}`. Any regex stripping punctuation from words must preserve `\p{M}`: `/[^\p{L}\p{M}\p{N}\s&]/gu`.
+- **Service Worker Cache Version (`sw.js`, `index.html`, `app.js`, `spec-ui.js`, `sync.js`):** Currently at `dropspend-v35` (`?v=35`). Bump when modifying static JS/CSS so OTA & PWA caches refresh cleanly.
+- **Git in macOS Sandbox:** Invoke `/Library/Developer/CommandLineTools/usr/bin/git` directly (bare `git` hits an `xcode-select` sandbox symlink error) and stage explicit file names (`git add <file1> <file2>`) rather than `git add -A`.
+
+---
+
+## 7. Git Status & Active Constraints
 - **Current Branch:** `main`
-- **Latest Commit:** `9e276f3` (`fix: remove remote notification sync & fix aggressive touch keyboard popup bug`)
+- **Latest Pushed Commit on `origin/main`:** `bb5bad0` (`feat: add Marathi & Minglish parser support and optional Marathi UI toggle`)
 - **STRICT DIRECTIVE:** **DO NOT commit or push to git unless the user explicitly asks.**

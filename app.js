@@ -23,7 +23,7 @@ import {
   toLocalISODate,
   upsertCategoryItem,
   upsertPaymentMethodItem
-} from './parser.js?v=35';
+} from './parser.js?v=36';
 
 import {
   exportToCSV,
@@ -45,7 +45,7 @@ import {
   saveUtilityBills,
   syncWithGoogleSheets,
   trackAppUsage
-} from './sync.js?v=35';
+} from './sync.js?v=36';
 
 import {
   computeCalendarAndPatterns,
@@ -61,7 +61,7 @@ import {
   getUtilityBillCurrentCycleKey
 } from './insights.js?v=28';
 
-import { createSpecController } from './spec-ui.js?v=35';
+import { createSpecController } from './spec-ui.js?v=36';
 import {
   initNativeBridge,
   requestSoftKeyboard,

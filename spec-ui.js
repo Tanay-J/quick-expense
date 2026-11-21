@@ -28,7 +28,7 @@ import {
   parseQuestionQuery,
   PAYMENT_METHODS,
   toLocalISODate
-} from './parser.js?v=35';
+} from './parser.js?v=36';
 
 import {
   FEATURE_REMOTE_NOTIF_SYNC,
@@ -37,7 +37,7 @@ import {
   normalizeEntryType,
   normalizePaymentMethod,
   normalizeTags
-} from './sync.js?v=35';
+} from './sync.js?v=36';
 
 import {
   computeCalendarAndPatterns,

@@ -4,7 +4,7 @@ import {
   getPaymentMethodById,
   isIncomeCategory,
   saveCustomTaxonomy
-} from './parser.js?v=35';
+} from './parser.js?v=36';
 
 // Master code-level feature flag: Set to false to completely remove/disable this feature across the app
 export const FEATURE_REMOTE_NOTIF_SYNC = false;
