@@ -8,7 +8,7 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=34">
+  <link rel="stylesheet" href="./styles.css?v=35">
 </head>
 <body data-design="spec" data-view="log" data-theme="dark">
   <!-- Live Design Option Switcher (hidden by default; append ?switcher=1 to URL to compare layouts) -->
@@ -731,12 +731,19 @@
             </select>
           </div>
           <div class="form-group">
-            <label for="always-tables-input">Chart Display</label>
-            <select id="always-tables-input" name="alwaysTables">
-              <option value="false">📊 Visual Charts (Default)</option>
-              <option value="true">📋 Always Show Tables</option>
+            <label for="lang-select-input">Language / भाषा</label>
+            <select id="lang-select-input" name="lang">
+              <option value="en">🇬🇧 English (with Marathi input)</option>
+              <option value="mr">🇮🇳 मराठी (Marathi UI + Input)</option>
             </select>
           </div>
+        </div>
+        <div class="form-group">
+          <label for="always-tables-input">Chart Display</label>
+          <select id="always-tables-input" name="alwaysTables">
+            <option value="false">📊 Visual Charts (Default)</option>
+            <option value="true">📋 Always Show Tables</option>
+          </select>
         </div>
 
         <div class="dialog-actions">
@@ -1216,6 +1223,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="./app.js?v=34"></script>
+  <script type="module" src="./app.js?v=35"></script>
 </body>
 </html>

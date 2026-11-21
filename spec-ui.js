@@ -17,7 +17,9 @@ import {
   extractTags,
   getCategoriesByType,
   getCategoryById,
+  getCategoryDisplayName,
   getLearnedKeywords,
+  getPaymentDisplayName,
   getPaymentMethodById,
   INCOME_CATEGORIES,
   inferCategory,
@@ -26,7 +28,7 @@ import {
   parseQuestionQuery,
   PAYMENT_METHODS,
   toLocalISODate
-} from './parser.js?v=22';
+} from './parser.js?v=35';
 
 import {
   FEATURE_REMOTE_NOTIF_SYNC,
@@ -35,7 +37,7 @@ import {
   normalizeEntryType,
   normalizePaymentMethod,
   normalizeTags
-} from './sync.js?v=22';
+} from './sync.js?v=35';
 
 import {
   computeCalendarAndPatterns,
@@ -69,6 +71,26 @@ const SHORT_MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
 ];
+const FULL_MONTHS_MR = [
+  'जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून',
+  'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'
+];
+const SHORT_MONTHS_MR = [
+  'जाने', 'फेब्रु', 'मार्च', 'एप्रि', 'मे', 'जून',
+  'जुलै', 'ऑग', 'सप्टें', 'ऑक्टो', 'नोव्हें', 'डिसें'
+];
+
+function getMonthFull(idx, lang = 'en') {
+  return lang === 'mr' ? (FULL_MONTHS_MR[idx] || FULL_MONTHS[idx]) : FULL_MONTHS[idx];
+}
+
+function getMonthShort(idx, lang = 'en') {
+  return lang === 'mr' ? (SHORT_MONTHS_MR[idx] || SHORT_MONTHS[idx]) : SHORT_MONTHS[idx];
+}
+
+function t(lang, enStr, mrStr) {
+  return lang === 'mr' ? mrStr : enStr;
+}
 
 function esc(str) {
   return String(str ?? '')
@@ -113,14 +135,14 @@ function formatTime24h(ts, fallbackIndex = 0) {
   return fake24[fallbackIndex % fake24.length];
 }
 
-function formatDayGroupHeader(iso, todayIso, yesterdayIso) {
-  if (iso === todayIso) return 'TODAY';
-  if (iso === yesterdayIso) return 'YESTERDAY';
+function formatDayGroupHeader(iso, todayIso, yesterdayIso, lang = 'en') {
+  if (iso === todayIso) return lang === 'mr' ? 'आज' : 'TODAY';
+  if (iso === yesterdayIso) return lang === 'mr' ? 'काल' : 'YESTERDAY';
   const [y, m, d] = (iso || '').split('-').map(Number);
   if (!y || !m || !d) return iso;
   const dt = new Date(y, m - 1, d);
   return dt
-    .toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+    .toLocaleDateString(lang === 'mr' ? 'mr-IN' : 'en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
     .toUpperCase();
 }
 
@@ -138,7 +160,7 @@ const MIDNIGHT_ICONS = {
   chev: sv('<path d="m9 18 6-6-6-6"/>')
 };
 
-function renderMidnightBottomNav(activeKey) {
+function renderMidnightBottomNav(activeKey, lang = 'en') {
   const item = (key, icon, label) => `
     <button type="button" class="spec-tabbar-item ${activeKey === key ? 'is-active' : ''}" data-nav="${key}">
       ${icon}
@@ -147,10 +169,10 @@ function renderMidnightBottomNav(activeKey) {
   `;
   return `
     <nav class="spec-midnight-tabbar" aria-label="Main navigation">
-      ${item('home', MIDNIGHT_ICONS.home, 'Home')}
-      ${item('history', MIDNIGHT_ICONS.history, 'History')}
-      ${item('stats', MIDNIGHT_ICONS.stats, 'Stats')}
-      ${item('settings', MIDNIGHT_ICONS.settings, 'Settings')}
+      ${item('home', MIDNIGHT_ICONS.home, t(lang, 'Home', 'मुख्य'))}
+      ${item('history', MIDNIGHT_ICONS.history, t(lang, 'History', 'इतिहास'))}
+      ${item('stats', MIDNIGHT_ICONS.stats, t(lang, 'Stats', 'आकडेवारी'))}
+      ${item('settings', MIDNIGHT_ICONS.settings, t(lang, 'Settings', 'सेटिंग्ज'))}
     </nav>
   `;
 }
@@ -350,11 +372,12 @@ export function createSpecController(ctx) {
         </section>
         ${dayReceiptsHtml}
       </div>
-      ${renderMidnightBottomNav('home')}
+      ${renderMidnightBottomNav('home', settings.lang)}
     `;
   }
 
   function renderHomeScreen(root, expenses, settings, spanComp) {
+    const lang = settings.lang === 'mr' ? 'mr' : 'en';
     const now = new Date();
     const todayIso = toLocalISODate(now);
     const yest = new Date(now);
@@ -382,13 +405,14 @@ export function createSpecController(ctx) {
       return;
     }
 
-    const shortDateStr = now.toLocaleDateString('en-IN', {
+    const shortDateStr = now.toLocaleDateString(lang === 'mr' ? 'mr-IN' : 'en-IN', {
       weekday: 'short',
       day: 'numeric',
       month: 'short'
     });
     const rawName = (settings.userName || '').trim();
-    const firstName = rawName ? rawName.split(/\s+/)[0] : 'there';
+    const firstName = rawName ? rawName.split(/\s+/)[0] : t(lang, 'there', 'मित्र');
+    const greetingText = lang === 'mr' ? `नमस्कार ${firstName}` : `Hi ${firstName}`;
 
     const monthPrefix = `${ctx.state.selectedYear}-${String(ctx.state.selectedMonth + 1).padStart(2, '0')}`;
     const allMonthExpenses = expenses.filter(
@@ -414,16 +438,39 @@ export function createSpecController(ctx) {
     const budgetPct = budget > 0 ? Math.min(100, Math.max(0, Math.round((monthTotal / budget) * 100))) : 0;
     const budgetSubText =
       monthTotal <= budget
-        ? `${ctx.formatCurrency(leftAmt)} left of ${ctx.formatCurrency(budget)}`
-        : `${ctx.formatCurrency(monthTotal - budget)} over ${ctx.formatCurrency(budget)} budget`;
+        ? t(
+            lang,
+            `${ctx.formatCurrency(leftAmt)} left of ${ctx.formatCurrency(budget)}`,
+            `${ctx.formatCurrency(budget)} पैकी ${ctx.formatCurrency(leftAmt)} शिल्लक`
+          )
+        : t(
+            lang,
+            `${ctx.formatCurrency(monthTotal - budget)} over ${ctx.formatCurrency(budget)} budget`,
+            `${ctx.formatCurrency(budget)} बजेटपेक्षा ${ctx.formatCurrency(monthTotal - budget)} जास्त`
+          );
     const exclParts = [];
     if (excludeRent) {
-      exclParts.push(excludedRentTotal > 0 ? `${ctx.formatCurrency(excludedRentTotal)} rent` : 'rent');
+      exclParts.push(
+        excludedRentTotal > 0
+          ? t(lang, `${ctx.formatCurrency(excludedRentTotal)} rent`, `${ctx.formatCurrency(excludedRentTotal)} घरभाडे`)
+          : t(lang, 'rent', 'घरभाडे')
+      );
     }
     if (familyPaidTotal > 0) {
-      exclParts.push(`${ctx.formatCurrency(familyPaidTotal)} paid by family`);
+      exclParts.push(
+        t(
+          lang,
+          `${ctx.formatCurrency(familyPaidTotal)} paid by family`,
+          `${ctx.formatCurrency(familyPaidTotal)} कुटुंबाने दिलेले`
+        )
+      );
     }
-    const excludedRentSubText = exclParts.length > 0 ? `Excludes ${exclParts.join(' & ')}` : '';
+    const excludedRentSubText =
+      exclParts.length > 0
+        ? lang === 'mr'
+          ? `${exclParts.join(' आणि ')} वगळून`
+          : `Excludes ${exclParts.join(' & ')}`
+        : '';
     const isCurrentMonthSelected =
       ctx.state.selectedYear === now.getFullYear() && ctx.state.selectedMonth === now.getMonth();
 
@@ -445,7 +492,7 @@ export function createSpecController(ctx) {
 
     const catLegendHtml = sortedActiveCats
       .slice(0, 6)
-      .map((c) => `<span><i style="--c:${c.color}"></i>${esc(c.shortName || c.name)}</span>`)
+      .map((c) => `<span><i style="--c:${c.color}"></i>${esc(getCategoryDisplayName(c, lang, true))}</span>`)
       .join('');
 
     // 6A: Recap Card at top of Home (shown on days 1-5 or if enabled in settings and unseen)
@@ -481,7 +528,7 @@ export function createSpecController(ctx) {
               <div class="spec-entry-icon" style="background:${isInc ? '#22c55e24' : `${cat.color}22`}">${isInc ? '💰' : cat.icon}</div>
               <div class="spec-entry-mid">
                 <div class="spec-entry-note">${esc(item.note)} ${tagsHtml}</div>
-                <div class="spec-entry-sub">${isInc ? 'Income · Bank' : `${esc(cat.shortName || cat.name)} · ${esc(pay.shortName)} · ${formatTime12h(item.updatedAt, idx)}`}</div>
+                <div class="spec-entry-sub">${isInc ? t(lang, 'Income · Bank', 'उत्पन्न · बँक') : `${esc(getCategoryDisplayName(cat, lang, true))} · ${esc(getPaymentDisplayName(pay, lang, true))} · ${formatTime12h(item.updatedAt, idx)}`}</div>
               </div>
               <div class="spec-entry-amt ${isInc ? 'is-inc' : ''}">${isInc ? '+' : ''}${ctx.formatCurrency(item.amount)}</div>
             </div>
@@ -508,7 +555,7 @@ export function createSpecController(ctx) {
               <strong>💳 ${esc(card.name)} bill · ${esc(whenTxt)}</strong>
               <span>Cycle ${esc(card.rangeLabel)}${esc(spendTxt)}</span>
             </div>
-            <button type="button" class="mini-pill-btn is-accent" data-mark-cc-paid="${esc(card.id)}">✓ Paid</button>
+            <button type="button" class="mini-pill-btn is-accent" data-mark-cc-paid="${esc(card.id)}">✓ ${t(lang, 'Paid', 'भरले')}</button>
           </div>
         `;
       })
@@ -519,7 +566,7 @@ export function createSpecController(ctx) {
         <header class="spec-midnight-hdr">
           <div>
             <small class="spec-hdr-date">${esc(shortDateStr)}</small>
-            <h2 class="spec-hdr-greeting">Hi ${esc(firstName)}</h2>
+            <h2 class="spec-hdr-greeting">${esc(greetingText)}</h2>
           </div>
           <button type="button" class="spec-circle-btn" data-nav="history" title="Search &amp; History" aria-label="Search and History">
             ${MIDNIGHT_ICONS.search}
@@ -538,12 +585,12 @@ export function createSpecController(ctx) {
           showRecapCard
             ? `<section class="spec-recap-home-card" id="spec-home-recap-card">
                  <div class="spec-recap-home-top">
-                   <span class="spec-recap-kicker">🎁 NEW · ${esc(FULL_MONTHS[prevM])} recap</span>
+                   <span class="spec-recap-kicker">🎁 ${t(lang, `NEW · ${getMonthFull(prevM, lang)} recap`, `नवीन · ${getMonthFull(prevM, lang)} रीकॅप`)}</span>
                    <button type="button" class="spec-recap-dismiss" id="spec-dismiss-recap-btn" aria-label="Dismiss">✕</button>
                  </div>
                  <div class="spec-recap-open-area" id="spec-open-recap-story">
-                   <h3>Your ${esc(FULL_MONTHS[prevM])} is wrapped</h3>
-                   <p>${ctx.formatCurrency(prevRecap.totalSpent)} · ${prevRecap.slides.length} stories · tap to watch ▶</p>
+                   <h3>${t(lang, `Your ${getMonthFull(prevM, lang)} is wrapped`, `तुमचा ${getMonthFull(prevM, lang)} महिन्याचा आढावा तयार आहे`)}</h3>
+                   <p>${ctx.formatCurrency(prevRecap.totalSpent)} · ${prevRecap.slides.length} ${t(lang, 'stories · tap to watch ▶', 'स्टोरीज · पाहण्यासाठी टॅप करा ▶')}</p>
                  </div>
                </section>`
             : ''
@@ -553,17 +600,17 @@ export function createSpecController(ctx) {
           <div class="spec-budget-ring" style="--p:${budgetPct}">
             <div>
               <b class="num">${budgetPct}%</b>
-              <small>of budget</small>
+              <small>${t(lang, 'of budget', 'अंदाजपत्रक')}</small>
             </div>
           </div>
           <div class="spec-midnight-hero-body">
             <div class="spec-hero-month-bar">
               <button type="button" class="spec-hero-month-arrow" id="spec-home-prev-month" title="Previous month" aria-label="Previous month">‹</button>
-              <span class="spec-hero-month-label">${esc(FULL_MONTHS[ctx.state.selectedMonth])}</span>
+              <span class="spec-hero-month-label">${esc(getMonthFull(ctx.state.selectedMonth, lang))}</span>
               <button type="button" class="spec-hero-month-arrow" id="spec-home-next-month" title="Next month" aria-label="Next month">›</button>
               ${
                 !isCurrentMonthSelected
-                  ? `<button type="button" class="spec-hero-today-jump" id="spec-home-jump-today" title="Jump back to current month">${esc(SHORT_MONTHS[now.getMonth()])} ↺</button>`
+                  ? `<button type="button" class="spec-hero-today-jump" id="spec-home-jump-today" title="Jump back to current month">${esc(getMonthShort(now.getMonth(), lang))} ↺</button>`
                   : ''
               }
             </div>
@@ -584,7 +631,7 @@ export function createSpecController(ctx) {
 
         <section class="spec-card spec-day-card">
           <div class="spec-day-card-head">
-            <b>Today</b>
+            <b>${t(lang, 'Today', 'आज')}</b>
             <span class="num spec-day-card-sum">${ctx.formatCurrency(todayTotal)}</span>
           </div>
           <div class="spec-day-card-list">
@@ -592,8 +639,8 @@ export function createSpecController(ctx) {
               todayItems.length > 0
                 ? renderEntryRows(todayItems)
                 : `<div class="spec-acc-empty-row">
-                     <span>No expenses logged today yet.</span>
-                     <button type="button" class="spec-inline-link-btn" id="spec-open-add-empty">+ Add now</button>
+                     <span>${t(lang, 'No expenses logged today yet.', 'आज कोणताही खर्च नोंदवलेला नाही.')}</span>
+                     <button type="button" class="spec-inline-link-btn" id="spec-open-add-empty">${t(lang, '+ Add now', '+ खर्च जोडा')}</button>
                    </div>`
             }
           </div>
@@ -604,8 +651,8 @@ export function createSpecController(ctx) {
             ? `<section class="spec-accordion-card ${yestOpen ? 'is-open' : ''}" data-acc-key="yesterday">
                  <button type="button" class="spec-accordion-summary" data-acc-toggle="yesterday">
                    <span class="spec-acc-left">
-                     <strong>Yesterday</strong>
-                     <span class="spec-acc-sub">· ${yesterdayItems.length} ${yesterdayItems.length === 1 ? 'entry' : 'entries'}</span>
+                     <strong>${t(lang, 'Yesterday', 'काल')}</strong>
+                     <span class="spec-acc-sub">· ${yesterdayItems.length} ${yesterdayItems.length === 1 ? t(lang, 'entry', 'नोंद') : t(lang, 'entries', 'नोंदी')}</span>
                    </span>
                    <span class="spec-acc-right">
                      <span class="spec-acc-sub num">${ctx.formatCurrency(yesterdayTotal)}</span>
@@ -624,8 +671,8 @@ export function createSpecController(ctx) {
             ? `<section class="spec-accordion-card ${earlierOpen ? 'is-open' : ''}" data-acc-key="earlier">
                  <button type="button" class="spec-accordion-summary" data-acc-toggle="earlier">
                    <span class="spec-acc-left">
-                     <strong>Earlier in ${esc(SHORT_MONTHS[ctx.state.selectedMonth])}</strong>
-                     <span class="spec-acc-sub">· ${earlierItems.length} ${earlierItems.length === 1 ? 'entry' : 'entries'}</span>
+                     <strong>${t(lang, `Earlier in ${getMonthShort(ctx.state.selectedMonth, lang)}`, `${getMonthShort(ctx.state.selectedMonth, lang)} मधील आधीचे`)}</strong>
+                     <span class="spec-acc-sub">· ${earlierItems.length} ${earlierItems.length === 1 ? t(lang, 'entry', 'नोंद') : t(lang, 'entries', 'नोंदी')}</span>
                    </span>
                    <span class="spec-acc-right">
                      <span class="spec-acc-sub num">${ctx.formatCurrency(earlierTotal)}</span>
@@ -635,7 +682,7 @@ export function createSpecController(ctx) {
                  <div class="spec-accordion-body is-entries-body">
                    ${renderEntryRows(earlierItems.slice(0, 12))}
                    <div style="padding: 0.55rem 0.85rem; text-align:center;">
-                     <button type="button" class="spec-btn-ghost" data-nav="history" style="width:100%;">View all in History (${monthExpenses.length} entries) ›</button>
+                     <button type="button" class="spec-btn-ghost" data-nav="history" style="width:100%;">${t(lang, `View all in History (${monthExpenses.length} entries) ›`, `इतिहासात सर्व पहा (${monthExpenses.length} नोंदी) ›`)}</button>
                    </div>
                  </div>
                </section>`
@@ -645,10 +692,10 @@ export function createSpecController(ctx) {
 
       <div class="spec-midnight-dock">
         <button type="button" class="spec-midnight-composer" id="spec-open-add-pill">
-          <span class="spec-composer-placeholder">200 coffee upi…</span>
+          <span class="spec-composer-placeholder">${t(lang, '200 coffee upi…', '२०० चहा रोख किंवा 200 chaha upi…')}</span>
           <span class="spec-composer-plus" aria-hidden="true">${MIDNIGHT_ICONS.plus}</span>
         </button>
-        ${renderMidnightBottomNav('home')}
+        ${renderMidnightBottomNav('home', lang)}
       </div>
     `;
 
@@ -723,6 +770,7 @@ export function createSpecController(ctx) {
     }
     overlay.hidden = false;
 
+    const lang = settings.lang === 'mr' ? 'mr' : 'en';
     const usualsCount = Number(settings.usualsCount) || 6;
     const usuals = computeUsuals(expenses, usualsCount);
 
@@ -738,7 +786,7 @@ export function createSpecController(ctx) {
 
         const catPill = overlay.querySelector('#spec-kp-cat-cycle');
         if (catPill) {
-          catPill.textContent = `${catObj.icon} ${catObj.shortName || catObj.name} ⌄`;
+          catPill.textContent = `${catObj.icon} ${getCategoryDisplayName(catObj, lang, true)} ⌄`;
         }
 
         const noteInp = overlay.querySelector('#spec-kp-note-input');
@@ -759,8 +807,8 @@ export function createSpecController(ctx) {
 
         const submitBtn = overlay.querySelector('#spec-kp-submit-btn');
         if (submitBtn) {
-          submitBtn.textContent = `Add ${ctx.formatCurrency(amtNum)} · ${catObj.icon} ${
-            specState.keypadNote || catObj.shortName || 'expense'
+          submitBtn.textContent = `${t(lang, 'Add', 'जोडा')} ${ctx.formatCurrency(amtNum)} · ${catObj.icon} ${
+            specState.keypadNote || getCategoryDisplayName(catObj, lang, true) || t(lang, 'expense', 'खर्च')
           }`;
         }
       }
@@ -773,7 +821,7 @@ export function createSpecController(ctx) {
           <div class="spec-add-sheet is-keypad-mode">
             <div class="spec-sheet-drag-pill" aria-hidden="true"></div>
             <header class="spec-add-header">
-              <span class="spec-add-title">Add · keypad</span>
+              <span class="spec-add-title">${t(lang, 'Add · keypad', 'खर्च जोडा · कीपॅड')}</span>
               <button type="button" class="spec-circle-btn" id="spec-close-add-btn">✕</button>
             </header>
 
@@ -782,8 +830,8 @@ export function createSpecController(ctx) {
             </div>
 
             <div class="spec-kp-note-row">
-              <input type="text" id="spec-kp-note-input" class="spec-kp-note-input" placeholder="Note (e.g. auto, chai, lunch)" value="${esc(specState.keypadNote)}" autocomplete="off" />
-              <button type="button" class="spec-kp-cat-pill" id="spec-kp-cat-cycle">${catObj.icon} ${esc(catObj.shortName || catObj.name)} ⌄</button>
+              <input type="text" id="spec-kp-note-input" class="spec-kp-note-input" placeholder="${t(lang, 'Note (e.g. auto, chai, lunch)', 'तपशील (उदा. चहा, भाजी, रिक्षा)')}" value="${esc(specState.keypadNote)}" autocomplete="off" />
+              <button type="button" class="spec-kp-cat-pill" id="spec-kp-cat-cycle">${catObj.icon} ${esc(getCategoryDisplayName(catObj, lang, true))} ⌄</button>
             </div>
 
             <div class="spec-kp-usuals-strip">
@@ -800,7 +848,7 @@ export function createSpecController(ctx) {
               ${modes
                 .map((m) => {
                   const pm = getPaymentMethodById(m);
-                  return `<button type="button" class="spec-seg-btn ${specState.keypadMode === m ? 'active' : ''}" data-kp-mode-btn="${m}">${esc(pm.shortName)}</button>`;
+                  return `<button type="button" class="spec-seg-btn ${specState.keypadMode === m ? 'active' : ''}" data-kp-mode-btn="${m}">${esc(getPaymentDisplayName(pm, lang, true))}</button>`;
                 })
                 .join('')}
             </div>
@@ -815,11 +863,11 @@ export function createSpecController(ctx) {
             </div>
 
             <button type="button" class="spec-kp-submit-btn" id="spec-kp-submit-btn">
-              Add ${ctx.formatCurrency(amtNum)} · ${catObj.icon} ${esc(specState.keypadNote || catObj.shortName || 'expense')}
+              ${t(lang, 'Add', 'जोडा')} ${ctx.formatCurrency(amtNum)} · ${catObj.icon} ${esc(specState.keypadNote || getCategoryDisplayName(catObj, lang, true) || t(lang, 'expense', 'खर्च'))}
             </button>
 
             <button type="button" class="spec-kp-switch-link" id="spec-switch-to-keyboard">
-              ⌨ Switch to typing · set your default in Settings
+              ${t(lang, '⌨ Switch to typing · set your default in Settings', '⌨ टायपिंग मोडवर जा · सेटिंग्जमध्ये डिफॉल्ट बदला')}
             </button>
           </div>
         `;
@@ -930,7 +978,7 @@ export function createSpecController(ctx) {
                     <button type="button" class="spec-usual-tile-main">
                       <span class="spec-usual-emoji">${c.icon}</span>
                       <strong class="spec-usual-title">${esc(u.note)}</strong>
-                      <span class="spec-usual-sub">${ctx.formatCurrency(u.amount)} · ${esc(p.shortName)}</span>
+                      <span class="spec-usual-sub">${ctx.formatCurrency(u.amount)} · ${esc(getPaymentDisplayName(p, lang, true))}</span>
                     </button>
                     <button type="button" class="spec-usual-prefill" title="Edit before saving">✎</button>
                   </div>
@@ -938,12 +986,12 @@ export function createSpecController(ctx) {
               })
               .join('')
           : `<div class="spec-card" style="grid-column: 1 / -1; text-align:center; padding: 1.2rem;">
-               <p class="field-hint">Your 6 most frequent items in the last 30 days will appear here for 1-tap logging.</p>
+               <p class="field-hint">${t(lang, 'Your 6 most frequent items in the last 30 days will appear here for 1-tap logging.', 'गेल्या ३० दिवसांतील तुमचे ६ नेहमीचे खर्च १-टॅपमध्ये जोडण्यासाठी येथे दिसतील.')}</p>
              </div>`;
 
       bodyContentHtml = `
         <div class="spec-usuals-section">
-          <div class="spec-section-kicker">YOUR USUALS · TAP TO ADD</div>
+          <div class="spec-section-kicker">${t(lang, 'YOUR USUALS · TAP TO ADD', 'तुमचे नेहमीचे खर्च · जोडण्यासाठी टॅप करा')}</div>
           <div class="spec-usuals-2x3">
             ${cardsHtml}
           </div>
@@ -955,7 +1003,7 @@ export function createSpecController(ctx) {
       const isLess = (ans.deltaAmt || 0) <= 0;
       const deltaLine =
         ans.deltaPct !== null
-          ? `<div class="spec-qa-delta ${isLess ? 'is-good' : 'is-bad'}">${isLess ? '▼' : '▲'} ${Math.abs(ans.deltaPct)}% ${isLess ? 'less' : 'more'} vs ${esc(ans.prevLabel)}</div>`
+          ? `<div class="spec-qa-delta ${isLess ? 'is-good' : 'is-bad'}">${isLess ? '▼' : '▲'} ${Math.abs(ans.deltaPct)}% ${isLess ? t(lang, 'less', 'कमी') : t(lang, 'more', 'जास्त')} vs ${esc(ans.prevLabel)}</div>`
           : '';
       const maxTop = Math.max(1, ...ans.topItems.slice(0, 4).map((t) => t.amount));
       const barsHtml = ans.topItems
@@ -976,11 +1024,11 @@ export function createSpecController(ctx) {
         <div class="spec-card spec-qa-card">
           <div class="spec-qa-pill">🔍 ${esc(ans.filterTitle)} · ${esc(ans.periodLabel)}</div>
           <div class="spec-qa-hero">${ctx.formatCurrency(ans.total)}</div>
-          <div class="spec-qa-meta">${ans.count} ${ans.count === 1 ? 'entry' : 'entries'} · avg ${ctx.formatCurrency(ans.avg)}</div>
+          <div class="spec-qa-meta">${ans.count} ${ans.count === 1 ? t(lang, 'entry', 'नोंद') : t(lang, 'entries', 'नोंदी')} · ${t(lang, 'avg', 'सरासरी')} ${ctx.formatCurrency(ans.avg)}</div>
           ${deltaLine}
           ${barsHtml ? `<div class="spec-qa-bars">${barsHtml}</div>` : ''}
           <button type="button" class="spec-qa-explore-btn" id="spec-qa-open-explore">
-            Open in Stats → Explore ›
+            ${t(lang, 'Open in Stats → Explore ›', 'आकडेवारी → शोध मध्ये उघडा ›')}
           </button>
         </div>
       `;
@@ -1010,20 +1058,20 @@ export function createSpecController(ctx) {
       bodyContentHtml = `
         <div class="spec-typing-preview">
           <section class="spec-card spec-midnight-preview-card">
-            <span class="spec-eyebrow">WILL SAVE AS</span>
+            <span class="spec-eyebrow">${t(lang, 'WILL SAVE AS', 'असे सेव्ह होईल')}</span>
             <div class="spec-typing-amt num ${!hasAmount ? 'is-missing' : ''}">
               ${hasAmount ? ctx.formatCurrency(firstDraft.amount) : '₹?'}
             </div>
             <div class="spec-typing-chips">
               <button type="button" class="spec-preview-chip" id="spec-cycle-cat-chip">
-                ${catObj.icon} ${esc(catObj.shortName || catObj.name)} ▾
-                ${specState.overrideCategory ? '<small class="spec-learned-tag">saved</small>' : ''}
+                ${catObj.icon} ${esc(getCategoryDisplayName(catObj, lang, true))} ▾
+                ${specState.overrideCategory ? `<small class="spec-learned-tag">${t(lang, 'saved', 'सेव्ह')}</small>` : ''}
               </button>
               <button type="button" class="spec-preview-chip ${isDefaultMode ? 'is-dimmed' : ''}" id="spec-cycle-mode-chip">
-                ${payObj.icon || '💳'} ${esc(firstDraft.creditCardTag && activeModeId === 'credit_card' ? `${firstDraft.creditCardTag} CC` : payObj.shortName)} ${isDefaultMode ? '<small>default</small>' : ''} ▾
+                ${payObj.icon || '💳'} ${esc(firstDraft.creditCardTag && activeModeId === 'credit_card' ? `${firstDraft.creditCardTag} CC` : getPaymentDisplayName(payObj, lang, true))} ${isDefaultMode ? `<small>${t(lang, 'default', 'डिफॉल्ट')}</small>` : ''} ▾
               </button>
               <label class="spec-preview-chip">
-                <span>📅 ${esc(firstDraft.dateLabel || 'Today')} ▾</span>
+                <span>📅 ${esc(firstDraft.dateLabel === 'Today' ? t(lang, 'Today', 'आज') : firstDraft.dateLabel === 'Yesterday' ? t(lang, 'Yesterday', 'काल') : (firstDraft.dateLabel || t(lang, 'Today', 'आज')))} ▾</span>
                 <input type="date" id="spec-preview-date-input" value="${esc(activeDateIso)}" style="position:absolute; opacity:0; width:1px; height:1px;" />
               </label>
               ${
@@ -1037,7 +1085,7 @@ export function createSpecController(ctx) {
           ${
             historyChipsHtml
               ? `<div class="spec-from-history-block">
-                   <div class="spec-section-kicker">FROM YOUR HISTORY</div>
+                   <div class="spec-section-kicker">${t(lang, 'FROM YOUR HISTORY', 'तुमच्या इतिहासातून')}</div>
                    <div class="spec-midnight-hist-chips">
                      ${historyChipsHtml}
                    </div>
@@ -1049,10 +1097,14 @@ export function createSpecController(ctx) {
     }
 
     const bottomHintText = !trimmed
-      ? 'Type <code>200 snacks upi</code> to add · ask <code>food this month</code>'
+      ? t(
+          lang,
+          'Type <code>200 snacks upi</code> to add · ask <code>food this month</code>',
+          'उदा. <code>२०० भाजी रोख</code> किंवा <code>150 chaha upi</code> टाइप करा'
+        )
       : isQuestion
-        ? 'No amount, so this is a question. Add a number to log it.'
-        : 'Tap any chip to change it · Press Save or Enter to log.';
+        ? t(lang, 'No amount, so this is a question. Add a number to log it.', 'रक्कम नाही, त्यामुळे हा प्रश्न मानला आहे. खर्च जोडण्यासाठी रक्कम टाका.')
+        : t(lang, 'Tap any chip to change it · Press Save or Enter to log.', 'कोणताही चिप बदलण्यासाठी त्यावर टॅप करा · सेव्ह दाबा.');
 
     // Only rebuild the shell if not already built, or update parts so input never loses focus!
     const existingInput = overlay.querySelector('#spec-add-input');
@@ -1062,13 +1114,13 @@ export function createSpecController(ctx) {
           <div class="spec-sheet-drag-pill" aria-hidden="true"></div>
           <header class="spec-add-header">
             <button type="button" class="spec-circle-btn" id="spec-close-add-btn" aria-label="Close Add">${MIDNIGHT_ICONS.x}</button>
-            <span class="spec-add-title">Add</span>
-            <button type="button" class="spec-mini-text-btn" id="spec-switch-to-keypad" title="Switch to Keypad">🔢 Keypad</button>
+            <span class="spec-add-title">${t(lang, 'Add', 'खर्च जोडा')}</span>
+            <button type="button" class="spec-mini-text-btn" id="spec-switch-to-keypad" title="Switch to Keypad">🔢 ${t(lang, 'Keypad', 'कीपॅड')}</button>
           </header>
           <div class="spec-add-top-bar">
             <form id="spec-add-form" class="spec-add-input-pill">
-              <input type="text" id="spec-add-input" placeholder="1299 shoes myntra cc" autocomplete="off" />
-              <button type="submit" class="spec-return-btn">Save</button>
+              <input type="text" id="spec-add-input" placeholder="${t(lang, '1299 shoes myntra cc', '२०० भाजी रोख किंवा 150 chaha upi')}" autocomplete="off" />
+              <button type="submit" class="spec-return-btn">${t(lang, 'Save', 'सेव्ह')}</button>
             </form>
             <div id="spec-add-hint-line" class="spec-add-hint-line"></div>
           </div>
@@ -1209,6 +1261,7 @@ export function createSpecController(ctx) {
 
   // 4A-4D, 5A-5D, 6B: STATS SCREEN & SUB-SCREENS
   function renderStatsScreen(root, expenses, settings, spanComp) {
+    const lang = settings.lang === 'mr' ? 'mr' : 'en';
     const budget = Number(settings.monthlyBudget) || 30000;
     const prevM = ctx.state.selectedMonth === 0 ? 11 : ctx.state.selectedMonth - 1;
     const prevY = ctx.state.selectedMonth === 0 ? ctx.state.selectedYear - 1 : ctx.state.selectedYear;
@@ -1235,19 +1288,19 @@ export function createSpecController(ctx) {
 
     const tabsHeaderHtml = `
       <header class="spec-midnight-hdr">
-        <h2 class="spec-hdr-greeting">Stats</h2>
+        <h2 class="spec-hdr-greeting">${t(lang, 'Stats', 'आकडेवारी')}</h2>
         <div class="spec-segmented-3" style="width:176px">
-          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'week' ? 'active' : ''}" data-stats-period="week">Week</button>
-          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'month' ? 'active' : ''}" data-stats-period="month">Month</button>
-          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'year' ? 'active' : ''}" data-stats-period="year">Year</button>
+          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'week' ? 'active' : ''}" data-stats-period="week">${t(lang, 'Week', 'आठवडा')}</button>
+          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'month' ? 'active' : ''}" data-stats-period="month">${t(lang, 'Month', 'महिना')}</button>
+          <button type="button" class="spec-seg-btn ${specState.statsPeriod === 'year' ? 'active' : ''}" data-stats-period="year">${t(lang, 'Year', 'वर्ष')}</button>
         </div>
       </header>
       <nav class="spec-underline-tabs" role="tablist">
-        <button type="button" class="spec-utab ${specState.statsTab === 'overview' ? 'active' : ''}" data-stats-tab="overview">Overview</button>
-        <button type="button" class="spec-utab ${specState.statsTab === 'calendar' ? 'active' : ''}" data-stats-tab="calendar">Calendar</button>
-        <button type="button" class="spec-utab ${specState.statsTab === 'explore' ? 'active' : ''}" data-stats-tab="explore">Explore</button>
+        <button type="button" class="spec-utab ${specState.statsTab === 'overview' ? 'active' : ''}" data-stats-tab="overview">${t(lang, 'Overview', 'आढावा')}</button>
+        <button type="button" class="spec-utab ${specState.statsTab === 'calendar' ? 'active' : ''}" data-stats-tab="calendar">${t(lang, 'Calendar', 'दिनदर्शिका')}</button>
+        <button type="button" class="spec-utab ${specState.statsTab === 'explore' ? 'active' : ''}" data-stats-tab="explore">${t(lang, 'Explore', 'शोध')}</button>
         <button type="button" class="spec-utab ${specState.statsTab === 'recaps' ? 'active' : ''}">
-          <span data-stats-tab="recaps">Recaps ${hasUnseenRecap ? '<i class="spec-red-dot"></i>' : ''}</span>
+          <span data-stats-tab="recaps">${t(lang, 'Recaps', 'रीकॅप')} ${hasUnseenRecap ? '<i class="spec-red-dot"></i>' : ''}</span>
         </button>
       </nav>
     `;
@@ -1377,7 +1430,7 @@ export function createSpecController(ctx) {
                     const pSign = c.pct <= 0 ? '▼' : '▲';
                     return `
                       <tr class="spec-clickable-tr" data-drill-cat="${c.id}">
-                        <td>${c.icon} ${esc(c.shortName || c.name)}</td>
+                        <td>${c.icon} ${esc(getCategoryDisplayName(c, lang, true))}</td>
                         <td class="num"><strong>${ctx.formatCurrency(c.curAmt)}</strong></td>
                         <td class="num ${c.pct <= 0 ? 'is-good' : 'is-bad'}">${pSign}${Math.abs(c.pct)}%</td>
                         <td class="num">${share}%</td>
@@ -1399,7 +1452,7 @@ export function createSpecController(ctx) {
                 const pSign = c.pct <= 0 ? '▼' : '▲';
                 return `
                   <button type="button" class="spec-cat-row-btn" data-drill-cat="${c.id}">
-                    <span class="spec-cat-row-name">${c.icon} ${esc(c.shortName || c.name)}</span>
+                    <span class="spec-cat-row-name">${c.icon} ${esc(getCategoryDisplayName(c, lang, true))}</span>
                     <div class="spec-cat-row-track"><div class="spec-cat-row-fill" style="width:${wPct}%; background:${c.color}"></div></div>
                     <strong class="spec-cat-row-amt">${ctx.formatCurrency(c.curAmt)}</strong>
                     <span class="spec-cat-row-delta ${c.pct <= 0 ? 'is-good' : 'is-bad'}">${pSign}${Math.abs(c.pct)}%</span>
@@ -1455,21 +1508,21 @@ export function createSpecController(ctx) {
 
         <section class="spec-card">
           <div class="spec-card-head">
-            <strong>This week</strong>
-            <span class="spec-muted-sm num">${ctx.formatCurrency(weekTotal)} total</span>
+            <strong>${t(lang, 'This week', 'हा आठवडा')}</strong>
+            <span class="spec-muted-sm num">${ctx.formatCurrency(weekTotal)} ${t(lang, 'total', 'एकूण')}</span>
           </div>
           <div class="spec-midnight-week-bars">${weekBarsHtml}</div>
         </section>
 
         <section class="spec-card">
           <div class="spec-card-head">
-            <strong>Where it went</strong>
+            <strong>${t(lang, 'Where it went', 'खर्च कुठे झाला')}</strong>
             <div class="spec-card-head-right">
-              <span class="spec-muted-sm">Tap to drill in</span>
+              <span class="spec-muted-sm">${t(lang, 'Tap to drill in', 'तपशीलासाठी टॅप करा')}</span>
               <button type="button" class="spec-table-toggle-btn" data-toggle-table="categories">${catTableOn ? '📊 Chart' : '⊞ Table'}</button>
             </div>
           </div>
-          ${categoriesBodyHtml || '<p class="field-hint">No expenses in this period yet.</p>'}
+          ${categoriesBodyHtml || `<p class="field-hint">${t(lang, 'No expenses in this period yet.', 'या कालावधीत कोणताही खर्च नाही.')}</p>`}
         </section>
 
         ${
@@ -1480,7 +1533,7 @@ export function createSpecController(ctx) {
                    <strong>${esc(oneFact.title)}</strong>
                    <p>${esc(oneFact.body)}</p>
                    <button type="button" class="spec-inline-link-btn" id="spec-open-all-facts" style="padding:0.25rem 0 0">
-                     All ${clearedFacts.length} fun facts ›
+                     ${t(lang, `All ${clearedFacts.length} fun facts ›`, `सर्व ${clearedFacts.length} निरीक्षणे ›`)}
                    </button>
                  </div>
                </section>`
@@ -1489,9 +1542,9 @@ export function createSpecController(ctx) {
 
         <section class="spec-card">
           <div class="spec-card-head">
-            <strong>Running total</strong>
+            <strong>${t(lang, 'Running total', 'एकूण वाढता खर्च')}</strong>
             <div class="spec-card-head-right">
-              <span class="spec-muted-sm">day 1 → ${comp.daysInCurMonth}</span>
+              <span class="spec-muted-sm">${t(lang, `day 1 → ${comp.daysInCurMonth}`, `दिवस १ → ${comp.daysInCurMonth}`)}</span>
               <button type="button" class="spec-table-toggle-btn" data-toggle-table="running">${runTableOn ? '📊 Chart' : '⊞ Table'}</button>
             </div>
           </div>
@@ -1831,7 +1884,7 @@ export function createSpecController(ctx) {
         </div>
       </div>
       <div class="spec-midnight-dock">
-        ${renderMidnightBottomNav('stats')}
+        ${renderMidnightBottomNav('stats', lang)}
       </div>
     `;
 
@@ -2313,12 +2366,14 @@ export function createSpecController(ctx) {
 
   // 3C: HISTORY SCREEN (Midnight Redesign with Filter Chips, Category Chips & Out/In Summary)
   function renderHistoryScreen(root, expenses) {
+    const settings = ctx.getSettings();
+    const lang = settings.lang === 'mr' ? 'mr' : 'en';
     const rawQ = specState.historyQuery.trim();
     const activeChip = specState.historyChip || 'all';
     const activeCat = specState.historyCategory || 'all';
     const parsedQ = rawQ ? parseQuestionQuery(rawQ, new Date()) : null;
     let filtered = [...expenses];
-    let filterLabel = FULL_MONTHS[ctx.state.selectedMonth];
+    let filterLabel = getMonthFull(ctx.state.selectedMonth, lang);
 
     if (parsedQ && parsedQ.isSpecific) {
       const ans = evaluateQuestionQuery(expenses, parsedQ);
@@ -2348,11 +2403,11 @@ export function createSpecController(ctx) {
     if (activeCat !== 'all') {
       filtered = filtered.filter((e) => e.category === activeCat);
       const catObj = getCategoryById(activeCat);
-      filterLabel = `${catObj.icon} ${catObj.shortName || catObj.name}`;
+      filterLabel = `${catObj.icon} ${getCategoryDisplayName(catObj, lang, true)}`;
     }
     if (activeChip !== 'all' && activeChip !== 'expense' && activeChip !== 'income') {
       const payObj = getPaymentMethodById(activeChip);
-      filterLabel = `${filterLabel} · ${payObj.icon} ${payObj.shortName}`;
+      filterLabel = `${filterLabel} · ${payObj.icon} ${getPaymentDisplayName(payObj, lang, true)}`;
     }
 
     const totalOut = filtered
@@ -2376,28 +2431,28 @@ export function createSpecController(ctx) {
     const sortedDates = Array.from(byDate.keys()).sort((a, b) => b.localeCompare(a));
 
     const chips = [
-      ['all', 'All'],
-      ['expense', 'Expenses'],
-      ['income', 'Income'],
-      ...PAYMENT_METHODS.map((p) => [p.id, `${p.icon} ${p.shortName}`])
+      ['all', t(lang, 'All', 'सर्व')],
+      ['expense', t(lang, 'Expenses', 'खर्च')],
+      ['income', t(lang, 'Income', 'उत्पन्न')],
+      ...PAYMENT_METHODS.map((p) => [p.id, `${p.icon} ${getPaymentDisplayName(p, lang, true)}`])
     ];
 
     const catPool = activeChip === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
     const catChips = [
-      ['all', 'All Cats'],
-      ...catPool.map((c) => [c.id, `${c.icon} ${c.shortName || c.name}`])
+      ['all', t(lang, 'All Cats', 'सर्व प्रकार')],
+      ...catPool.map((c) => [c.id, `${c.icon} ${getCategoryDisplayName(c, lang, true)}`])
     ];
 
     root.innerHTML = `
       <div class="spec-phone-container">
         <header class="spec-midnight-hdr">
-          <h2 class="spec-hdr-greeting">History</h2>
+          <h2 class="spec-hdr-greeting">${t(lang, 'History', 'इतिहास')}</h2>
           <button type="button" class="spec-circle-btn" id="spec-export-history-csv" title="Export CSV">⇩</button>
         </header>
 
         <div class="spec-search-pill">
           <span class="spec-search-ico">${MIDNIGHT_ICONS.search}</span>
-          <input type="text" id="spec-history-search" value="${esc(specState.historyQuery)}" placeholder="Try &quot;food last week&quot; or &quot;&gt; 500&quot;" autocomplete="off" />
+          <input type="text" id="spec-history-search" value="${esc(specState.historyQuery)}" placeholder="${t(lang, 'Try &quot;food last week&quot; or &quot;&gt; 500&quot;', '&quot;भाजी&quot;, &quot;food last week&quot; किंवा &quot;&gt; 500&quot; शोधा')}" autocomplete="off" />
         </div>
 
         <div class="spec-midnight-filter-chips">
@@ -2419,7 +2474,7 @@ export function createSpecController(ctx) {
         </div>
 
         <div class="spec-history-summary">
-          ${esc(filterLabel)} · ${filtered.length} ${filtered.length === 1 ? 'entry' : 'entries'} · <b style="color:var(--spec-ink)">${ctx.formatCurrency(totalOut)} out</b>${totalIn > 0 ? ` · <b style="color:var(--spec-primary)">${ctx.formatCurrency(totalIn)} in</b>` : ''}
+          ${esc(filterLabel)} · ${filtered.length} ${filtered.length === 1 ? t(lang, 'entry', 'नोंद') : t(lang, 'entries', 'नोंदी')} · <b style="color:var(--spec-ink)">${ctx.formatCurrency(totalOut)} ${t(lang, 'out', 'खर्च')}</b>${totalIn > 0 ? ` · <b style="color:var(--spec-primary)">${ctx.formatCurrency(totalIn)} ${t(lang, 'in', 'जमा')}</b>` : ''}
         </div>
 
         <div class="spec-days-feed">
@@ -2432,7 +2487,7 @@ export function createSpecController(ctx) {
               return `
                 <div class="spec-day-group">
                   <div class="spec-day-header">
-                    <span>${esc(formatDayGroupHeader(iso, todayIso, yesterdayIso))}</span>
+                    <span>${esc(formatDayGroupHeader(iso, todayIso, yesterdayIso, lang))}</span>
                     <span>${ctx.formatCurrency(daySum)}</span>
                   </div>
                   <div class="spec-card spec-entries-card">
@@ -2446,7 +2501,7 @@ export function createSpecController(ctx) {
                             <div class="spec-entry-icon" style="background:${isInc ? '#22c55e24' : `${c.color}22`}">${isInc ? '💰' : c.icon}</div>
                             <div class="spec-entry-mid">
                               <div class="spec-entry-note">${esc(item.note)}</div>
-                              <div class="spec-entry-sub">${isInc ? 'Income · Bank' : `${esc(c.shortName || c.name)} · ${esc(p.shortName)} · ${formatTime12h(item.updatedAt, idx)}`}</div>
+                              <div class="spec-entry-sub">${isInc ? t(lang, 'Income · Bank', 'उत्पन्न · बँक') : `${esc(getCategoryDisplayName(c, lang, true))} · ${esc(getPaymentDisplayName(p, lang, true))} · ${formatTime12h(item.updatedAt, idx)}`}</div>
                             </div>
                             <div class="spec-entry-amt ${isInc ? 'is-inc' : ''}">${isInc ? '+' : ''}${ctx.formatCurrency(item.amount)}</div>
                           </div>
@@ -2461,7 +2516,7 @@ export function createSpecController(ctx) {
         </div>
       </div>
       <div class="spec-midnight-dock">
-        ${renderMidnightBottomNav('history')}
+        ${renderMidnightBottomNav('history', lang)}
       </div>
     `;
 
@@ -2496,6 +2551,7 @@ export function createSpecController(ctx) {
 
   // 3D: SETTINGS SCREEN (Midnight Redesign)
   function renderSettingsScreen(root, expenses, settings) {
+    const lang = settings.lang === 'mr' ? 'mr' : 'en';
     const curTheme = settings.theme || 'dark';
     const curInputStyle = settings.inputStyle || 'keyboard';
     const learnedCount = Object.keys(getLearnedKeywords() || {}).length;
@@ -2505,22 +2561,22 @@ export function createSpecController(ctx) {
     root.innerHTML = `
       <div class="spec-phone-container">
         <header class="spec-midnight-hdr">
-          <h2 class="spec-hdr-greeting">Settings</h2>
+          <h2 class="spec-hdr-greeting">${t(lang, 'Settings', 'सेटिंग्ज')}</h2>
         </header>
 
         <div class="spec-midnight-profile">
           <span class="spec-midnight-avatar">${esc(initial)}</span>
           <label class="spec-midnight-profile-meta" for="spec-set-username">
-            <input type="text" id="spec-set-username" class="spec-midnight-name-input" placeholder="Your name" value="${esc(rawName)}" />
-            <small class="spec-muted-sm">Tap to edit name</small>
+            <input type="text" id="spec-set-username" class="spec-midnight-name-input" placeholder="${t(lang, 'Your name', 'तुमचे नाव')}" value="${esc(rawName)}" />
+            <small class="spec-muted-sm">${t(lang, 'Tap to edit name', 'नाव बदलण्यासाठी टॅप करा')}</small>
           </label>
         </div>
 
         <div class="spec-settings-group">
-          <div class="spec-section-kicker">MONEY</div>
+          <div class="spec-section-kicker">${t(lang, 'MONEY', 'पैसे आणि बजेट')}</div>
           <div class="spec-card spec-settings-card">
             <div class="spec-setting-row">
-              <div><strong>Monthly budget</strong></div>
+              <div><strong>${t(lang, 'Monthly budget', 'मासिक अंदाजपत्रक')}</strong></div>
               <div style="display:inline-flex;align-items:center;gap:4px">
                 <span class="spec-muted-sm">₹</span>
                 <input type="number" id="spec-set-budget" class="spec-inline-num" value="${Number(settings.monthlyBudget) || 30000}" step="500" />
@@ -2528,67 +2584,67 @@ export function createSpecController(ctx) {
             </div>
             <div class="spec-setting-row">
               <div>
-                <strong>Exclude rent on Home</strong>
-                <div class="spec-muted-sm">Keep Home total, budget ring &amp; bar focused on daily spend</div>
+                <strong>${t(lang, 'Exclude rent on Home', 'मुख्य पानावरून घरभाडे वगळा')}</strong>
+                <div class="spec-muted-sm">${t(lang, 'Keep Home total, budget ring &amp; bar focused on daily spend', 'मुख्य पानावरील एकूण खर्च आणि बजेट दैनंदिन खर्चापुरते ठेवा')}</div>
               </div>
               <input type="checkbox" id="spec-set-exclude-rent" class="spec-ios-switch" ${settings.excludeRentOnHome ? 'checked' : ''} />
             </div>
             <div class="spec-setting-row" id="spec-open-recurring-modal" style="cursor:pointer">
               <div>
-                <strong>Utility bills &amp; credit cards</strong>
-                <div class="spec-muted-sm">Electricity, gas, property tax, cards &amp; due reminders</div>
+                <strong>${t(lang, 'Utility bills &amp; credit cards', 'विजेचे बिल आणि क्रेडिट कार्ड')}</strong>
+                <div class="spec-muted-sm">${t(lang, 'Electricity, gas, property tax, cards &amp; due reminders', 'लाईट बिल, गॅस, कर, कार्ड आणि देय तारखेचे स्मरण')}</div>
               </div>
-              <span class="spec-muted-sm">${(ctx.state.utilityBills || []).length} utilities · ${(settings.creditCards || []).length || 1} cards ›</span>
+              <span class="spec-muted-sm">${(ctx.state.utilityBills || []).length} ${t(lang, 'utilities', 'बिले')} · ${(settings.creditCards || []).length || 1} ${t(lang, 'cards', 'कार्ड')} ›</span>
             </div>
             <div class="spec-setting-row" id="spec-open-taxonomy-modal" style="cursor:pointer">
               <div>
-                <strong>Categories &amp; payment modes</strong>
-                <div class="spec-muted-sm">Add or edit expense/income categories, icons, colors &amp; payment types</div>
+                <strong>${t(lang, 'Categories &amp; payment modes', 'खर्चाचे प्रकार आणि पेमेंट पद्धती')}</strong>
+                <div class="spec-muted-sm">${t(lang, 'Add or edit expense/income categories, icons, colors &amp; payment types', 'खर्च/उत्पन्नाचे प्रकार, चिन्हे, रंग आणि पेमेंट पद्धती बदला')}</div>
               </div>
-              <span class="spec-muted-sm">${EXPENSE_CATEGORIES.length + INCOME_CATEGORIES.length} cats · ${PAYMENT_METHODS.length} modes ›</span>
+              <span class="spec-muted-sm">${EXPENSE_CATEGORIES.length + INCOME_CATEGORIES.length} ${t(lang, 'cats', 'प्रकार')} · ${PAYMENT_METHODS.length} ${t(lang, 'modes', 'पद्धती')} ›</span>
             </div>
           </div>
         </div>
 
         <div class="spec-settings-group">
-          <div class="spec-section-kicker">ADDING</div>
+          <div class="spec-section-kicker">${t(lang, 'ADDING', 'खर्च जोडणे')}</div>
           <div class="spec-card spec-settings-card">
             <div class="spec-setting-row">
               <div>
-                <strong>Input</strong>
-                <div class="spec-muted-sm">Keyboard typing vs numeric keypad</div>
+                <strong>${t(lang, 'Input', 'इनपुट पद्धत')}</strong>
+                <div class="spec-muted-sm">${t(lang, 'Keyboard typing vs numeric keypad', 'कीबोर्ड टायपिंग किंवा अंकांचा कीपॅड')}</div>
               </div>
               <div class="spec-pill-switch">
-                <button type="button" class="${curInputStyle === 'keyboard' ? 'active' : ''}" data-set-input="keyboard">Keyboard</button>
-                <button type="button" class="${curInputStyle === 'keypad' ? 'active' : ''}" data-set-input="keypad">Keypad</button>
+                <button type="button" class="${curInputStyle === 'keyboard' ? 'active' : ''}" data-set-input="keyboard">${t(lang, 'Keyboard', 'कीबोर्ड')}</button>
+                <button type="button" class="${curInputStyle === 'keypad' ? 'active' : ''}" data-set-input="keypad">${t(lang, 'Keypad', 'कीपॅड')}</button>
               </div>
             </div>
 
             <div class="spec-setting-row">
               <div>
-                <strong>Default payment</strong>
-                <div class="spec-muted-sm">Used when you don't type one</div>
+                <strong>${t(lang, 'Default payment', 'डिफॉल्ट पेमेंट पद्धत')}</strong>
+                <div class="spec-muted-sm">${t(lang, "Used when you don't type one", 'पेमेंट पद्धत टाइप न केल्यास वापरली जाते')}</div>
               </div>
               <select id="spec-set-default-pay" class="spec-select">
                 ${PAYMENT_METHODS.map(
                   (pm) =>
-                    `<option value="${pm.id}" ${(settings.defaultPayment || 'upi') === pm.id ? 'selected' : ''}>${esc(pm.shortName)}</option>`
+                    `<option value="${pm.id}" ${(settings.defaultPayment || 'upi') === pm.id ? 'selected' : ''}>${esc(getPaymentDisplayName(pm, lang, true))}</option>`
                 ).join('')}
               </select>
             </div>
 
             <div class="spec-setting-row">
               <div>
-                <strong>Open straight to Add</strong>
-                <div class="spec-muted-sm">Launches directly into Add with keyboard open</div>
+                <strong>${t(lang, 'Open straight to Add', 'थेट खर्च जोडण्याच्या पानावर उघडा')}</strong>
+                <div class="spec-muted-sm">${t(lang, 'Launches directly into Add with keyboard open', 'अॅप उघडताच कीबोर्डसह खर्च जोडण्याचे पान उघडते')}</div>
               </div>
               <input type="checkbox" id="spec-set-open-add" class="spec-ios-switch" ${settings.openToAdd !== false ? 'checked' : ''} />
             </div>
 
             <div class="spec-setting-row">
               <div>
-                <strong>Haptic feedback</strong>
-                <div class="spec-muted-sm">Subtle vibration when tapping keys &amp; saving</div>
+                <strong>${t(lang, 'Haptic feedback', 'हॅप्टिक कंपन (Haptics)')}</strong>
+                <div class="spec-muted-sm">${t(lang, 'Subtle vibration when tapping keys &amp; saving', 'बटण दाबताना आणि सेव्ह करताना हलके कंपन')}</div>
               </div>
               <input type="checkbox" id="spec-set-haptics" class="spec-ios-switch" ${settings.hapticsEnabled !== false ? 'checked' : ''} />
             </div>
@@ -2596,57 +2652,67 @@ export function createSpecController(ctx) {
         </div>
 
         <div class="spec-settings-group">
-          <div class="spec-section-kicker">LOOK</div>
+          <div class="spec-section-kicker">${t(lang, 'LOOK &amp; LANGUAGE', 'दिसणे आणि भाषा')}</div>
           <div class="spec-card spec-settings-card">
             <div class="spec-setting-row">
-              <div><strong>Theme</strong></div>
+              <div>
+                <strong>${t(lang, 'Language / भाषा', 'भाषा / Language')}</strong>
+                <div class="spec-muted-sm">${t(lang, 'Marathi &amp; Minglish input works in both modes', 'दोन्ही भाषांमध्ये मराठी आणि Minglish टायपिंग चालते')}</div>
+              </div>
               <div class="spec-pill-switch">
-                <button type="button" class="${curTheme === 'clean' ? 'active' : ''}" data-set-theme="clean">Light</button>
-                <button type="button" class="${curTheme === 'dark' ? 'active' : ''}" data-set-theme="dark">Dark</button>
-                <button type="button" class="${curTheme === 'receipt' ? 'active' : ''}" data-set-theme="receipt">Receipt</button>
+                <button type="button" class="${lang === 'en' ? 'active' : ''}" data-set-lang="en">English</button>
+                <button type="button" class="${lang === 'mr' ? 'active' : ''}" data-set-lang="mr">मराठी</button>
+              </div>
+            </div>
+            <div class="spec-setting-row">
+              <div><strong>${t(lang, 'Theme', 'थीम')}</strong></div>
+              <div class="spec-pill-switch">
+                <button type="button" class="${curTheme === 'clean' ? 'active' : ''}" data-set-theme="clean">${t(lang, 'Light', 'लाईट')}</button>
+                <button type="button" class="${curTheme === 'dark' ? 'active' : ''}" data-set-theme="dark">${t(lang, 'Dark', 'डार्क')}</button>
+                <button type="button" class="${curTheme === 'receipt' ? 'active' : ''}" data-set-theme="receipt">${t(lang, 'Receipt', 'पावती')}</button>
               </div>
             </div>
             <div class="spec-setting-row">
               <div>
-                <strong>Home screen density</strong>
-                <div class="spec-muted-sm">Collapsible Yesterday/Earlier vs all open</div>
+                <strong>${t(lang, 'Home screen density', 'मुख्य पान मांडणी')}</strong>
+                <div class="spec-muted-sm">${t(lang, 'Collapsible Yesterday/Earlier vs all open', 'कालचे खर्च बंद ठेवणे किंवा सर्व उघडे ठेवणे')}</div>
               </div>
               <div class="spec-pill-switch">
-                <button type="button" class="${settings.homeStyle !== 'expanded' ? 'active' : ''}" data-set-homestyle="accordions">Compact</button>
-                <button type="button" class="${settings.homeStyle === 'expanded' ? 'active' : ''}" data-set-homestyle="expanded">Expanded</button>
+                <button type="button" class="${settings.homeStyle !== 'expanded' ? 'active' : ''}" data-set-homestyle="accordions">${t(lang, 'Compact', 'सुटसुटीत')}</button>
+                <button type="button" class="${settings.homeStyle === 'expanded' ? 'active' : ''}" data-set-homestyle="expanded">${t(lang, 'Expanded', 'विस्तृत')}</button>
               </div>
             </div>
             <div class="spec-setting-row">
-              <div><strong>Show monthly recap card on Home</strong></div>
+              <div><strong>${t(lang, 'Show monthly recap card on Home', 'मुख्य पानावर मासिक रीकॅप कार्ड दाखवा')}</strong></div>
               <input type="checkbox" id="spec-set-recap-card" class="spec-ios-switch" ${settings.recapCard !== false ? 'checked' : ''} />
             </div>
           </div>
         </div>
 
         <div class="spec-settings-group">
-          <div class="spec-section-kicker">DATA</div>
+          <div class="spec-section-kicker">${t(lang, 'DATA', 'डेटा आणि बॅकअप')}</div>
           <div class="spec-card spec-settings-card">
             <div class="spec-setting-row" id="spec-open-cloud-sync" style="cursor:pointer">
               <div>
                 <strong>Google Sheets</strong>
-                <div class="spec-muted-sm">${settings.webhookUrl ? '2-way cloud backup active' : 'Optional free cloud backup'}</div>
+                <div class="spec-muted-sm">${settings.webhookUrl ? t(lang, '2-way cloud backup active', '२-मार्गी क्लाउड बॅकअप सुरू आहे') : t(lang, 'Optional free cloud backup', 'मोफत क्लाउड बॅकअप (ऐच्छिक)')}</div>
               </div>
               <span class="spec-muted-sm" style="display:inline-flex;align-items:center;gap:6px">
                 <i class="spec-status-dot ${settings.webhookUrl ? 'is-on' : ''}"></i>
-                ${settings.webhookUrl ? 'Synced ›' : 'Set up ›'}
+                ${settings.webhookUrl ? t(lang, 'Synced ›', 'सिंक झाले ›') : t(lang, 'Set up ›', 'सेट करा ›')}
               </span>
             </div>
             <div class="spec-setting-row" id="spec-export-all-csv" style="cursor:pointer">
               <div>
-                <strong>Export CSV / Backup</strong>
-                <div class="spec-muted-sm">${learnedCount} learned category keywords active</div>
+                <strong>${t(lang, 'Export CSV / Backup', 'CSV डाउनलोड / बॅकअप')}</strong>
+                <div class="spec-muted-sm">${learnedCount} ${t(lang, 'learned category keywords active', 'शिकलेले शब्द सक्रिय')}</div>
               </div>
               <span>›</span>
             </div>
             <div class="spec-setting-row" id="spec-seed-demo-settings" style="cursor:pointer">
               <div>
-                <strong>Load sample data</strong>
-                <div class="spec-muted-sm">Populate sample entries to preview all charts</div>
+                <strong>${t(lang, 'Load sample data', 'नमुना डेटा लोड करा')}</strong>
+                <div class="spec-muted-sm">${t(lang, 'Populate sample entries to preview all charts', 'सर्व तक्ते पाहण्यासाठी नमुना खर्च भरा')}</div>
               </div>
               <span>✨</span>
             </div>
@@ -2718,11 +2784,11 @@ export function createSpecController(ctx) {
               <span>⬇</span>
             </a>
           </div>
-          <p class="spec-settings-footer">Stored on this device · ${expenses.length} entries</p>
+          <p class="spec-settings-footer">${t(lang, `Stored on this device · ${expenses.length} entries`, `या फोनवर सुरक्षित · ${expenses.length} नोंदी`)}</p>
         </div>
       </div>
       <div class="spec-midnight-dock">
-        ${renderMidnightBottomNav('settings')}
+        ${renderMidnightBottomNav('settings', lang)}
       </div>
     `;
 
@@ -2789,6 +2855,21 @@ export function createSpecController(ctx) {
       btn.addEventListener('click', () => {
         ctx.updateSettings({ homeStyle: btn.dataset.setHomestyle });
         render();
+      });
+    });
+    root.querySelectorAll('[data-set-lang]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const nextLang = btn.dataset.setLang === 'mr' ? 'mr' : 'en';
+        ctx.updateSettings({ lang: nextLang });
+        document.getElementById('spec-add-overlay')?.replaceChildren();
+        render();
+        if (ctx.showToast) {
+          ctx.showToast(
+            nextLang === 'mr'
+              ? '🇮🇳 मराठी भाषा निवडली (तुम्ही मराठी किंवा इंग्रजीत खर्च टाइप करू शकता)'
+              : '🇬🇧 Language switched to English (Marathi & Minglish input still active)'
+          );
+        }
       });
     });
     root.querySelectorAll('[data-set-theme]').forEach((btn) => {
@@ -3065,7 +3146,7 @@ export function createSpecController(ctx) {
       const topUpd = expenses[0]?.updatedAt || 0;
       const ccSig = JSON.stringify(settings.creditCards || []) + ':' + (settings.ccRemindDays || 5);
       const taxSig = `${CATEGORIES.map((c) => `${c.id}:${c.name}:${c.icon}:${c.color}`).join('|')}::${PAYMENT_METHODS.map((p) => `${p.id}:${p.shortName}:${p.icon}`).join('|')}`;
-      const homeSig = `${expenses.length}:${topId}:${topUpd}:${spanComp.curTotal}:${settings.monthlyBudget}:${Boolean(settings.excludeRentOnHome)}:${settings.userName || ''}:${settings.theme}:${settings.homeStyle}:${settings.recapCard}:${ccSig}:${taxSig}:${ctx.state.selectedYear}-${ctx.state.selectedMonth}`;
+      const homeSig = `${expenses.length}:${topId}:${topUpd}:${spanComp.curTotal}:${settings.monthlyBudget}:${Boolean(settings.excludeRentOnHome)}:${settings.lang || 'en'}:${settings.userName || ''}:${settings.theme}:${settings.homeStyle}:${settings.recapCard}:${ccSig}:${taxSig}:${ctx.state.selectedYear}-${ctx.state.selectedMonth}`;
       if (homeSig !== lastHomeSignature || !views.home.firstElementChild) {
         renderHomeScreen(views.home, expenses, settings, spanComp);
         lastHomeSignature = homeSig;

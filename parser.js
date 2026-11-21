@@ -11,35 +11,53 @@
  */
 
 export const DEFAULT_EXPENSE_CATEGORIES = [
-  { id: 'food', name: 'Food & Dining', shortName: 'Food', icon: '🍔', hue: '24', color: '#2a78d6', type: 'expense' },
-  { id: 'transport', name: 'Transport & Fuel', shortName: 'Transport', icon: '⛽', hue: '210', color: '#eb6834', type: 'expense' },
-  { id: 'groceries', name: 'Groceries', shortName: 'Groceries', icon: '🛒', hue: '142', color: '#1baf7a', type: 'expense' },
-  { id: 'bills', name: 'Bills & Utilities', shortName: 'Bills', icon: '💡', hue: '45', color: '#eda100', type: 'expense' },
-  { id: 'shopping', name: 'Shopping', shortName: 'Shopping', icon: '🛍️', hue: '280', color: '#e87ba4', type: 'expense' },
-  { id: 'health', name: 'Health & Fitness', shortName: 'Health', icon: '💊', hue: '340', color: '#008300', type: 'expense' },
-  { id: 'entertainment', name: 'Entertainment', shortName: 'Fun', icon: '🎬', hue: '190', color: '#4a3aa7', type: 'expense' },
-  { id: 'personal', name: 'Personal & Home', shortName: 'Personal', icon: '🏠', hue: '165', color: '#0d9488', type: 'expense' },
-  { id: 'other', name: 'Other Expense', shortName: 'Other', icon: '📌', hue: '220', color: '#898781', type: 'expense' }
+  { id: 'food', name: 'Food & Dining', shortName: 'Food', nameMr: 'जेवण आणि नाश्ता', shortNameMr: 'जेवण', icon: '🍔', hue: '24', color: '#2a78d6', type: 'expense' },
+  { id: 'transport', name: 'Transport & Fuel', shortName: 'Transport', nameMr: 'प्रवास आणि इंधन', shortNameMr: 'प्रवास', icon: '⛽', hue: '210', color: '#eb6834', type: 'expense' },
+  { id: 'groceries', name: 'Groceries', shortName: 'Groceries', nameMr: 'किराणा आणि भाजी', shortNameMr: 'किराणा', icon: '🛒', hue: '142', color: '#1baf7a', type: 'expense' },
+  { id: 'bills', name: 'Bills & Utilities', shortName: 'Bills', nameMr: 'बिले आणि भाडे', shortNameMr: 'बिले', icon: '💡', hue: '45', color: '#eda100', type: 'expense' },
+  { id: 'shopping', name: 'Shopping', shortName: 'Shopping', nameMr: 'खरेदी', shortNameMr: 'खरेदी', icon: '🛍️', hue: '280', color: '#e87ba4', type: 'expense' },
+  { id: 'health', name: 'Health & Fitness', shortName: 'Health', nameMr: 'आरोग्य आणि औषधे', shortNameMr: 'आरोग्य', icon: '💊', hue: '340', color: '#008300', type: 'expense' },
+  { id: 'entertainment', name: 'Entertainment', shortName: 'Fun', nameMr: 'मनोरंजन', shortNameMr: 'मनोरंजन', icon: '🎬', hue: '190', color: '#4a3aa7', type: 'expense' },
+  { id: 'personal', name: 'Personal & Home', shortName: 'Personal', nameMr: 'वैयक्तिक आणि घर', shortNameMr: 'वैयक्तिक', icon: '🏠', hue: '165', color: '#0d9488', type: 'expense' },
+  { id: 'other', name: 'Other Expense', shortName: 'Other', nameMr: 'इतर खर्च', shortNameMr: 'इतर', icon: '📌', hue: '220', color: '#898781', type: 'expense' }
 ];
 
 export const DEFAULT_INCOME_CATEGORIES = [
-  { id: 'salary', name: 'Salary & Paycheck', shortName: 'Salary', icon: '💰', hue: '152', color: '#10b981', type: 'income' },
-  { id: 'freelance', name: 'Freelance & Business', shortName: 'Freelance', icon: '💼', hue: '172', color: '#14b8a6', type: 'income' },
-  { id: 'investments', name: 'Investments & Returns', shortName: 'Investments', icon: '📈', hue: '135', color: '#22c55e', type: 'income' },
-  { id: 'refunds', name: 'Refunds & Cashback', shortName: 'Refunds', icon: '🔄', hue: '195', color: '#06b6d4', type: 'income' },
-  { id: 'gifts_in', name: 'Gifts & Splitwise', shortName: 'Gifts', icon: '🎁', hue: '310', color: '#ec4899', type: 'income' },
-  { id: 'other_income', name: 'Other Income', shortName: 'Other Income', icon: '💵', hue: '160', color: '#10b981', type: 'income' }
+  { id: 'salary', name: 'Salary & Paycheck', shortName: 'Salary', nameMr: 'पगार आणि वेतन', shortNameMr: 'पगार', icon: '💰', hue: '152', color: '#10b981', type: 'income' },
+  { id: 'freelance', name: 'Freelance & Business', shortName: 'Freelance', nameMr: 'व्यवसाय आणि काम', shortNameMr: 'व्यवसाय', icon: '💼', hue: '172', color: '#14b8a6', type: 'income' },
+  { id: 'investments', name: 'Investments & Returns', shortName: 'Investments', nameMr: 'गुंतवणूक आणि परतावा', shortNameMr: 'गुंतवणूक', icon: '📈', hue: '135', color: '#22c55e', type: 'income' },
+  { id: 'refunds', name: 'Refunds & Cashback', shortName: 'Refunds', nameMr: 'रिफंड आणि कॅशबॅक', shortNameMr: 'कॅशबॅक', icon: '🔄', hue: '195', color: '#06b6d4', type: 'income' },
+  { id: 'gifts_in', name: 'Gifts & Splitwise', shortName: 'Gifts', nameMr: 'भेट आणि आहेर', shortNameMr: 'भेट', icon: '🎁', hue: '310', color: '#ec4899', type: 'income' },
+  { id: 'other_income', name: 'Other Income', shortName: 'Other Income', nameMr: 'इतर उत्पन्न', shortNameMr: 'इतर उत्पन्न', icon: '💵', hue: '160', color: '#10b981', type: 'income' }
 ];
 
 export const DEFAULT_PAYMENT_METHODS = [
-  { id: 'upi', name: 'UPI', shortName: 'UPI', icon: '⚡', hue: '198', keywords: ['upi', 'gpay', 'google pay', 'phonepe', 'paytm', 'bhim', 'cred upi', 'supermoney', 'famapp'] },
-  { id: 'credit_card', name: 'Credit Card', shortName: 'Credit Card', icon: '💳', hue: '268', keywords: ['credit card', 'cc', 'amex', 'infinia', 'regalia', 'millennia', 'icici cc', 'hdfc cc', 'sbi cc', 'axis cc', 'hdfccc', 'amazoncc', 'apaycc', 'icicicc', 'sbicc', 'axiscc', 'flipkartcc', 'kotakcc', 'onecard'] },
-  { id: 'cash', name: 'Cash', shortName: 'Cash', icon: '💵', hue: '145', keywords: ['cash'] },
-  { id: 'cashback_wallet', name: 'Cashback / Wallet', shortName: 'Cashback', icon: '🎁', hue: '325', keywords: ['wallet', 'amazon pay', 'apay', 'paytm wallet', 'mobikwik', 'freecharge', 'pluxee', 'sodexo', 'reward points', 'gift card', 'voucher'] },
-  { id: 'debit_card', name: 'Debit Card', shortName: 'Debit Card', icon: '🏧', hue: '36', keywords: ['debit card', 'dc', 'atm card'] },
-  { id: 'bank', name: 'Bank Transfer', shortName: 'Bank', icon: '🏦', hue: '215', keywords: ['netbanking', 'net banking', 'bank transfer', 'neft', 'imps', 'rtgs', 'cheque', 'auto debit', 'nach'] },
-  { id: 'family_paid', name: 'Paid by Family / Others', shortName: 'Family', icon: '💝', hue: '340', keywords: ['paid by mom', 'paid by mother', 'paid by aai', 'paid by dad', 'paid by father', 'paid by baba', 'paid by parents', 'paid by brother', 'paid by sister', 'paid by wife', 'paid by husband', 'paid by family', 'by mom', 'by aai', 'by dad', 'by baba', 'by parents', 'mom paid', 'aai paid', 'dad paid', 'baba paid', 'parents paid', 'family paid', 'sponsored'] }
+  { id: 'upi', name: 'UPI', shortName: 'UPI', nameMr: 'UPI', shortNameMr: 'UPI', icon: '⚡', hue: '198', keywords: ['upi', 'gpay', 'google pay', 'phonepe', 'paytm', 'bhim', 'cred upi', 'supermoney', 'famapp', 'यूपीआय', 'जीपे', 'फोनपे', 'पेटीएम'] },
+  { id: 'credit_card', name: 'Credit Card', shortName: 'Credit Card', nameMr: 'क्रेडिट कार्ड', shortNameMr: 'कार्ड', icon: '💳', hue: '268', keywords: ['credit card', 'cc', 'amex', 'infinia', 'regalia', 'millennia', 'icici cc', 'hdfc cc', 'sbi cc', 'axis cc', 'hdfccc', 'amazoncc', 'apaycc', 'icicicc', 'sbicc', 'axiscc', 'flipkartcc', 'kotakcc', 'onecard', 'क्रेडिट कार्ड', 'कार्ड'] },
+  { id: 'cash', name: 'Cash', shortName: 'Cash', nameMr: 'रोख (Cash)', shortNameMr: 'रोख', icon: '💵', hue: '145', keywords: ['cash', 'rokh', 'रोख', 'कॅश'] },
+  { id: 'cashback_wallet', name: 'Cashback / Wallet', shortName: 'Cashback', nameMr: 'कॅशबॅक / वॉलेट', shortNameMr: 'वॉलेट', icon: '🎁', hue: '325', keywords: ['wallet', 'amazon pay', 'apay', 'paytm wallet', 'mobikwik', 'freecharge', 'pluxee', 'sodexo', 'reward points', 'gift card', 'voucher', 'वॉलेट'] },
+  { id: 'debit_card', name: 'Debit Card', shortName: 'Debit Card', nameMr: 'डेबिट कार्ड', shortNameMr: 'डेबिट', icon: '🏧', hue: '36', keywords: ['debit card', 'dc', 'atm card', 'डेबिट कार्ड', 'एटीएम'] },
+  { id: 'bank', name: 'Bank Transfer', shortName: 'Bank', nameMr: 'बँक ट्रान्सफर', shortNameMr: 'बँक', icon: '🏦', hue: '215', keywords: ['netbanking', 'net banking', 'bank transfer', 'neft', 'imps', 'rtgs', 'cheque', 'auto debit', 'nach', 'बँक'] },
+  { id: 'family_paid', name: 'Paid by Family / Others', shortName: 'Family', nameMr: 'कुटुंबाने दिले', shortNameMr: 'कुटुंब', icon: '💝', hue: '340', keywords: ['paid by mom', 'paid by mother', 'paid by aai', 'paid by dad', 'paid by father', 'paid by baba', 'paid by parents', 'paid by brother', 'paid by sister', 'paid by wife', 'paid by husband', 'paid by family', 'by mom', 'by aai', 'by dad', 'by baba', 'by parents', 'mom paid', 'aai paid', 'dad paid', 'baba paid', 'parents paid', 'family paid', 'sponsored', 'aai ne dile', 'aaine dile', 'baba ne dile', 'babanni dile', 'gharchyanni dile', 'आईने दिले', 'बाबांनी दिले', 'घरच्यांनी दिले', 'कुटुंबाने दिले'] }
 ];
+
+const DEVANAGARI_DIGIT_MAP = {
+  '०': '0',
+  '१': '1',
+  '२': '2',
+  '३': '3',
+  '४': '4',
+  '५': '5',
+  '६': '6',
+  '७': '7',
+  '८': '8',
+  '९': '9'
+};
+
+export function normalizeDevanagariDigits(str) {
+  if (!str) return '';
+  return String(str).replace(/[०-९]/g, (ch) => DEVANAGARI_DIGIT_MAP[ch] ?? ch);
+}
 
 export const EXPENSE_CATEGORIES = [...DEFAULT_EXPENSE_CATEGORIES];
 export const INCOME_CATEGORIES = [...DEFAULT_INCOME_CATEGORIES];
@@ -287,6 +305,34 @@ export function getPaymentMethodById(id) {
   return PAYMENT_METHODS.find((m) => m.id === normId || m.id === id) || PAYMENT_METHODS[0] || DEFAULT_PAYMENT_METHODS[0];
 }
 
+export function getCategoryDisplayName(cat, lang = 'en', short = false) {
+  if (!cat) return '';
+  if (lang === 'mr') {
+    const defCat = [...DEFAULT_EXPENSE_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES].find((d) => d.id === cat.id);
+    if (defCat) {
+      const isDefaultName = !cat.name || cat.name === defCat.name;
+      const isDefaultShort = !cat.shortName || cat.shortName === defCat.shortName || cat.shortName === defCat.name;
+      if (short && isDefaultShort && defCat.shortNameMr) return defCat.shortNameMr;
+      if (!short && isDefaultName && defCat.nameMr) return defCat.nameMr;
+    }
+  }
+  return short ? (cat.shortName || cat.name || '') : (cat.name || cat.shortName || '');
+}
+
+export function getPaymentDisplayName(pm, lang = 'en', short = false) {
+  if (!pm) return '';
+  if (lang === 'mr') {
+    const defPm = DEFAULT_PAYMENT_METHODS.find((d) => d.id === pm.id);
+    if (defPm) {
+      const isDefaultName = !pm.name || pm.name === defPm.name;
+      const isDefaultShort = !pm.shortName || pm.shortName === defPm.shortName || pm.shortName === defPm.name;
+      if (short && isDefaultShort && defPm.shortNameMr) return defPm.shortNameMr;
+      if (!short && isDefaultName && defPm.nameMr) return defPm.nameMr;
+    }
+  }
+  return short ? (pm.shortName || pm.name || '') : (pm.name || pm.shortName || '');
+}
+
 export function isIncomeCategory(categoryId) {
   return INCOME_CATEGORIES.some((c) => c.id === categoryId);
 }
@@ -297,19 +343,24 @@ export function getCategoriesByType(type = 'expense') {
 
 export const DEFAULT_INCOME_KEYWORDS = {
   salary: [
-    'salary', 'paycheck', 'stipend', 'wages', 'bonus', 'appraisal', 'payout', 'pension'
+    'salary', 'paycheck', 'stipend', 'wages', 'bonus', 'appraisal', 'payout', 'pension',
+    'pagar', 'vetan', 'पगार', 'वेतन', 'बोनस', 'मानधन'
   ],
   freelance: [
-    'freelance', 'consulting', 'client', 'project payment', 'invoice', 'commission', 'side hustle', 'gig'
+    'freelance', 'consulting', 'client', 'project payment', 'invoice', 'commission', 'side hustle', 'gig',
+    'dhanda', 'vyavsay', 'व्यवसाय', 'धंदा', 'कमिशन'
   ],
   investments: [
-    'dividend', 'dividends', 'interest', 'stocks', 'mutual fund', 'fd', 'profit', 'returns', 'capital gain', 'rental income'
+    'dividend', 'dividends', 'interest', 'stocks', 'mutual fund', 'fd', 'profit', 'returns', 'capital gain', 'rental income',
+    'vyaj', 'munafa', 'faida', 'व्याज', 'नफा', 'परतावा', 'भाडे उत्पन्न'
   ],
   refunds: [
-    'refund', 'refunded', 'cashback', 'reimbursement', 'reimbursed', 'reversal', 'claim', 'return'
+    'refund', 'refunded', 'cashback', 'reimbursement', 'reimbursed', 'reversal', 'claim', 'return',
+    'parat', 'partava', 'कॅशबॅक', 'रिफंड'
   ],
   gifts_in: [
-    'splitwise', 'settled', 'pocket money', 'allowance', 'shagun', 'gift money', 'paid back', 'returned by'
+    'splitwise', 'settled', 'pocket money', 'allowance', 'shagun', 'gift money', 'paid back', 'returned by',
+    'aher', 'bhet', 'आहेर', 'भेट', 'पॉकेट मनी'
   ]
 };
 
@@ -318,49 +369,62 @@ export const DEFAULT_KEYWORDS = {
     'fuel', 'petrol', 'diesel', 'cng', 'bike', 'car', 'scooter', 'scooty',
     'auto', 'rickshaw', 'uber', 'ola', 'rapido', 'cab', 'taxi', 'metro',
     'bus', 'train', 'irctc', 'flight', 'indigo', 'toll', 'fastag', 'parking',
-    'tyre', 'air', 'service', 'mechanic', 'oil', 'shell', 'hp', 'indian oil', 'bharat petroleum'
+    'tyre', 'air', 'service', 'mechanic', 'oil', 'shell', 'hp', 'indian oil', 'bharat petroleum',
+    'riksha', 'gadi', 'pravas', 'pmpml', 'रिक्षा', 'ऑटो', 'पेट्रोल', 'डिझेल', 'गाडी', 'प्रवास', 'बस', 'टोल', 'तिकीट', 'पार्किंग'
   ],
   food: [
     'food', 'dinner', 'lunch', 'breakfast', 'brunch', 'snacks', 'snack',
     'coffee', 'chai', 'tea', 'cafe', 'restaurant', 'swiggy', 'zomato',
     'pizza', 'burger', 'biryani', 'momos', 'dosa', 'idli', 'thali', 'samosa',
     'bakery', 'cake', 'icecream', 'dessert', 'drinks', 'beer', 'pub', 'bar',
-    'starbucks', 'mcdonalds', 'kfc', 'dominos', 'subway', 'canteen', 'mess', 'tiffin'
+    'starbucks', 'mcdonalds', 'kfc', 'dominos', 'subway', 'canteen', 'mess', 'tiffin',
+    'chaha', 'nashta', 'jevan', 'vadapav', 'vada pav', 'pohe', 'upma', 'misal', 'pav bhaji', 'poli bhaji', 'khanaval', 'dabba',
+    'चहा', 'नाश्ता', 'जेवण', 'वडापाव', 'पोहे', 'उपमा', 'मिसळ', 'खाणावळ', 'डबा', 'कॉफी', 'हॉटेल', 'थाळी', 'समोसा'
   ],
   groceries: [
     'grocery', 'groceries', 'milk', 'bread', 'eggs', 'vegetables', 'veggies',
     'fruits', 'fruit', 'blinkit', 'zepto', 'instamart', 'bigbasket', 'dmart',
     'reliance', 'supermarket', 'kirana', 'ration', 'curd', 'paneer', 'chicken',
-    'fish', 'meat', 'rice', 'atta', 'oil', 'spices', 'water can', 'bisleri'
+    'fish', 'meat', 'rice', 'atta', 'oil', 'spices', 'water can', 'bisleri',
+    'bhaji', 'bhajipala', 'dudh', 'phale', 'fale', 'kanda', 'batata', 'tandul', 'pith', 'sakhar', 'tel', 'tup',
+    'भाजी', 'भाजीपाला', 'किराणा', 'दूध', 'फळे', 'दही', 'तांदूळ', 'पीठ', 'तेल', 'तूप', 'साखर', 'कांदा', 'बटाटा', 'अंडी'
   ],
   bills: [
     'rent', 'electricity', 'power', 'water', 'gas', 'cylinder', 'wifi',
     'broadband', 'internet', 'jio', 'airtel', 'vi', 'bsnl', 'recharge',
     'mobile', 'postpaid', 'prepaid', 'maintenance', 'society', 'maid', 'cook',
-    'emi', 'loan', 'insurance', 'tax', 'icloud', 'google one'
+    'emi', 'loan', 'insurance', 'tax', 'icloud', 'google one',
+    'bhade', 'ghar bhade', 'light bill', 'vij bill', 'pani patti', 'ghar patti', 'gas taki', 'kamwali', 'mavshi',
+    'भाडे', 'घरभाडे', 'लाईट बिल', 'वीज बिल', 'पाणी बिल', 'गॅस', 'रिचार्ज', 'कामवाली', 'मावशी', 'हप्ता'
   ],
   shopping: [
     'amazon', 'flipkart', 'myntra', 'ajio', 'meesho', 'nykaa', 'zara', 'h&m',
     'uniqlo', 'decathlon', 'shoes', 'shirt', 'tshirt', 'jeans', 'clothes', 'jacket',
     'dress', 'watch', 'bag', 'backpack', 'electronics', 'charger', 'cable',
-    'earphones', 'gift', 'present', 'ikea', 'furniture'
+    'earphones', 'gift', 'present', 'ikea', 'furniture',
+    'kapde', 'chappal', 'sadi', 'saree', 'kharedi',
+    'कपडे', 'खरेदी', 'चप्पल', 'बूट', 'साडी'
   ],
   health: [
     'medicine', 'meds', 'pharmacy', 'apollo', 'pharmeasy', '1mg', 'doctor',
     'hospital', 'clinic', 'dentist', 'test', 'lab', 'blood', 'gym', 'fitness',
     'protein', 'whey', 'creatine', 'vitamins', 'supplements', 'yoga', 'cult',
-    'spectacles', 'lenskart', 'eyewear'
+    'spectacles', 'lenskart', 'eyewear',
+    'aushadh', 'goli', 'davakhana',
+    'औषध', 'औषधे', 'दवाखाना', 'डॉक्टर', 'तपासणी', 'चष्मा', 'गोळ्या'
   ],
   entertainment: [
     'movie', 'movies', 'cinema', 'pvr', 'inox', 'bookmyshow', 'netflix',
     'prime', 'hotstar', 'spotify', 'youtube', 'apple music', 'game', 'steam',
     'ps5', 'bowling', 'concert', 'show', 'match', 'turf', 'badminton', 'cricket',
-    'subscription', 'book', 'books', 'kindle'
+    'subscription', 'book', 'books', 'kindle',
+    'natak', 'picture', 'नाटक', 'चित्रपट', 'सिनेमा', 'सहल', 'फिरायला'
   ],
   personal: [
     'haircut', 'salon', 'barber', 'spa', 'grooming', 'laundry', 'dryclean',
     'ironing', 'tailor', 'repair', 'plumber', 'electrician', 'carpenter',
-    'cleaning', 'urban company', 'stationery', 'print', 'xerox', 'courier'
+    'cleaning', 'urban company', 'stationery', 'print', 'xerox', 'courier',
+    'kes', 'istri', 'dhobi', 'केस', 'सलून', 'इस्त्री', 'दुरुस्ती'
   ]
 };
 
@@ -409,7 +473,7 @@ export function learnFromNote(note, categoryId) {
   if (!note || !categoryId) return;
   const tokens = note
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu, ' ')
     .split(/\s+/)
     .filter(Boolean);
   for (const token of tokens) {
@@ -442,8 +506,8 @@ function extractDate(text, now = new Date()) {
   let targetDate = new Date(now);
   let matchedLabel = 'Today';
 
-  // 1. "day before yesterday" / "parso"
-  const dbyRegex = /\b(day\s+before\s+yesterday|parso)\b/i;
+  // 1. "day before yesterday" / "parso" / "parva" / "परवा"
+  const dbyRegex = /(?:^|\s)(day\s+before\s+yesterday|parso|parva|परवा)(?=\s|$)/i;
   if (dbyRegex.test(working)) {
     targetDate.setDate(targetDate.getDate() - 2);
     working = working.replace(dbyRegex, ' ');
@@ -451,8 +515,8 @@ function extractDate(text, now = new Date()) {
     return { dateStr: toLocalISODate(targetDate), cleanedText: working, dateLabel: matchedLabel };
   }
 
-  // 2. "yesterday" / "kal" / "last night"
-  const yestRegex = /\b(yesterday|last\s+night|kal)\b/i;
+  // 2. "yesterday" / "kal" / "last night" / "काल"
+  const yestRegex = /(?:^|\s)(yesterday|last\s+night|kal|काल)(?=\s|$)/i;
   if (yestRegex.test(working)) {
     targetDate.setDate(targetDate.getDate() - 1);
     working = working.replace(yestRegex, ' ');
@@ -460,15 +524,15 @@ function extractDate(text, now = new Date()) {
     return { dateStr: toLocalISODate(targetDate), cleanedText: working, dateLabel: matchedLabel };
   }
 
-  // 3. "today" / "aaj" / "this morning" / "tonight"
-  const todayRegex = /\b(today|aaj|this\s+morning|tonight)\b/i;
+  // 3. "today" / "aaj" / "this morning" / "tonight" / "आज" / "सकाळी" / "रात्री"
+  const todayRegex = /(?:^|\s)(today|aaj|this\s+morning|tonight|आज|सकाळी|रात्री)(?=\s|$)/i;
   if (todayRegex.test(working)) {
     working = working.replace(todayRegex, ' ');
     return { dateStr: toLocalISODate(targetDate), cleanedText: working, dateLabel: 'Today' };
   }
 
-  // 4. "N days ago"
-  const daysAgoRegex = /\b(\d{1,2})\s+days?\s+ago\b/i;
+  // 4. "N days ago" / "N दिवसापूर्वी" / "N दिवस आधी"
+  const daysAgoRegex = /(?:^|\s)(\d{1,2})\s*(?:days?\s+ago|divsapurvi|divas\s+aadhi|दिवसांपूर्वी|दिवसापूर्वी|दिवस\s+आधी)(?=\s|$)/i;
   const daysAgoMatch = working.match(daysAgoRegex);
   if (daysAgoMatch) {
     const days = parseInt(daysAgoMatch[1], 10);
@@ -536,13 +600,13 @@ export function detectExplicitType(segment, defaultType = 'expense') {
     return 'expense';
   }
 
-  // Explicit income verbs / phrases
-  if (/\b(received|credited|earned|income|got\s+paid|paid\s+back)\b/i.test(trimmed)) {
+  // Explicit income verbs / phrases (English + Marathi)
+  if (/\b(received|credited|earned|income|got\s+paid|paid\s+back)\b/i.test(trimmed) || /(?:^|\s)(मिळाले|जमा|पगार\s+आला)(?=\s|$)/i.test(trimmed)) {
     return 'income';
   }
 
   // Explicit expense verbs
-  if (/\b(spent|debited)\b/i.test(trimmed)) {
+  if (/\b(spent|debited)\b/i.test(trimmed) || /(?:^|\s)(खर्च\s+झाला|खर्च\s+केले)(?=\s|$)/i.test(trimmed)) {
     return 'expense';
   }
 
@@ -604,7 +668,7 @@ export function inferCategory(text, forcedType = null) {
   if (!lower) return fallback;
 
   const learned = getLearnedKeywords();
-  const words = lower.replace(/[^\p{L}\p{N}\s&]/gu, ' ').split(/\s+/).filter(Boolean);
+  const words = lower.replace(/[^\p{L}\p{M}\p{N}\s&]/gu, ' ').split(/\s+/).filter(Boolean);
 
   // 1. Check learned user keywords first (exact token match)
   for (const w of words) {
@@ -696,18 +760,28 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
     }
   }
 
-  // 0b. Paid by Family / Others ("paid by mom", "by aai", "mom paid", "sponsored", etc.)
-  const familyPayRegex = /\b(?:(?:paid\s+by|covered\s+by|sponsored\s+by|by)\s+(?:mom|mother|aai|dad|father|baba|parents|family|brother|sister|bro|sis|wife|husband|partner|company|office)|(?:mom|mother|aai|dad|father|baba|parents|family)\s+paid|sponsored)\b/i;
+  // 0b. Paid by Family / Others ("paid by mom", "by aai", "aai ne dile", "आईने दिले", "बाबांनी दिले", "sponsored", etc.)
+  const familyPayRegex = /(?:^|\s)(?:(?:paid\s+by|covered\s+by|sponsored\s+by|by)\s+(?:mom|mother|aai|dad|father|baba|parents|family|brother|sister|bro|sis|wife|husband|partner|company|office)|(?:mom|mother|aai|dad|father|baba|parents|family)\s+paid|(?:aai\s*ne|aaine|baba\s*ne|babanni|gharchyanni|kutumbane)\s+(?:dile|bharle)|(?:aai|baba|gharchya)\s*kadun|आईने\s+दिले|बाबांनी\s+दिले|घरच्यांनी\s+दिले|कुटुंबाने\s+दिले|आईकडून|बाबांकडून|sponsored)(?=\s|$)/i;
   if (familyPayRegex.test(working)) {
-    const matchStr = working.match(familyPayRegex)?.[0] || '';
+    const matchStr = (working.match(familyPayRegex)?.[0] || '').trim();
+    let payerLabel = 'Sponsored';
     const whoMatch = matchStr.match(/\b(mom|mother|aai|dad|father|baba|parents|family|brother|sister|bro|sis|wife|husband|partner|company|office)\b/i);
-    const whoCap = whoMatch ? whoMatch[1].charAt(0).toUpperCase() + whoMatch[1].slice(1).toLowerCase() : '';
+    if (whoMatch) {
+      const whoCap = whoMatch[1].charAt(0).toUpperCase() + whoMatch[1].slice(1).toLowerCase();
+      payerLabel = `Paid by ${whoCap}`;
+    } else if (/aai|आई/i.test(matchStr)) {
+      payerLabel = /आई/.test(matchStr) ? 'आईने दिले' : 'Paid by Aai';
+    } else if (/baba|बाबा/i.test(matchStr)) {
+      payerLabel = /बाबा/.test(matchStr) ? 'बाबांनी दिले' : 'Paid by Baba';
+    } else if (/ghar|kutumb|घर|कुटुंब/i.test(matchStr)) {
+      payerLabel = /घर|कुटुंब/.test(matchStr) ? 'कुटुंबाने दिले' : 'Paid by Family';
+    }
     working = working.replace(familyPayRegex, ' ');
     return {
       paymentMethod: 'family_paid',
       explicitPayment: true,
       forcesExpense: true,
-      payerLabel: whoCap ? `Paid by ${whoCap}` : 'Sponsored',
+      payerLabel,
       cleanedText: working
     };
   }
@@ -781,7 +855,7 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
     }
   }
 
-  const ccRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:credit\s+card|cc)\b/i;
+  const ccRegex = /(?:^|\s)(?:(?:via|by|on|from|using|with)\s+)?(?:credit\s+card|cc|क्रेडिट\s+कार्ड|कार्ड)(?=\s|$)/i;
   if (ccRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'credit_card')) {
     working = working.replace(ccRegex, ' ');
     return {
@@ -793,8 +867,8 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
     };
   }
 
-  // 4. Debit Card (dc, debit card, atm card)
-  const dcRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:debit\s+card|dc|atm\s+card)\b/i;
+  // 4. Debit Card (dc, debit card, atm card, डेबिट कार्ड, एटीएम)
+  const dcRegex = /(?:^|\s)(?:(?:via|by|on|from|using|with)\s+)?(?:debit\s+card|dc|atm\s+card|डेबिट\s+कार्ड|एटीएम)(?=\s|$)/i;
   if (dcRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'debit_card')) {
     working = working.replace(dcRegex, ' ');
     return {
@@ -805,8 +879,8 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
     };
   }
 
-  // 5. Cash
-  const cashRegex = /\b(?:(?:via|by|in|from|using|with)\s+)?cash\b/i;
+  // 5. Cash (cash, rokh, रोख, कॅश)
+  const cashRegex = /(?:^|\s)(?:(?:via|by|in|from|using|with)\s+)?(?:cash|rokh|रोख|कॅश)(?=\s|$)/i;
   if (cashRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'cash')) {
     working = working.replace(cashRegex, ' ');
     return {
@@ -817,8 +891,8 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
     };
   }
 
-  // 6. Bank Transfer (neft, imps, rtgs, netbanking, bank transfer, cheque)
-  const bankRegex = /\b(?:(?:via|by|from|using|with)\s+)?(?:netbanking|net\s+banking|bank\s+transfer|neft|imps|rtgs|cheque|auto\s*debit|nach)\b/i;
+  // 6. Bank Transfer (neft, imps, rtgs, netbanking, bank transfer, cheque, बँक)
+  const bankRegex = /(?:^|\s)(?:(?:via|by|from|using|with)\s+)?(?:netbanking|net\s+banking|bank\s+transfer|neft|imps|rtgs|cheque|auto\s*debit|nach|बँक)(?=\s|$)/i;
   if (bankRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'bank')) {
     working = working.replace(bankRegex, ' ');
     return {
@@ -829,8 +903,8 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
     };
   }
 
-  // 7. UPI (upi, gpay, google pay, phonepe, paytm, bhim, cred upi, supermoney, famapp)
-  const upiRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:upi|gpay|google\s+pay|phonepe|paytm|bhim|cred\s+upi|supermoney|famapp)\b/i;
+  // 7. UPI (upi, gpay, google pay, phonepe, paytm, bhim, cred upi, supermoney, famapp, यूपीआय, जीपे, फोनपे, पेटीएम)
+  const upiRegex = /(?:^|\s)(?:(?:via|by|on|from|using|with)\s+)?(?:upi|gpay|google\s+pay|phonepe|paytm|bhim|cred\s+upi|supermoney|famapp|यूपीआय|जीपे|फोनपे|पेटीएम)(?=\s|$)/i;
   if (upiRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'upi')) {
     working = working.replace(upiRegex, ' ');
     return {
@@ -854,7 +928,7 @@ export function extractTags(text) {
   const tags = [];
   const seen = new Set();
   const cleanedText = String(text)
-    .replace(/(?:^|\s)#([a-zA-Z0-9_-]{1,32})\b/g, (full, tag) => {
+    .replace(/(?:^|\s)#([\p{L}\p{M}\p{N}_-]{1,32})(?=\s|$)/gu, (full, tag) => {
       const normalized = tag.toLowerCase();
       if (!seen.has(normalized)) {
         seen.add(normalized);
@@ -924,11 +998,12 @@ export function extractSplitShorthand(text) {
  */
 export function parseSingleExpense(segment, now = new Date(), defaultType = 'expense', defaultPayment = 'upi') {
   if (!segment || !segment.trim()) return null;
+  const normSegment = normalizeDevanagariDigits(segment);
 
-  const explicitType = detectExplicitType(segment, defaultType);
+  const explicitType = detectExplicitType(normSegment, defaultType);
 
   // Extract #tags first ("450 dinner #goa")
-  const { tags, cleanedText: tagCleanedText } = extractTags(segment);
+  const { tags, cleanedText: tagCleanedText } = extractTags(normSegment);
 
   // Extract recurring monthly keywords ("monthly", "every month", "recurring", "autopay")
   const { recurring, cleanedText: recCleanedText } = extractRecurring(tagCleanedText);
@@ -962,10 +1037,10 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
   );
 
   // Strip leading unary + or - before currency/digits so amountRegex matches cleanly
-  const cleanedText = mathCleanedText.replace(/(^|\s)[+-]\s*(?=(?:₹|rs\.?|inr\s*)?\d)/gi, '$1');
+  const cleanedText = mathCleanedText.replace(/(^|\s)[+-]\s*(?=(?:₹|rs\.?|inr\s*|रु\.?\s*|रुपये\s*)?\d)/gi, '$1');
 
-  // Match amount: supports "200", "2,400", "250.50", "1.5k", "₹200", "rs 200", "200/-"
-  const amountRegex = /(?:^|\s)(?:₹|rs\.?|inr\s*)?(\d{1,3}(?:,\d{2,3})+|\d+)(?:\.(\d{1,2}))?\s*(k)?(?:\s*\/-)?(?=\s|$)/i;
+  // Match amount: supports "200", "2,400", "250.50", "1.5k", "₹200", "rs 200", "रु 200", "200/-"
+  const amountRegex = /(?:^|\s)(?:₹|rs\.?|inr\s*|रु\.?\s*|रुपये\s*)?(\d{1,3}(?:,\d{2,3})+|\d+)(?:\.(\d{1,2}))?\s*(k)?(?:\s*\/-)?(?=\s|$)/i;
   const match = cleanedText.match(amountRegex);
 
   if (!match) return null;
@@ -992,6 +1067,7 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
   let note = `${before} ${after}`
     .replace(/^[+-]\s*/, '')
     .replace(/\b(spent|paid|received|credited|earned|got|for|on|from|via|by|using|with|rs\.?|inr|rupees)\b/gi, ' ')
+    .replace(/(?:^|\s)(रुपये|रु\.?|दिले|खर्च|मिळाले|साठी)(?=\s|$)/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -1055,9 +1131,10 @@ export function parseSingleExpense(segment, now = new Date(), defaultType = 'exp
  */
 export function parseExpenseMessage(input, now = new Date(), defaultType = 'expense', defaultPayment = 'upi') {
   if (!input || !input.trim()) return [];
+  const normInput = normalizeDevanagariDigits(input);
 
   // Split by newlines or commas ONLY when comma is NOT inside a number like 1,200
-  const segments = input
+  const segments = normInput
     .split(/\n+|,(?!\d{2,3}\b)/)
     .map((s) => s.trim())
     .filter(Boolean);
@@ -1079,8 +1156,9 @@ export function parseExpenseMessage(input, now = new Date(), defaultType = 'expe
  */
 export function parseDraftMessage(input, now = new Date(), defaultType = 'expense', defaultPayment = 'upi') {
   if (!input || !input.trim()) return [];
+  const normInput = normalizeDevanagariDigits(input);
 
-  const segments = input
+  const segments = normInput
     .split(/\n+|,(?!\d{2,3}\b)/)
     .map((s) => s.trim())
     .filter(Boolean);
@@ -1109,6 +1187,7 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
     let note = paymentCleanedText
       .replace(/^[+-]\s*/, '')
       .replace(/\b(spent|paid|received|credited|earned|got|for|on|from|via|by|using|with|rs\.?|inr|rupees)\b/gi, ' ')
+      .replace(/(?:^|\s)(रुपये|रु\.?|दिले|खर्च|मिळाले|साठी)(?=\s|$)/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -1176,7 +1255,7 @@ export function parseDraftMessage(input, now = new Date(), defaultType = 'expens
  */
 export function parseQuestionQuery(input, now = new Date()) {
   if (!input || !input.trim()) return null;
-  const trimmed = input.trim();
+  const trimmed = normalizeDevanagariDigits(input).trim();
 
   // If any segment parses as a valid amount expense, it's an entry, not a question
   const asExpenses = parseExpenseMessage(trimmed, now);
@@ -1236,9 +1315,9 @@ export function parseQuestionQuery(input, now = new Date()) {
   // Default to current month-to-date vs previous month same span
   setMonthToDateSpan(year, month, todayDate);
 
-  if (/\b(today|aaj)\b/i.test(working)) {
+  if (/(?:^|\s)(today|aaj|आज)(?=\s|$)/i.test(working)) {
     periodType = 'today';
-    working = working.replace(/\b(today|aaj)\b/i, ' ');
+    working = working.replace(/(?:^|\s)(today|aaj|आज)(?=\s|$)/i, ' ');
     startDate = toLocalISODate(now);
     endDate = startDate;
     const yest = new Date(now);
@@ -1247,9 +1326,9 @@ export function parseQuestionQuery(input, now = new Date()) {
     prevEndDate = prevStartDate;
     periodLabel = 'Today';
     prevLabel = 'Yesterday';
-  } else if (/\b(yesterday|kal)\b/i.test(working)) {
+  } else if (/(?:^|\s)(yesterday|kal|काल)(?=\s|$)/i.test(working)) {
     periodType = 'yesterday';
-    working = working.replace(/\b(yesterday|kal)\b/i, ' ');
+    working = working.replace(/(?:^|\s)(yesterday|kal|काल)(?=\s|$)/i, ' ');
     const yest = new Date(now);
     yest.setDate(yest.getDate() - 1);
     startDate = toLocalISODate(yest);
@@ -1260,9 +1339,9 @@ export function parseQuestionQuery(input, now = new Date()) {
     prevEndDate = prevStartDate;
     periodLabel = 'Yesterday';
     prevLabel = '2 days ago';
-  } else if (/\b(this\s+week|week)\b/i.test(working) && !/\blast\s+week\b/i.test(working)) {
+  } else if (/(?:^|\s)(this\s+week|week|हा\s+आठवडा|या\s+आठवड्यात)(?=\s|$)/i.test(working) && !/(?:^|\s)(last\s+week|मागील\s+आठवडा|गेल्या\s+आठवड्यात)(?=\s|$)/i.test(working)) {
     periodType = 'this_week';
-    working = working.replace(/\b(this\s+week|week)\b/i, ' ');
+    working = working.replace(/(?:^|\s)(this\s+week|week|हा\s+आठवडा|या\s+आठवड्यात)(?=\s|$)/i, ' ');
     const dayOfWeek = (now.getDay() + 6) % 7; // Mon=0..Sun=6
     const mon = new Date(now);
     mon.setDate(now.getDate() - dayOfWeek);
@@ -1276,9 +1355,9 @@ export function parseQuestionQuery(input, now = new Date()) {
     prevEndDate = toLocalISODate(pEnd);
     periodLabel = 'This week';
     prevLabel = 'Last week (same span)';
-  } else if (/\blast\s+week\b/i.test(working)) {
+  } else if (/(?:^|\s)(last\s+week|मागील\s+आठवडा|गेल्या\s+आठवड्यात)(?=\s|$)/i.test(working)) {
     periodType = 'last_week';
-    working = working.replace(/\blast\s+week\b/i, ' ');
+    working = working.replace(/(?:^|\s)(last\s+week|मागील\s+आठवडा|गेल्या\s+आठवड्यात)(?=\s|$)/i, ' ');
     const dayOfWeek = (now.getDay() + 6) % 7;
     const thisMon = new Date(now);
     thisMon.setDate(now.getDate() - dayOfWeek);
@@ -1296,16 +1375,16 @@ export function parseQuestionQuery(input, now = new Date()) {
     prevEndDate = toLocalISODate(prevSun);
     periodLabel = 'Last week';
     prevLabel = '2 weeks ago';
-  } else if (/\blast\s+month\b/i.test(working)) {
+  } else if (/(?:^|\s)(last\s+month|मागील\s+महिना|गेल्या\s+महिन्यात)(?=\s|$)/i.test(working)) {
     periodType = 'last_month';
-    working = working.replace(/\blast\s+month\b/i, ' ');
+    working = working.replace(/(?:^|\s)(last\s+month|मागील\s+महिना|गेल्या\s+महिन्यात)(?=\s|$)/i, ' ');
     const lm = month === 0 ? 11 : month - 1;
     const ly = month === 0 ? year - 1 : year;
     setMonthToDateSpan(ly, lm, 31);
     periodLabel = `${monthShortNames[lm]} ${ly}`;
-  } else if (/\b(this\s+month|month)\b/i.test(working)) {
+  } else if (/(?:^|\s)(this\s+month|month|हा\s+महिना|या\s+महिन्यात)(?=\s|$)/i.test(working)) {
     periodType = 'this_month';
-    working = working.replace(/\b(this\s+month|month)\b/i, ' ');
+    working = working.replace(/(?:^|\s)(this\s+month|month|हा\s+महिना|या\s+महिन्यात)(?=\s|$)/i, ' ');
     setMonthToDateSpan(year, month, todayDate);
   } else if (/\b(this\s+year|year|all\s+time|all)\b/i.test(working)) {
     periodType = 'this_year';
@@ -1348,26 +1427,42 @@ export function parseQuestionQuery(input, now = new Date()) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  // 4. Check if working text matches a Category name directly (including custom categories!)
+  // 4. Check if working text matches a Category name directly (including custom categories & Marathi!)
   const catAliases = {
     food: 'food',
     dining: 'food',
+    jevan: 'food',
+    'जेवण': 'food',
     transport: 'transport',
     travel: 'transport',
+    pravas: 'transport',
+    'प्रवास': 'transport',
     groceries: 'groceries',
     grocery: 'groceries',
+    kirana: 'groceries',
+    'किराणा': 'groceries',
     bills: 'bills',
     utilities: 'bills',
+    'बिले': 'bills',
     shopping: 'shopping',
+    kharedi: 'shopping',
+    'खरेदी': 'shopping',
     health: 'health',
     fitness: 'health',
+    'आरोग्य': 'health',
     fun: 'entertainment',
     entertainment: 'entertainment',
+    'मनोरंजन': 'entertainment',
     personal: 'personal',
     home: 'personal',
+    'वैयक्तिक': 'personal',
     other: 'other',
+    'इतर': 'other',
     salary: 'salary',
-    income: 'income_all'
+    pagar: 'salary',
+    'पगार': 'salary',
+    income: 'income_all',
+    'उत्पन्न': 'income_all'
   };
   for (const cat of CATEGORIES) {
     if (cat.id) catAliases[cat.id.toLowerCase()] = cat.id;

@@ -23,7 +23,7 @@ import {
   toLocalISODate,
   upsertCategoryItem,
   upsertPaymentMethodItem
-} from './parser.js?v=22';
+} from './parser.js?v=35';
 
 import {
   exportToCSV,
@@ -45,7 +45,7 @@ import {
   saveUtilityBills,
   syncWithGoogleSheets,
   trackAppUsage
-} from './sync.js?v=28';
+} from './sync.js?v=35';
 
 import {
   computeCalendarAndPatterns,
@@ -61,7 +61,7 @@ import {
   getUtilityBillCurrentCycleKey
 } from './insights.js?v=28';
 
-import { createSpecController } from './spec-ui.js?v=28';
+import { createSpecController } from './spec-ui.js?v=35';
 import {
   initNativeBridge,
   requestSoftKeyboard,
@@ -290,6 +290,7 @@ const els = {
   defaultPaymentInput: document.getElementById('default-payment-input'),
   uiDesignSelectInput: document.getElementById('ui-design-select-input'),
   themeSelectInput: document.getElementById('theme-select-input'),
+  langSelectInput: document.getElementById('lang-select-input'),
   alwaysTablesInput: document.getElementById('always-tables-input'),
   forceSyncBtn: document.getElementById('force-sync-btn'),
   copyGasBtn: document.getElementById('copy-gas-btn'),
@@ -4518,6 +4519,9 @@ function openSyncAndSettingsModal() {
   if (els.themeSelectInput) {
     els.themeSelectInput.value = state.settings.theme || 'dark';
   }
+  if (els.langSelectInput) {
+    els.langSelectInput.value = state.settings.lang === 'mr' ? 'mr' : 'en';
+  }
   if (els.alwaysTablesInput) {
     els.alwaysTablesInput.value = state.settings.alwaysTables ? 'true' : 'false';
   }
@@ -5276,8 +5280,10 @@ function setupEventListeners() {
       monthlyBudget: Number(els.budgetInput.value.replace(/,/g, '')) || 0,
       defaultPayment: els.defaultPaymentInput ? els.defaultPaymentInput.value : 'upi',
       theme: els.themeSelectInput ? els.themeSelectInput.value : state.settings.theme || 'dark',
+      lang: els.langSelectInput ? (els.langSelectInput.value === 'mr' ? 'mr' : 'en') : (state.settings.lang || 'en'),
       alwaysTables
     });
+    document.getElementById('spec-add-overlay')?.replaceChildren();
     state.showCatTable = alwaysTables;
     state.showRunningTable = alwaysTables;
     els.syncDialog.close();
@@ -5339,6 +5345,7 @@ function setupEventListeners() {
         ccStatementDay: state.settings.ccStatementDay || 15,
         ccDueDay: state.settings.ccDueDay || 5,
         theme: state.settings.theme || 'dark',
+        lang: state.settings.lang === 'mr' ? 'mr' : 'en',
         alwaysTables: Boolean(state.settings.alwaysTables)
       }
     };
@@ -5389,7 +5396,8 @@ function setupEventListeners() {
             defaultPayment: parsed.settings.defaultPayment || state.settings.defaultPayment || 'upi',
             ccStatementDay: Number(parsed.settings.ccStatementDay) || state.settings.ccStatementDay || 15,
             ccDueDay: Number(parsed.settings.ccDueDay) || state.settings.ccDueDay || 5,
-            theme: parsed.settings.theme || state.settings.theme || 'dark'
+            theme: parsed.settings.theme || state.settings.theme || 'dark',
+            lang: parsed.settings.lang === 'mr' ? 'mr' : (state.settings.lang || 'en')
           });
         }
       }

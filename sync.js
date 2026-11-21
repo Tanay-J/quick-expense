@@ -4,7 +4,7 @@ import {
   getPaymentMethodById,
   isIncomeCategory,
   saveCustomTaxonomy
-} from './parser.js?v=22';
+} from './parser.js?v=35';
 
 // Master code-level feature flag: Set to false to completely remove/disable this feature across the app
 export const FEATURE_REMOTE_NOTIF_SYNC = false;
@@ -184,11 +184,17 @@ export function isRentExpense(item) {
   if (!item || normalizeEntryType(item) === 'income') return false;
   if (item.category === 'rent') return true;
   const text = `${item.note || ''} ${item.raw || ''}`.toLowerCase();
-  // Exclude short-term rentals like car/bike/scooter/camera/dress rental
-  if (/\b(car|bike|scooter|scooty|auto|cab|taxi|dress|costume|camera|book|movie|chair|tent|cycle|equipment)\s+rent(?:al)?\b/i.test(text)) {
+  // Exclude short-term rentals like car/bike/scooter/camera/dress rental (English + Marathi)
+  if (
+    /\b(car|bike|scooter|scooty|auto|cab|taxi|dress|costume|camera|book|movie|chair|tent|cycle|equipment|gadi|riksha)\s+(?:rent(?:al)?|bhade)\b/i.test(text) ||
+    /(?:^|\s)(गाडी|रिक्षा|कॅमेरा|कपडे)\s+भाडे(?=\s|$)/i.test(text)
+  ) {
     return false;
   }
-  return /\b(rent|house\s+rent|flat\s+rent|room\s+rent|pg\s+rent|apartment\s+rent|home\s+rent|office\s+rent|shop\s+rent)\b/i.test(text);
+  return (
+    /\b(rent|house\s+rent|flat\s+rent|room\s+rent|pg\s+rent|apartment\s+rent|home\s+rent|office\s+rent|shop\s+rent|bhade|ghar\s+bhade|room\s+bhade|flat\s+bhade|dukandari\s+bhade)\b/i.test(text) ||
+    /(?:^|\s)(घरभाडे|घर\s+भाडे|भाडे|रूम\s+भाडे|फ्लॅट\s+भाडे)(?=\s|$)/i.test(text)
+  );
 }
 
 export function isFamilyPaidExpense(item) {
@@ -399,6 +405,7 @@ export function loadSettings() {
       utilityNotificationsEnabled: parsed.utilityNotificationsEnabled !== false,
       hapticsEnabled: parsed.hapticsEnabled !== false,
       homeStyle: parsed.homeStyle || 'accordions',
+      lang: parsed.lang === 'mr' ? 'mr' : 'en',
       theme: parsed.themeMigratedMidnight ? (parsed.theme || 'dark') : 'dark',
       themeMigratedMidnight: true,
       alwaysTables: Boolean(parsed.alwaysTables),
@@ -436,6 +443,7 @@ export function loadSettings() {
       remoteNotificationSyncEnabled: false, //TODO-HERE-11
       hapticsEnabled: true,
       homeStyle: 'accordions',
+      lang: 'en',
       theme: 'dark',
       themeMigratedMidnight: true,
       alwaysTables: false,
