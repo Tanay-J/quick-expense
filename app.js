@@ -329,6 +329,8 @@ const els = {
   utilDayInp: document.getElementById('util-day-inp'),
   utilAmountInp: document.getElementById('util-amount-inp'),
   utilRemindInp: document.getElementById('util-remind-inp'),
+  utilityNotifyToggleBtn: document.getElementById('utility-notify-toggle-btn'),
+  utilityTestNotifyBtn: document.getElementById('utility-test-notify-btn'),
   ccCardsList: document.getElementById('cc-cards-list'),
   ccCardNameInput: document.getElementById('cc-card-name-input'),
   ccNotifyToggleBtn: document.getElementById('cc-notify-toggle-btn'),
@@ -2289,34 +2291,32 @@ function markCreditCardPaid(cardId, paid = true) {
   );
 }
 
-function sendCcDueBrowserNotification(cardInfo, isTest = false) {
-  const title = isTest
-    ? `🔔 Reminder Active: ${cardInfo.name}`
-    : cardInfo.daysUntilDue === 0
-      ? `⚠️ ${cardInfo.name} Bill Due Today!`
-      : `💳 ${cardInfo.name} Bill Due in ${cardInfo.daysUntilDue}d`;
-
-  const spendPart =
-    cardInfo.currentCycleSpend > 0 ? ` (${formatCurrency(cardInfo.currentCycleSpend)} unbilled)` : '';
-  const body = `Due on ${cardInfo.nextDueDateLabel}${spendPart}. We'll remind you ${cardInfo.remindDays} days before your due date.`;
-
+function dispatchBrowserNotification({ title, body, tag, tab = 'utility', url = './?utility=1' }) {
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
+      const options = {
+        body,
+        icon: './icons/icon-192.png',
+        badge: './icons/icon-192.png',
+        tag,
+        data: { tab, url }
+      };
       if (navigator.serviceWorker?.controller) {
         navigator.serviceWorker.ready
-          .then((reg) =>
-            reg.showNotification(title, {
-              body,
-              icon: './icons/icon-192.png',
-              badge: './icons/icon-192.png',
-              tag: `cc-due-${cardInfo.id}`
-            })
-          )
+          .then((reg) => reg.showNotification(title, options))
           .catch(() => {
-            new Notification(title, { body, icon: './icons/icon-192.png' });
+            const n = new Notification(title, options);
+            n.onclick = () => {
+              window.focus();
+              openRecurringModal(tab);
+            };
           });
       } else {
-        new Notification(title, { body, icon: './icons/icon-192.png' });
+        const n = new Notification(title, options);
+        n.onclick = () => {
+          window.focus();
+          openRecurringModal(tab);
+        };
       }
       return true;
     }
@@ -2326,31 +2326,122 @@ function sendCcDueBrowserNotification(cardInfo, isTest = false) {
   return false;
 }
 
-function checkAndFireCcDueNotifications() {
-  if (state.settings.ccNotificationsEnabled === false) return;
-  const statuses = computeAllCreditCardsStatus();
-  const dueSoon = statuses.filter((c) => c.isDueSoon);
-  if (dueSoon.length === 0) return;
+function sendCcDueBrowserNotification(cardInfo, isTest = false) {
+  const title = isTest
+    ? `🔔 Reminder Active: ${cardInfo.name}`
+    : cardInfo.daysUntilDue === 0
+      ? `⚠️ ${cardInfo.name} Bill Due Today!`
+      : `💳 ${cardInfo.name} Bill Due in ${cardInfo.daysUntilDue}d`;
 
+  const spendPart =
+    cardInfo.currentCycleSpend > 0 ? ` (${formatCurrency(cardInfo.currentCycleSpend)} unbilled)` : '';
+  const body = `Due on ${cardInfo.nextDueDateLabel}${spendPart}. Tap to open Credit Cards & mark paid.`;
+
+  return dispatchBrowserNotification({
+    title,
+    body,
+    tag: `cc-due-${cardInfo.id}`,
+    tab: 'cards',
+    url: './?cards=1'
+  });
+}
+
+function sendUtilityDueBrowserNotification(st, isTest = false) {
+  const bill = st.bill;
+  const estPart = bill.estimatedAmount ? ` (~${formatCurrency(bill.estimatedAmount)})` : '';
+  const title = isTest
+    ? `🔔 Reminder Active: ${bill.icon || '⚡'} ${bill.name}`
+    : st.diffDays < 0
+      ? `⚠️ ${bill.icon || '⚡'} ${bill.name} Overdue by ${Math.abs(st.diffDays)}d!`
+      : st.diffDays === 0
+        ? `⚠️ ${bill.icon || '⚡'} ${bill.name} Due Today!`
+        : `${bill.icon || '⚡'} ${bill.name} Due in ${st.diffDays}d (${st.dueFormatted})`;
+
+  const body = `Due ${st.dueFormatted}${estPart}. Tap to log payment & advance cycle.`;
+
+  return dispatchBrowserNotification({
+    title,
+    body,
+    tag: `util-due-${bill.id}`,
+    tab: 'utility',
+    url: './?utility=1'
+  });
+}
+
+function sendRecurringDueBrowserNotification(rule) {
+  const title = `🔁 Monthly Due: ${rule.note} (${formatCurrency(rule.amount)})`;
+  const body = `Scheduled for day ${rule.dayOfMonth || 1} of the month. Tap to log now.`;
+  return dispatchBrowserNotification({
+    title,
+    body,
+    tag: `rec-due-${rule.id}`,
+    tab: 'recurring',
+    url: './?recurring=1'
+  });
+}
+
+function checkAndFireAllDueNotifications() {
   const todayIso = toLocalISODate(new Date());
+  let notifiedMap = {};
   try {
-    const notifiedMap = JSON.parse(localStorage.getItem('qe_cc_notified_v1') || '{}');
-    let changed = false;
-    for (const card of dueSoon) {
-      const key = `${card.id}_${todayIso}`;
+    notifiedMap = JSON.parse(localStorage.getItem('qe_cc_notified_v1') || '{}');
+  } catch {
+    notifiedMap = {};
+  }
+  let changed = false;
+
+  // 1. Credit Card Due Alerts
+  if (state.settings.ccNotificationsEnabled !== false) {
+    const ccStatuses = computeAllCreditCardsStatus();
+    for (const card of ccStatuses.filter((c) => c.isDueSoon)) {
+      const key = `cc_${card.id}_${todayIso}`;
       if (!notifiedMap[key]) {
-        const sent = sendCcDueBrowserNotification(card, false);
-        if (sent) {
+        if (sendCcDueBrowserNotification(card, false)) {
           notifiedMap[key] = true;
           changed = true;
         }
       }
     }
-    if (changed) {
-      localStorage.setItem('qe_cc_notified_v1', JSON.stringify(notifiedMap));
+  }
+
+  // 2. Utility Bill Due Alerts (within remindDaysBefore or overdue)
+  if (state.settings.utilityNotificationsEnabled !== false) {
+    const utilStatuses = (state.utilityBills || []).map((b) => computeUtilityBillStatus(b));
+    const dueUtils = utilStatuses.filter(
+      (st) =>
+        !st.isPaidThisCycle &&
+        st.bill.notificationsEnabled !== false &&
+        st.diffDays <= (Number(st.bill.remindDaysBefore) || 5)
+    );
+    for (const st of dueUtils) {
+      const key = `util_${st.bill.id}_${todayIso}`;
+      if (!notifiedMap[key]) {
+        if (sendUtilityDueBrowserNotification(st, false)) {
+          notifiedMap[key] = true;
+          changed = true;
+        }
+      }
     }
-  } catch {
-    // Ignore storage errors
+
+    // 3. Monthly Recurring Rules Due Today
+    const dueRules = getDueRecurringRules();
+    for (const rule of dueRules) {
+      const key = `rec_${rule.id}_${todayIso}`;
+      if (!notifiedMap[key]) {
+        if (sendRecurringDueBrowserNotification(rule)) {
+          notifiedMap[key] = true;
+          changed = true;
+        }
+      }
+    }
+  }
+
+  if (changed) {
+    try {
+      localStorage.setItem('qe_cc_notified_v1', JSON.stringify(notifiedMap));
+    } catch {
+      // Ignore storage errors
+    }
   }
 }
 
@@ -2362,6 +2453,15 @@ function updateCcNotificationButtonUI() {
     els.ccNotifyToggleBtn.title = enabled
       ? 'Due-date alerts enabled (tap to test or toggle)'
       : 'Due-date alerts off (tap to enable)';
+  }
+
+  if (els.utilityNotifyToggleBtn) {
+    const uEnabled = state.settings.utilityNotificationsEnabled !== false;
+    els.utilityNotifyToggleBtn.classList.toggle('is-on', uEnabled);
+    els.utilityNotifyToggleBtn.setAttribute('aria-checked', String(uEnabled));
+    els.utilityNotifyToggleBtn.title = uEnabled
+      ? 'Utility bill due alerts enabled'
+      : 'Utility bill due alerts paused';
   }
 
   if (els.ccRemindDaysSwitch) {
@@ -2420,6 +2520,7 @@ function renderUtilityBillsModalList(activeCadence = currentUtilityCadenceFilter
   currentUtilityCadenceFilter = activeCadence;
   if (!els.utilityBillsList) return;
   els.utilityBillsList.replaceChildren();
+  updateCcNotificationButtonUI();
 
   const bills = state.utilityBills || [];
   const statuses = bills.map((b) => computeUtilityBillStatus(b));
@@ -4713,6 +4814,63 @@ function setupEventListeners() {
     markCreditCardPaid(ccInfo.id, true);
   });
 
+  els.utilityNotifyToggleBtn?.addEventListener('click', async () => {
+    const currentlyEnabled = state.settings.utilityNotificationsEnabled !== false;
+    const nextEnabled = !currentlyEnabled;
+    state.settings = saveSettings({ utilityNotificationsEnabled: nextEnabled });
+    updateCcNotificationButtonUI();
+    renderAll();
+
+    if (!nextEnabled) {
+      showToast('🔕 Utility bill due-date alerts paused');
+      return;
+    }
+
+    const utilStatuses = (state.utilityBills || []).map((b) => computeUtilityBillStatus(b));
+    const targetBill = utilStatuses.find((s) => !s.isPaidThisCycle) || utilStatuses[0];
+    if ('Notification' in window) {
+      if (Notification.permission !== 'granted') {
+        try {
+          const perm = await Notification.requestPermission();
+          if (perm === 'granted' && targetBill) {
+            sendUtilityDueBrowserNotification(targetBill, true);
+          }
+        } catch {
+          // ignore
+        }
+      } else if (targetBill) {
+        sendUtilityDueBrowserNotification(targetBill, true);
+      }
+    }
+    showToast(
+      targetBill
+        ? `🔔 Alerts on: ${targetBill.bill.icon || '⚡'} ${targetBill.bill.name} due ${targetBill.dueFormatted}`
+        : '🔔 Utility bill due-date alerts enabled!'
+    );
+  });
+
+  els.utilityTestNotifyBtn?.addEventListener('click', async () => {
+    const utilStatuses = (state.utilityBills || []).map((b) => computeUtilityBillStatus(b));
+    const targetBill = utilStatuses.find((s) => !s.isPaidThisCycle) || utilStatuses[0];
+    if (!targetBill) {
+      showToast('Add a utility bill first to test notifications');
+      return;
+    }
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      try {
+        await Notification.requestPermission();
+      } catch {
+        // ignore
+      }
+    }
+    const sent = sendUtilityDueBrowserNotification(targetBill, true);
+    showToast(
+      sent
+        ? `🔔 Sent test alert for ${targetBill.bill.icon || '⚡'} ${targetBill.bill.name}`
+        : `🔔 Reminder: ${targetBill.bill.icon || '⚡'} ${targetBill.bill.name} due ${targetBill.dueFormatted} (allow browser notifications for system banner)`
+    );
+  });
+
   els.ccNotifyToggleBtn?.addEventListener('click', async () => {
     const currentlyEnabled = state.settings.ccNotificationsEnabled !== false;
     const nextEnabled = !currentlyEnabled;
@@ -5426,7 +5584,12 @@ function init() {
   }
 
   renderAll();
-  setTimeout(() => checkAndFireCcDueNotifications(), 800);
+  setTimeout(() => checkAndFireAllDueNotifications(), 800);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      setTimeout(() => checkAndFireAllDueNotifications(), 500);
+    }
+  });
 
   initNativeBridge({
     getExpenses: () => state.expenses,
@@ -5439,9 +5602,14 @@ function init() {
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker
-      .register('./sw.js?v=23')
+      .register('./sw.js?v=32')
       .then((reg) => reg.update())
       .catch(() => {});
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'DROPSPEND_NOTIFICATION_CLICK') {
+        openRecurringModal(event.data.tab || 'utility');
+      }
+    });
   }
 
   if (state.settings.webhookUrl) {
@@ -5453,6 +5621,16 @@ function init() {
   if (params.has('cards')) {
     if (els.nameGateDialog?.open) els.nameGateDialog.close();
     openRecurringModal('cards');
+    return;
+  }
+  if (params.has('utility')) {
+    if (els.nameGateDialog?.open) els.nameGateDialog.close();
+    openRecurringModal('utility');
+    return;
+  }
+  if (params.has('recurring')) {
+    if (els.nameGateDialog?.open) els.nameGateDialog.close();
+    openRecurringModal('recurring');
     return;
   }
   if (params.has('screen')) {

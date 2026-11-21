@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dropspend-v31';
+const CACHE_NAME = 'dropspend-v32';
 const ASSETS = [
   './',
   './index.html',
@@ -56,5 +56,27 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       })
       .catch(() => caches.match(request))
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification?.data?.url || './?utility=1';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.focus();
+          client.postMessage({
+            type: 'DROPSPEND_NOTIFICATION_CLICK',
+            tab: event.notification?.data?.tab || 'utility'
+          });
+          return;
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
   );
 });

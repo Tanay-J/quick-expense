@@ -391,6 +391,7 @@ export function loadSettings() {
       creditCards,
       ccRemindDays: Math.min(14, Math.max(1, Number(parsed.ccRemindDays) || 5)),
       ccNotificationsEnabled: parsed.ccNotificationsEnabled !== false,
+      utilityNotificationsEnabled: parsed.utilityNotificationsEnabled !== false,
       hapticsEnabled: parsed.hapticsEnabled !== false,
       homeStyle: parsed.homeStyle || 'accordions',
       theme: parsed.themeMigratedMidnight ? (parsed.theme || 'dark') : 'dark',
@@ -426,6 +427,7 @@ export function loadSettings() {
       ],
       ccRemindDays: 5,
       ccNotificationsEnabled: true,
+      utilityNotificationsEnabled: true,
       remoteNotificationSyncEnabled: false, //TODO-HERE-11
       hapticsEnabled: true,
       homeStyle: 'accordions',

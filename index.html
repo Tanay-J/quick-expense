@@ -889,6 +889,30 @@
 
       <!-- TAB 0: Utility Bills & Multi-Cadence Reminders (Screen 2) -->
       <div id="cc-pane-utility" class="cc-tab-pane">
+        <!-- 1-Line Utility Bill Notification Bar -->
+        <div class="cc-notify-bar">
+          <div class="cc-notify-left">
+            <span class="cc-notify-bell" aria-hidden="true">🔔</span>
+            <span>Bill due alerts</span>
+          </div>
+          <div class="cc-notify-right">
+            <button
+              type="button"
+              id="utility-test-notify-btn"
+              class="cc-btn-xs"
+              title="Send a test utility bill notification now"
+            >Test 🔔</button>
+            <button
+              type="button"
+              id="utility-notify-toggle-btn"
+              class="cc-ios-toggle is-on"
+              role="switch"
+              aria-checked="true"
+              title="Toggle utility bill due-date notifications"
+            ></button>
+          </div>
+        </div>
+
         <!-- Summary Stats Strip -->
         <div class="utility-summary-grid">
           <div class="utility-stat-chip">
