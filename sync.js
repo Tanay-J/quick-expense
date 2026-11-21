@@ -530,7 +530,7 @@ export async function trackAppUsage({ onLaunch = false } = {}) {
   };
   saveCachedUsageStats(updatedStats);
 
-  if (!navigator.onLine) {
+  if (!navigator.onLine || !onLaunch) {
     return updatedStats;
   }
 

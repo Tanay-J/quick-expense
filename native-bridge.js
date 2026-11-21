@@ -232,18 +232,32 @@ export function attachSwipeToDismiss(containerEl, handleSelector, onDismiss) {
   containerEl.addEventListener('touchcancel', finishDrag, { passive: true });
 }
 
+let lastWidgetInputSig = '';
+let cachedWidgetSnapshot = null;
+
 /**
  * Build and sync the live snapshot for the Native Android Home Screen Widget
  * AND our local Mac Browser Widget Simulator.
+ * Memoized by input signature so tab navigation never re-runs heavy math or broadcasts to Android OS!
  */
 export function syncWidgetSnapshot(expenses, settings) {
   const now = new Date();
   const todayIso = toLocalISODate(now);
+  const top = expenses?.[0];
+  const excludeRent = Boolean(settings?.excludeRentOnHome);
+  const budget = Number(settings?.monthlyBudget) || 30000;
+  const sig = `${todayIso}:${expenses?.length || 0}:${top?.id || ''}:${top?.updatedAt || 0}:${top?.amount || 0}:${budget}:${excludeRent}`;
+
+  if (sig === lastWidgetInputSig && cachedWidgetSnapshot) {
+    renderWidgetSimulatorIfOpen(cachedWidgetSnapshot);
+    return cachedWidgetSnapshot;
+  }
+  lastWidgetInputSig = sig;
+
   const year = now.getFullYear();
   const month = now.getMonth();
   const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
 
-  const excludeRent = Boolean(settings?.excludeRentOnHome);
   const monthExpenses = (expenses || []).filter(
     (e) =>
       e.date?.startsWith(monthPrefix) &&
@@ -259,7 +273,6 @@ export function syncWidgetSnapshot(expenses, settings) {
   );
 
   const spanComp = computeSameSpanComparison(expenses || [], 'month', year, month, now);
-  const budget = Number(settings?.monthlyBudget) || 30000;
   const leftAmt = Math.max(0, Math.round(budget - monthTotal));
   const remDays = Math.max(1, spanComp.daysInCurMonth - spanComp.elapsedDay + 1);
   const perDayAllowance = Math.max(0, Math.round((budget - monthTotal) / remDays));
@@ -304,6 +317,7 @@ export function syncWidgetSnapshot(expenses, settings) {
       : `₹${Math.abs(paceDiff).toLocaleString('en-IN')} under pace`,
     usuals
   };
+  cachedWidgetSnapshot = snapshot;
 
   try {
     const json = JSON.stringify(snapshot);
@@ -369,6 +383,8 @@ export function consumePendingWidgetAdds(quickAddFn) {
   return addedCount;
 }
 
+const OTA_AUTO_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours between automatic background checks
+
 /**
  * Check and apply OTA updates from GitHub (`Tanay-J/quick-expense` main branch)
  */
@@ -378,10 +394,19 @@ export async function checkAndApplyOtaUpdate({ manual = false, onStatus } = {}) 
   };
 
   try {
+    const prevMeta = getOtaMeta();
+    if (!manual && prevMeta?.checkedAt) {
+      const elapsed = Date.now() - new Date(prevMeta.checkedAt).getTime();
+      if (elapsed >= 0 && elapsed < OTA_AUTO_COOLDOWN_MS) {
+        return { updated: false, meta: prevMeta, throttled: true };
+      }
+    }
+
     report('Checking GitHub main branch for updates...');
 
-    // If inside Android APK with native OTA engine, trigger native OTA pull too
-    if (window.DropSpendNative?.triggerOtaSync) {
+    // If inside Android APK with native OTA engine, only trigger native OTA pull when manual
+    // (MainActivity.onCreate already runs its own throttled check)
+    if (manual && window.DropSpendNative?.triggerOtaSync) {
       window.DropSpendNative.triggerOtaSync();
     }
 
@@ -405,7 +430,6 @@ export async function checkAndApplyOtaUpdate({ manual = false, onStatus } = {}) 
     const message = String(data.commit?.message || '').split('\n')[0];
     const dateStr = data.commit?.committer?.date || new Date().toISOString();
 
-    const prevMeta = getOtaMeta();
     const nextMeta = {
       sha,
       message,

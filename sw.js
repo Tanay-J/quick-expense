@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dropspend-v32';
+const CACHE_NAME = 'dropspend-v33';
 const ASSETS = [
   './',
   './index.html',
@@ -45,17 +45,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first with offline cache fallback so new git pushes appear immediately when online
+  // Stale-while-revalidate for static assets: serves instantly from local cache (0ms, zero battery radio wake)
+  // and silently refreshes cache in background only when online
   event.respondWith(
-    fetch(request, { cache: 'no-cache' })
-      .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const copy = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        }
-        return networkResponse;
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.match(request).then((cachedResponse) => {
+        const fetchPromise = fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(request, networkResponse.clone());
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse);
+        return cachedResponse || fetchPromise;
       })
-      .catch(() => caches.match(request))
+    )
   );
 });
 

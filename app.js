@@ -4381,10 +4381,6 @@ function addExpenseFromMessage(messageText) {
   }
 
   triggerBackgroundSync(false);
-  trackAppUsage({ onLaunch: false }).then((stats) => {
-    state.usageStats = stats;
-    updateUsageTrackerUI();
-  });
 }
 
 function updateEditLearnLabel() {
@@ -5545,10 +5541,6 @@ function setupEventListeners() {
   // Auto-sync when device comes back online
   window.addEventListener('online', () => {
     triggerBackgroundSync(false);
-    trackAppUsage({ onLaunch: false }).then((stats) => {
-      state.usageStats = stats;
-      updateUsageTrackerUI();
-    });
   });
 }
 
@@ -5602,8 +5594,7 @@ function init() {
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker
-      .register('./sw.js?v=32')
-      .then((reg) => reg.update())
+      .register('./sw.js?v=33')
       .catch(() => {});
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data?.type === 'DROPSPEND_NOTIFICATION_CLICK') {

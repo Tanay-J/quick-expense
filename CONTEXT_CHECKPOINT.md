@@ -40,6 +40,12 @@
 - **Custom Taxonomy Manager (`#taxonomy-dialog`):** Users can add, edit, or delete Expense Categories, Income Categories, and Payment Modes (icon, full name, short pill label, chart color, and auto-detect keywords) from Settings → MONEY, Edit Entry sheet, or Cloud Sync modal. Saved in `qe_custom_taxonomy_v1`, synced with Google Sheets & JSON backup, and live-wired into the natural-language parser (`parser.js`).
 - **Exclude Rent on Home (`excludeRentOnHome`):** Toggle in Settings → MONEY to exclude rent entries (`isRentExpense` in `sync.js`) from the Home hero total, budget ring %, Home category stacked bar, Home day cards, Receipt ledger, and Android widget, while showing a clean muted subtext line (`Excludes ₹20,000 rent`) under the budget line in the Hero card. History and Stats retain all entries.
 - **0% Background Battery OTA Due-Date Notifications (`checkAndFireAllDueNotifications` in `app.js` & `sw.js`):** Fires once-per-day system notifications on app launch/resume for due/overdue Utility Bills, Credit Cards, and Monthly Recurring rules, with tap-to-open navigation straight to the corresponding tab in `#recurring-dialog` and a `Test 🔔` button in the Utility Bills tab.
+- **Battery & Radio Optimizations (`MainActivity.kt`, `widget_info.xml`, `native-bridge.js`, `sw.js`, `app.js`):**
+  1. `MainActivity.onPause()` pauses the WebView + freezes JS timers after a 3s sync grace period (0% background CPU).
+  2. Widget `updatePeriodMillis` increased from 30m to 6h (92% fewer background wakeups).
+  3. `syncWidgetSnapshot()` memoized by data signature so UI tab switches don't re-broadcast `ACTION_APPWIDGET_UPDATE`.
+  4. Automatic GitHub OTA checks throttled to a 2h cooldown (manual check in Settings remains instant).
+  5. Service Worker (`dropspend-v33`) switched to stale-while-revalidate and `trackAppUsage` restricted to once per launch.
 
 ### C. Keyboard Auto-Popup Bug (Fixed)
 - **Bug:** Touching/tapping anywhere on the screen opened the mobile keyboard.

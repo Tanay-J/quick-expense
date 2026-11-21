@@ -32,11 +32,20 @@ class MainActivity : Activity() {
     private lateinit var webView: WebView
     private val ioExecutor = Executors.newSingleThreadExecutor()
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val pauseTimersRunnable = Runnable {
+        try {
+            webView.pauseTimers()
+        } catch (_: Exception) {
+        }
+    }
 
     companion object {
         const val PREFS_NAME = "dropspend_native_prefs"
         const val KEY_WIDGET_JSON = "widget_snapshot_json"
         const val KEY_PENDING_ADDS = "pending_quick_adds_json"
+        const val KEY_LAST_OTA_CHECK_MS = "last_ota_check_ms"
+        private const val OTA_COOLDOWN_MS = 2 * 60 * 60 * 1000L // 2 hours
         private const val FILE_CHOOSER_REQ = 1001
 
         private val OTA_FILES = listOf(
@@ -149,8 +158,8 @@ class MainActivity : Activity() {
         val startQuery = buildStartQuery(intent)
         webView.loadUrl("https://appassets.androidplatform.net/assets/public/index.html$startQuery")
 
-        // Pull any latest git push from GitHub main silently in background
-        syncOtaFromGitHub(reloadOnChange = false)
+        // Pull latest git push from GitHub main silently in background (throttled to save battery/radio)
+        syncOtaFromGitHub(reloadOnChange = false, force = false)
     }
 
 
@@ -169,11 +178,34 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        mainHandler.removeCallbacks(pauseTimersRunnable)
+        try {
+            webView.onResume()
+            webView.resumeTimers()
+        } catch (_: Exception) {
+        }
         // Notify JS bridge to drain any expenses added from the Home Screen Widget or Floating Quick-Add
         webView.evaluateJavascript(
             "document.dispatchEvent(new Event('visibilitychange'));",
             null
         )
+    }
+
+    override fun onPause() {
+        super.onPause()
+        try {
+            webView.onPause()
+            // Allow 3s grace period for any in-flight Google Sheets sync to finish, then freeze JS timers to 0% CPU
+            mainHandler.removeCallbacks(pauseTimersRunnable)
+            mainHandler.postDelayed(pauseTimersRunnable, 3000L)
+        } catch (_: Exception) {
+        }
+    }
+
+    override fun onDestroy() {
+        mainHandler.removeCallbacks(pauseTimersRunnable)
+        ioExecutor.shutdownNow()
+        super.onDestroy()
     }
 
     @Deprecated("Deprecated in Java")
@@ -220,7 +252,17 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun syncOtaFromGitHub(reloadOnChange: Boolean) {
+    private fun syncOtaFromGitHub(reloadOnChange: Boolean, force: Boolean = false) {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        if (!force) {
+            val lastCheck = prefs.getLong(KEY_LAST_OTA_CHECK_MS, 0L)
+            if (now - lastCheck < OTA_COOLDOWN_MS) {
+                return
+            }
+        }
+        prefs.edit().putLong(KEY_LAST_OTA_CHECK_MS, now).apply()
+
         ioExecutor.execute {
             try {
                 val otaDir = File(filesDir, "ota_public")
@@ -315,7 +357,7 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun triggerOtaSync() {
-            syncOtaFromGitHub(reloadOnChange = true)
+            syncOtaFromGitHub(reloadOnChange = true, force = true)
         }
 
         @JavascriptInterface
