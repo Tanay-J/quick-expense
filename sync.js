@@ -1,4 +1,10 @@
-import { extractTags, getPaymentMethodById, isIncomeCategory } from './parser.js?v=22';
+import {
+  extractTags,
+  getCustomTaxonomySnapshot,
+  getPaymentMethodById,
+  isIncomeCategory,
+  saveCustomTaxonomy
+} from './parser.js?v=22';
 
 // Master code-level feature flag: Set to false to completely remove/disable this feature across the app
 export const FEATURE_REMOTE_NOTIF_SYNC = false;
@@ -173,6 +179,17 @@ function doPost(e) {
     lock.releaseLock();
   }
 }`;
+
+export function isRentExpense(item) {
+  if (!item || normalizeEntryType(item) === 'income') return false;
+  if (item.category === 'rent') return true;
+  const text = `${item.note || ''} ${item.raw || ''}`.toLowerCase();
+  // Exclude short-term rentals like car/bike/scooter/camera/dress rental
+  if (/\b(car|bike|scooter|scooty|auto|cab|taxi|dress|costume|camera|book|movie|chair|tent|cycle|equipment)\s+rent(?:al)?\b/i.test(text)) {
+    return false;
+  }
+  return /\b(rent|house\s+rent|flat\s+rent|room\s+rent|pg\s+rent|apartment\s+rent|home\s+rent|office\s+rent|shop\s+rent)\b/i.test(text);
+}
 
 export function normalizeEntryType(item) {
   if (item?.type === 'income' || item?.type === 'expense') {
@@ -367,6 +384,7 @@ export function loadSettings() {
       usualsCount: Number(parsed.usualsCount) || 6,
       recapCard: parsed.recapCard !== undefined ? Boolean(parsed.recapCard) : true,
       monthlyBudget: parsed.monthlyBudget !== undefined ? Number(parsed.monthlyBudget) : 30000,
+      excludeRentOnHome: Boolean(parsed.excludeRentOnHome),
       ccStatementDay: creditCards[0]?.statementDay || stDay,
       ccDueDay: creditCards[0]?.dueDay || dueDay,
       ccLastPaidCycle: creditCards[0]?.lastPaidCycle || parsed.ccLastPaidCycle || '',
@@ -393,6 +411,7 @@ export function loadSettings() {
       usualsCount: 6,
       recapCard: true,
       monthlyBudget: 30000,
+      excludeRentOnHome: false,
       ccStatementDay: 15,
       ccDueDay: 5,
       ccLastPaidCycle: '',
@@ -602,7 +621,9 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
 
   try {
     let response;
-    if (payloadItems.length > 0) {
+    const customTaxonomy = getCustomTaxonomySnapshot();
+    const hasCustomTax = customTaxonomy.updatedAt > 0;
+    if (payloadItems.length > 0 || hasCustomTax) {
       // Use text/plain to avoid CORS preflight on Google Apps Script Web Apps
       response = await fetch(url, {
         method: 'POST',
@@ -610,7 +631,8 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
         body: JSON.stringify({
           action: 'sync',
           items: payloadItems,
-          utilityBills: localUtilityBills
+          utilityBills: localUtilityBills,
+          customTaxonomy: hasCustomTax ? customTaxonomy : undefined
         })
       });
     } else {
@@ -696,6 +718,14 @@ export async function syncWithGoogleSheets({ forceAll = false } = {}) {
       }
       const mergedBills = Array.from(localMap.values()).filter((b) => !b.deleted);
       saveUtilityBills(mergedBills);
+    }
+
+    if (data.customTaxonomy && typeof data.customTaxonomy === 'object') {
+      const localTax = getCustomTaxonomySnapshot();
+      const remUpd = Number(data.customTaxonomy.updatedAt) || 0;
+      if (remUpd > (localTax.updatedAt || 0)) {
+        saveCustomTaxonomy(data.customTaxonomy);
+      }
     }
 
     saveExpenses(mergedList);

@@ -1,11 +1,15 @@
 import {
   CATEGORIES,
+  deleteCategoryItem,
+  deletePaymentMethodItem,
   EXPENSE_CATEGORIES,
   extractTags,
   getCategoriesByType,
   getCategoryById,
+  getCustomTaxonomySnapshot,
   getLearnedKeywords,
   getPaymentMethodById,
+  INCOME_CATEGORIES,
   inferCategory,
   isIncomeCategory,
   learnFromNote,
@@ -14,7 +18,11 @@ import {
   parseExpenseMessage,
   parseQuestionQuery,
   PAYMENT_METHODS,
-  toLocalISODate
+  resetCustomTaxonomyToDefaults,
+  saveCustomTaxonomy,
+  toLocalISODate,
+  upsertCategoryItem,
+  upsertPaymentMethodItem
 } from './parser.js?v=22';
 
 import {
@@ -337,7 +345,28 @@ const els = {
   storySlideBody: document.getElementById('story-slide-body'),
   storyPrevBtn: document.getElementById('story-prev-btn'),
   storyNextBtn: document.getElementById('story-next-btn'),
-  storyCounter: document.getElementById('story-counter')
+  storyCounter: document.getElementById('story-counter'),
+  // Categories & Payment Modes Manager Dialog
+  taxonomyDialog: document.getElementById('taxonomy-dialog'),
+  taxTabExpense: document.getElementById('tax-tab-expense'),
+  taxTabIncome: document.getElementById('tax-tab-income'),
+  taxTabPayment: document.getElementById('tax-tab-payment'),
+  taxonomyItemsList: document.getElementById('taxonomy-items-list'),
+  taxonomyItemForm: document.getElementById('taxonomy-item-form'),
+  taxEditId: document.getElementById('tax-edit-id'),
+  taxFormHeading: document.getElementById('tax-form-heading'),
+  taxCancelEditBtn: document.getElementById('tax-cancel-edit-btn'),
+  taxIconInp: document.getElementById('tax-icon-inp'),
+  taxNameInp: document.getElementById('tax-name-inp'),
+  taxShortInp: document.getElementById('tax-short-inp'),
+  taxKeywordsInp: document.getElementById('tax-keywords-inp'),
+  taxColorInp: document.getElementById('tax-color-inp'),
+  taxEmojiSuggestions: document.getElementById('tax-emoji-suggestions'),
+  taxSubmitBtn: document.getElementById('tax-submit-btn'),
+  taxResetDefaultsBtn: document.getElementById('tax-reset-defaults-btn'),
+  editOpenTaxonomyCatBtn: document.getElementById('edit-open-taxonomy-cat-btn'),
+  editOpenTaxonomyPayBtn: document.getElementById('edit-open-taxonomy-pay-btn'),
+  syncOpenTaxonomyBtn: document.getElementById('sync-open-taxonomy-btn')
 };
 
 function formatCurrency(amount) {
@@ -1973,6 +2002,7 @@ function isAnyDialogOpen() {
       els.syncDialog?.open ||
       els.editDialog?.open ||
       els.recurringDialog?.open ||
+      els.taxonomyDialog?.open ||
       els.storyDialog?.open
   );
 }
@@ -2905,6 +2935,225 @@ function openRecurringModal(initialTab = 'utility') {
   els.recurringDialog?.showModal();
 }
 
+let activeTaxonomyTab = 'expense'; // 'expense' | 'income' | 'payment'
+
+const TAXONOMY_EMOJI_SUGGESTIONS = {
+  expense: ['🍔', '☕', '⛽', '🛒', '💡', '🛍️', '💊', '🎬', '🏠', '🐶', '📚', '✈️', '👶', '🎁', '🏋️', '🚕', '🍺', '💇'],
+  income: ['💰', '💼', '📈', '🔄', '🎁', '🏦', '🏠', '🪙', '💎', '💵'],
+  payment: ['⚡', '💳', '💵', '🎁', '🏧', '🏦', '📱', '🪙', '🧾', '💎']
+};
+
+function resetTaxonomyForm() {
+  if (els.taxEditId) els.taxEditId.value = '';
+  if (els.taxCancelEditBtn) els.taxCancelEditBtn.hidden = true;
+  if (els.taxNameInp) els.taxNameInp.value = '';
+  if (els.taxShortInp) els.taxShortInp.value = '';
+  if (els.taxKeywordsInp) els.taxKeywordsInp.value = '';
+  const emojis = TAXONOMY_EMOJI_SUGGESTIONS[activeTaxonomyTab] || TAXONOMY_EMOJI_SUGGESTIONS.expense;
+  if (els.taxIconInp) els.taxIconInp.value = emojis[0] || '📌';
+  if (els.taxColorInp) {
+    els.taxColorInp.hidden = activeTaxonomyTab === 'payment';
+    els.taxColorInp.value = activeTaxonomyTab === 'income' ? '#10b981' : '#2a78d6';
+  }
+  if (els.taxFormHeading) {
+    els.taxFormHeading.textContent =
+      activeTaxonomyTab === 'payment'
+        ? '+ Add Payment Mode'
+        : activeTaxonomyTab === 'income'
+          ? '+ Add Income Category'
+          : '+ Add Expense Category';
+  }
+  if (els.taxSubmitBtn) {
+    els.taxSubmitBtn.textContent = 'Add';
+  }
+}
+
+function populateTaxonomyFormForEdit(item) {
+  if (!item) return;
+  if (els.taxEditId) els.taxEditId.value = item.id;
+  if (els.taxCancelEditBtn) els.taxCancelEditBtn.hidden = false;
+  if (els.taxIconInp) els.taxIconInp.value = item.icon || '📌';
+  if (els.taxNameInp) els.taxNameInp.value = item.name || '';
+  if (els.taxShortInp) els.taxShortInp.value = item.shortName || item.name || '';
+  if (els.taxKeywordsInp) {
+    els.taxKeywordsInp.value = Array.isArray(item.keywords) ? item.keywords.join(', ') : '';
+  }
+  if (els.taxColorInp) {
+    els.taxColorInp.hidden = activeTaxonomyTab === 'payment';
+    if (item.color) els.taxColorInp.value = item.color;
+  }
+  if (els.taxFormHeading) {
+    els.taxFormHeading.textContent = `✎ Edit "${item.shortName || item.name}"`;
+  }
+  if (els.taxSubmitBtn) {
+    els.taxSubmitBtn.textContent = 'Save';
+  }
+  els.taxNameInp?.focus();
+}
+
+function renderTaxonomyEmojiPicker() {
+  if (!els.taxEmojiSuggestions) return;
+  els.taxEmojiSuggestions.replaceChildren();
+  const emojis = TAXONOMY_EMOJI_SUGGESTIONS[activeTaxonomyTab] || TAXONOMY_EMOJI_SUGGESTIONS.expense;
+  for (const em of emojis) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tax-emoji-chip';
+    btn.textContent = em;
+    btn.addEventListener('click', () => {
+      if (els.taxIconInp) els.taxIconInp.value = em;
+    });
+    els.taxEmojiSuggestions.appendChild(btn);
+  }
+}
+
+function switchTaxonomyTab(tabName) {
+  activeTaxonomyTab = tabName === 'income' ? 'income' : tabName === 'payment' ? 'payment' : 'expense';
+  if (els.taxTabExpense) {
+    els.taxTabExpense.classList.toggle('active', activeTaxonomyTab === 'expense');
+    els.taxTabExpense.setAttribute('aria-selected', String(activeTaxonomyTab === 'expense'));
+    els.taxTabExpense.textContent = `🍔 Expenses (${EXPENSE_CATEGORIES.length})`;
+  }
+  if (els.taxTabIncome) {
+    els.taxTabIncome.classList.toggle('active', activeTaxonomyTab === 'income');
+    els.taxTabIncome.setAttribute('aria-selected', String(activeTaxonomyTab === 'income'));
+    els.taxTabIncome.textContent = `💰 Income (${INCOME_CATEGORIES.length})`;
+  }
+  if (els.taxTabPayment) {
+    els.taxTabPayment.classList.toggle('active', activeTaxonomyTab === 'payment');
+    els.taxTabPayment.setAttribute('aria-selected', String(activeTaxonomyTab === 'payment'));
+    els.taxTabPayment.textContent = `💳 Payment (${PAYMENT_METHODS.length})`;
+  }
+  resetTaxonomyForm();
+  renderTaxonomyEmojiPicker();
+  renderTaxonomyModalList();
+}
+
+function renderTaxonomyModalList() {
+  if (!els.taxonomyItemsList) return;
+  els.taxonomyItemsList.replaceChildren();
+
+  const items =
+    activeTaxonomyTab === 'payment'
+      ? PAYMENT_METHODS
+      : activeTaxonomyTab === 'income'
+        ? INCOME_CATEGORIES
+        : EXPENSE_CATEGORIES;
+
+  for (const item of items) {
+    const row = document.createElement('div');
+    row.className = 'cc-row-a';
+
+    const iconBadge = document.createElement('div');
+    iconBadge.className = 'cc-bank-badge is-icon';
+    iconBadge.textContent = item.icon || '📌';
+    if (item.color) {
+      iconBadge.style.background = `${item.color}26`;
+      iconBadge.style.borderColor = `${item.color}66`;
+    }
+
+    const mid = document.createElement('div');
+    mid.className = 'cc-row-mid';
+
+    const titleRow = document.createElement('div');
+    titleRow.className = 'cc-row-title';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'cc-row-name-txt';
+    nameSpan.textContent = item.name;
+    titleRow.appendChild(nameSpan);
+
+    if (item.shortName && item.shortName !== item.name) {
+      const shortPill = document.createElement('span');
+      shortPill.className = 'cc-due-pill is-ok';
+      shortPill.textContent = item.shortName;
+      titleRow.appendChild(shortPill);
+    }
+
+    const subRow = document.createElement('div');
+    subRow.className = 'cc-row-sub';
+    const kwList = Array.isArray(item.keywords) ? item.keywords : [];
+    subRow.textContent =
+      kwList.length > 0
+        ? `Keywords: ${kwList.slice(0, 6).join(', ')}${kwList.length > 6 ? ` +${kwList.length - 6}` : ''}`
+        : 'Tap Edit to customize name, icon, or auto-detect keywords';
+
+    mid.append(titleRow, subRow);
+
+    const right = document.createElement('div');
+    right.className = 'cc-row-right';
+
+    const actions = document.createElement('div');
+    actions.className = 'cc-row-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'cc-btn-xs';
+    editBtn.textContent = '✎ Edit';
+    editBtn.addEventListener('click', () => populateTaxonomyFormForEdit(item));
+    actions.appendChild(editBtn);
+
+    const isProtectedFallback =
+      item.id === 'other' ||
+      item.id === 'other_income' ||
+      (activeTaxonomyTab === 'payment' && PAYMENT_METHODS.length <= 1);
+
+    if (!isProtectedFallback) {
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'cc-btn-del';
+      delBtn.textContent = '✕';
+      delBtn.title = `Delete ${item.name}`;
+      delBtn.addEventListener('click', () => {
+        if (activeTaxonomyTab === 'payment') {
+          deletePaymentMethodItem(item.id);
+          if (state.settings.defaultPayment === item.id) {
+            state.settings = saveSettings({ defaultPayment: PAYMENT_METHODS[0]?.id || 'upi' });
+          }
+        } else {
+          deleteCategoryItem(item.id);
+        }
+        refreshAllTaxonomySelects();
+        switchTaxonomyTab(activeTaxonomyTab);
+        renderAll();
+        triggerBackgroundSync(false);
+        showToast(`Removed "${item.name}"`);
+      });
+      actions.appendChild(delBtn);
+    }
+
+    right.appendChild(actions);
+    row.append(iconBadge, mid, right);
+    els.taxonomyItemsList.appendChild(row);
+  }
+}
+
+function refreshAllTaxonomySelects() {
+  const curEditType = els.editType?.value || 'expense';
+  const prevCat = els.editCategory?.value;
+  const prevPay = els.editPayment?.value;
+  populateCategorySelect(curEditType);
+  populatePaymentSelects();
+  if (prevCat && CATEGORIES.some((c) => c.id === prevCat) && els.editCategory) {
+    els.editCategory.value = prevCat;
+    els.editCategoryGrid?.querySelectorAll('.edit-cat-grid-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.catId === prevCat);
+    });
+  }
+  if (prevPay && PAYMENT_METHODS.some((p) => p.id === prevPay) && els.editPayment) {
+    els.editPayment.value = prevPay;
+    els.editPaymentPills?.querySelectorAll('.edit-pay-pill-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.payId === prevPay);
+    });
+  }
+  updateLivePreview();
+}
+
+function openTaxonomyModal(initialTab = 'expense') {
+  switchTaxonomyTab(initialTab);
+  els.taxonomyDialog?.showModal();
+}
+
 function focusExpenseInput() {
   if (!els.expenseInput || isAnyDialogOpen()) return;
   if (state.uiDesign === 'tabs' && state.activeView === 'insights') return;
@@ -3220,6 +3469,7 @@ const specController = createSpecController({
   openEditModal: (exp) => openEditModal(exp),
   openStoryModal: (recap) => openStoryModal(recap),
   openRecurringModal: (tab = 'utility') => openRecurringModal(tab),
+  openTaxonomyModal: (tab = 'expense') => openTaxonomyModal(tab),
   openSyncAndSettingsModal: () => openSyncAndSettingsModal(),
   exportCsv: (items) => {
     exportToCSV(items);
@@ -4193,7 +4443,93 @@ function setupEventListeners() {
   els.syncDialog?.addEventListener('close', () => {});
   els.editDialog?.addEventListener('close', () => {});
   els.recurringDialog?.addEventListener('close', () => {});
+  els.taxonomyDialog?.addEventListener('close', () => {});
   els.storyDialog?.addEventListener('close', () => {});
+
+  // Categories & Payment Modes Manager listeners
+  els.taxTabExpense?.addEventListener('click', () => switchTaxonomyTab('expense'));
+  els.taxTabIncome?.addEventListener('click', () => switchTaxonomyTab('income'));
+  els.taxTabPayment?.addEventListener('click', () => switchTaxonomyTab('payment'));
+  els.taxCancelEditBtn?.addEventListener('click', () => resetTaxonomyForm());
+
+  els.editOpenTaxonomyCatBtn?.addEventListener('click', () => {
+    const curType = els.editType?.value === 'income' ? 'income' : 'expense';
+    openTaxonomyModal(curType);
+  });
+  els.editOpenTaxonomyPayBtn?.addEventListener('click', () => {
+    openTaxonomyModal('payment');
+  });
+  els.syncOpenTaxonomyBtn?.addEventListener('click', () => {
+    openTaxonomyModal('expense');
+  });
+
+  els.taxResetDefaultsBtn?.addEventListener('click', () => {
+    if (!window.confirm('Restore default expense categories, income categories, and payment modes?')) {
+      return;
+    }
+    resetCustomTaxonomyToDefaults();
+    refreshAllTaxonomySelects();
+    switchTaxonomyTab(activeTaxonomyTab);
+    renderAll();
+    triggerBackgroundSync(false);
+    showToast('Restored default categories & payment modes');
+  });
+
+  els.taxonomyItemForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = (els.taxNameInp?.value || '').trim();
+    if (!name) return;
+    const shortName = (els.taxShortInp?.value || '').trim() || name;
+    const icon = (els.taxIconInp?.value || '').trim() || '📌';
+    const keywords = (els.taxKeywordsInp?.value || '').trim();
+    const color = els.taxColorInp?.value || '#2a78d6';
+    const editingId = (els.taxEditId?.value || '').trim();
+
+    if (activeTaxonomyTab === 'payment') {
+      const savedPm = upsertPaymentMethodItem({
+        id: editingId || undefined,
+        name,
+        shortName,
+        icon,
+        keywords
+      });
+      refreshAllTaxonomySelects();
+      if (els.editDialog?.open && els.editPayment) {
+        els.editPayment.value = savedPm.id;
+        els.editPaymentPills?.querySelectorAll('.edit-pay-pill-btn').forEach((b) => {
+          b.classList.toggle('active', b.dataset.payId === savedPm.id);
+        });
+      }
+      switchTaxonomyTab('payment');
+      renderAll();
+      triggerBackgroundSync(false);
+      showToast(`✅ Saved payment mode: ${savedPm.icon} ${savedPm.name}`);
+      return;
+    }
+
+    const catType = activeTaxonomyTab === 'income' ? 'income' : 'expense';
+    const savedCat = upsertCategoryItem({
+      id: editingId || undefined,
+      type: catType,
+      name,
+      shortName,
+      icon,
+      color,
+      keywords
+    });
+    refreshAllTaxonomySelects();
+    if (els.editDialog?.open && els.editCategory && (els.editType?.value || 'expense') === catType) {
+      els.editCategory.value = savedCat.id;
+      els.editCategoryGrid?.querySelectorAll('.edit-cat-grid-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.catId === savedCat.id);
+      });
+      updateEditLearnLabel();
+    }
+    switchTaxonomyTab(catType);
+    renderAll();
+    triggerBackgroundSync(false);
+    showToast(`✅ Saved category: ${savedCat.icon} ${savedCat.name}`);
+  });
 
   // 3D / 6D: Header Theme Cycle Button (Dark -> Clean -> Receipt)
   els.themeCycleBtn?.addEventListener('click', () => {
@@ -4839,10 +5175,12 @@ function setupEventListeners() {
       expenses: state.expenses,
       recurringRules: state.recurringRules,
       utilityBills: state.utilityBills,
+      customTaxonomy: getCustomTaxonomySnapshot(),
       learnedKeywords: getLearnedKeywords(),
       settings: {
         currency: state.settings.currency || '₹',
         monthlyBudget: state.settings.monthlyBudget || 0,
+        excludeRentOnHome: Boolean(state.settings.excludeRentOnHome),
         defaultPayment: state.settings.defaultPayment || 'upi',
         ccStatementDay: state.settings.ccStatementDay || 15,
         ccDueDay: state.settings.ccDueDay || 5,
@@ -4882,10 +5220,18 @@ function setupEventListeners() {
           state.utilityBills = parsed.utilityBills;
           saveUtilityBills(state.utilityBills);
         }
+        if (parsed.customTaxonomy && typeof parsed.customTaxonomy === 'object') {
+          saveCustomTaxonomy(parsed.customTaxonomy);
+          refreshAllTaxonomySelects();
+        }
         if (parsed.settings) {
           state.settings = saveSettings({
             currency: parsed.settings.currency || state.settings.currency || '₹',
             monthlyBudget: Number(parsed.settings.monthlyBudget) || state.settings.monthlyBudget || 0,
+            excludeRentOnHome:
+              parsed.settings.excludeRentOnHome !== undefined
+                ? Boolean(parsed.settings.excludeRentOnHome)
+                : Boolean(state.settings.excludeRentOnHome),
             defaultPayment: parsed.settings.defaultPayment || state.settings.defaultPayment || 'upi',
             ccStatementDay: Number(parsed.settings.ccStatementDay) || state.settings.ccStatementDay || 15,
             ccDueDay: Number(parsed.settings.ccDueDay) || state.settings.ccDueDay || 5,

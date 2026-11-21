@@ -12,12 +12,14 @@
  */
 
 import {
+  CATEGORIES,
   EXPENSE_CATEGORIES,
   extractTags,
   getCategoriesByType,
   getCategoryById,
   getLearnedKeywords,
   getPaymentMethodById,
+  INCOME_CATEGORIES,
   inferCategory,
   learnFromNote,
   parseDraftMessage,
@@ -28,6 +30,7 @@ import {
 
 import {
   FEATURE_REMOTE_NOTIF_SYNC,
+  isRentExpense,
   normalizeEntryType,
   normalizePaymentMethod,
   normalizeTags
@@ -226,7 +229,18 @@ export function createSpecController(ctx) {
 
   function buildReceiptViewHTML(expenses, settings, spanComp, todayIso, yesterdayIso) {
     const budget = Number(settings.monthlyBudget) || 30000;
-    const curTotal = spanComp.curTotal;
+    const monthPrefix = `${ctx.state.selectedYear}-${String(ctx.state.selectedMonth + 1).padStart(2, '0')}`;
+    const allMonthItems = expenses.filter(
+      (e) => e.date?.startsWith(monthPrefix) && normalizeEntryType(e) !== 'income'
+    );
+    const excludeRent = Boolean(settings.excludeRentOnHome);
+    const excludedRentTotal = excludeRent
+      ? allMonthItems.filter((e) => isRentExpense(e)).reduce((s, e) => s + (Number(e.amount) || 0), 0)
+      : 0;
+    const monthItems = excludeRent
+      ? allMonthItems.filter((e) => !isRentExpense(e))
+      : allMonthItems;
+    const curTotal = monthItems.reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const pct = budget > 0 ? Math.min(100, Math.round((curTotal / budget) * 100)) : 0;
     const elapsedFrac = spanComp.elapsedDay / Math.max(1, spanComp.daysInCurMonth);
     const totalBars = 18;
@@ -240,11 +254,6 @@ export function createSpecController(ctx) {
     }
     const remDays = Math.max(1, spanComp.daysInCurMonth - spanComp.elapsedDay + 1);
     const safeDaily = Math.max(0, (budget - curTotal) / remDays);
-
-    const monthPrefix = `${ctx.state.selectedYear}-${String(ctx.state.selectedMonth + 1).padStart(2, '0')}`;
-    const monthItems = expenses.filter(
-      (e) => e.date?.startsWith(monthPrefix) && normalizeEntryType(e) !== 'income'
-    );
     const byDate = new Map();
     for (const e of monthItems) {
       const list = byDate.get(e.date) || [];
@@ -329,7 +338,13 @@ export function createSpecController(ctx) {
             <span>/ ${budget.toLocaleString('en-IN')}</span>
           </div>
           <div class="spec-receipt-ascii">[${asciiBar}] ${pct}%</div>
-          <div class="spec-receipt-allowance">REMAINING — ${Math.max(0, budget - curTotal).toLocaleString('en-IN')}</div>
+          <div class="spec-receipt-allowance">REMAINING — ${Math.max(0, budget - curTotal).toLocaleString('en-IN')}${
+            excludeRent
+              ? excludedRentTotal > 0
+                ? ` · EXCL. ${excludedRentTotal.toLocaleString('en-IN')} RENT`
+                : ' · EXCL. RENT'
+              : ''
+          }</div>
         </section>
         ${dayReceiptsHtml}
       </div>
@@ -374,9 +389,16 @@ export function createSpecController(ctx) {
     const firstName = rawName ? rawName.split(/\s+/)[0] : 'there';
 
     const monthPrefix = `${ctx.state.selectedYear}-${String(ctx.state.selectedMonth + 1).padStart(2, '0')}`;
-    const monthExpenses = expenses.filter(
+    const allMonthExpenses = expenses.filter(
       (e) => e.date?.startsWith(monthPrefix) && normalizeEntryType(e) !== 'income'
     );
+    const excludeRent = Boolean(settings.excludeRentOnHome);
+    const excludedRentItems = excludeRent ? allMonthExpenses.filter((e) => isRentExpense(e)) : [];
+    const excludedRentTotal = excludedRentItems.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const monthExpenses = excludeRent
+      ? allMonthExpenses.filter((e) => !isRentExpense(e))
+      : allMonthExpenses;
+
     const monthTotal = monthExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const todayTotal = monthExpenses
       .filter((e) => e.date === todayIso)
@@ -390,6 +412,11 @@ export function createSpecController(ctx) {
       monthTotal <= budget
         ? `${ctx.formatCurrency(leftAmt)} left of ${ctx.formatCurrency(budget)}`
         : `${ctx.formatCurrency(monthTotal - budget)} over ${ctx.formatCurrency(budget)} budget`;
+    const excludedRentSubText = excludeRent
+      ? excludedRentTotal > 0
+        ? `Excludes ${ctx.formatCurrency(excludedRentTotal)} rent`
+        : 'Excludes rent'
+      : '';
 
     // Category breakdown stacked bar + dot legend
     const catTotals = {};
@@ -524,6 +551,7 @@ export function createSpecController(ctx) {
             <span class="spec-eyebrow">${esc(FULL_MONTHS[ctx.state.selectedMonth])}</span>
             <h1 class="spec-midnight-hero-amt num">${ctx.formatCurrency(monthTotal)}</h1>
             <p class="spec-midnight-hero-sub">${esc(budgetSubText)}</p>
+            ${excludedRentSubText ? `<p class="spec-midnight-hero-sub-note">${esc(excludedRentSubText)}</p>` : ''}
           </div>
         </section>
 
@@ -664,7 +692,7 @@ export function createSpecController(ctx) {
 
     // 3A: KEYPAD MODE (Zero-Rebuild In-Place Updates for <0.2ms Key Taps)
     if (specState.addInputStyle === 'keypad') {
-      const modes = ['upi', 'cash', 'card', 'bank'];
+      const modes = PAYMENT_METHODS.slice(0, 4).map((p) => p.id);
 
       function syncKeypadDom() {
         const amtNum = parseFloat(specState.keypadAmountStr) || 0;
@@ -1101,7 +1129,7 @@ export function createSpecController(ctx) {
     });
 
     dynBody?.querySelector('#spec-cycle-mode-chip')?.addEventListener('click', () => {
-      const modes = ['upi', 'cash', 'card', 'bank', 'wallet', 'debit'];
+      const modes = PAYMENT_METHODS.map((p) => p.id);
       const curMode = specState.overrideMode || firstDraft?.paymentMethod || defaultPay;
       const idx = modes.indexOf(curMode);
       specState.overrideMode = modes[(idx + 1) % modes.length];
@@ -2269,11 +2297,14 @@ export function createSpecController(ctx) {
       filterLabel = `“${rawQ}”`;
     }
 
+    const paymentIds = PAYMENT_METHODS.map((p) => p.id);
     if (activeChip === 'expense') {
       filtered = filtered.filter((e) => normalizeEntryType(e) !== 'income');
     } else if (activeChip === 'income') {
       filtered = filtered.filter((e) => normalizeEntryType(e) === 'income');
-    } else if (['upi', 'card', 'cash'].includes(activeChip)) {
+    } else if (activeChip === 'card') {
+      filtered = filtered.filter((e) => normalizePaymentMethod(e) === 'credit_card' || normalizePaymentMethod(e) === 'card');
+    } else if (paymentIds.includes(activeChip)) {
       filtered = filtered.filter((e) => normalizePaymentMethod(e) === activeChip);
     }
 
@@ -2301,9 +2332,7 @@ export function createSpecController(ctx) {
       ['all', 'All'],
       ['expense', 'Expenses'],
       ['income', 'Income'],
-      ['upi', 'UPI'],
-      ['card', 'Card'],
-      ['cash', 'Cash']
+      ...PAYMENT_METHODS.map((p) => [p.id, p.shortName])
     ];
 
     root.innerHTML = `
@@ -2428,12 +2457,26 @@ export function createSpecController(ctx) {
                 <input type="number" id="spec-set-budget" class="spec-inline-num" value="${Number(settings.monthlyBudget) || 30000}" step="500" />
               </div>
             </div>
+            <div class="spec-setting-row">
+              <div>
+                <strong>Exclude rent on Home</strong>
+                <div class="spec-muted-sm">Keep Home total, budget ring &amp; bar focused on daily spend</div>
+              </div>
+              <input type="checkbox" id="spec-set-exclude-rent" class="spec-ios-switch" ${settings.excludeRentOnHome ? 'checked' : ''} />
+            </div>
             <div class="spec-setting-row" id="spec-open-recurring-modal" style="cursor:pointer">
               <div>
                 <strong>Utility bills &amp; credit cards</strong>
                 <div class="spec-muted-sm">Electricity, gas, property tax, cards &amp; due reminders</div>
               </div>
               <span class="spec-muted-sm">${(ctx.state.utilityBills || []).length} utilities · ${(settings.creditCards || []).length || 1} cards ›</span>
+            </div>
+            <div class="spec-setting-row" id="spec-open-taxonomy-modal" style="cursor:pointer">
+              <div>
+                <strong>Categories &amp; payment modes</strong>
+                <div class="spec-muted-sm">Add or edit expense/income categories, icons, colors &amp; payment types</div>
+              </div>
+              <span class="spec-muted-sm">${EXPENSE_CATEGORIES.length + INCOME_CATEGORIES.length} cats · ${PAYMENT_METHODS.length} modes ›</span>
             </div>
           </div>
         </div>
@@ -2655,8 +2698,23 @@ export function createSpecController(ctx) {
         ctx.updateSettings({ monthlyBudget: val });
       }
     });
+    root.querySelector('#spec-set-exclude-rent')?.addEventListener('change', (e) => {
+      const enabled = Boolean(e.target.checked);
+      ctx.updateSettings({ excludeRentOnHome: enabled });
+      render();
+      if (ctx.showToast) {
+        ctx.showToast(
+          enabled
+            ? '🏠 Rent excluded from Home view (still visible in History & Stats)'
+            : '🏠 Rent included on Home view'
+        );
+      }
+    });
     root.querySelector('#spec-open-recurring-modal')?.addEventListener('click', () => {
       ctx.openRecurringModal('utility');
+    });
+    root.querySelector('#spec-open-taxonomy-modal')?.addEventListener('click', () => {
+      ctx.openTaxonomyModal?.('expense');
     });
     root.querySelectorAll('[data-set-homestyle]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -2933,11 +2991,12 @@ export function createSpecController(ctx) {
     } else if (activeKey === 'settings') {
       renderSettingsScreen(views.settings, expenses, settings);
     } else {
-      // Only rebuild Home DOM if data, month, or theme changed; otherwise reveal cached DOM in <0.5ms!
+      // Only rebuild Home DOM if data, month, taxonomy, or theme changed; otherwise reveal cached DOM in <0.5ms!
       const topId = expenses[0]?.id || '';
       const topUpd = expenses[0]?.updatedAt || 0;
       const ccSig = JSON.stringify(settings.creditCards || []) + ':' + (settings.ccRemindDays || 5);
-      const homeSig = `${expenses.length}:${topId}:${topUpd}:${spanComp.curTotal}:${settings.monthlyBudget}:${settings.userName || ''}:${settings.theme}:${settings.homeStyle}:${settings.recapCard}:${ccSig}:${ctx.state.selectedYear}-${ctx.state.selectedMonth}`;
+      const taxSig = `${CATEGORIES.map((c) => `${c.id}:${c.name}:${c.icon}:${c.color}`).join('|')}::${PAYMENT_METHODS.map((p) => `${p.id}:${p.shortName}:${p.icon}`).join('|')}`;
+      const homeSig = `${expenses.length}:${topId}:${topUpd}:${spanComp.curTotal}:${settings.monthlyBudget}:${Boolean(settings.excludeRentOnHome)}:${settings.userName || ''}:${settings.theme}:${settings.homeStyle}:${settings.recapCard}:${ccSig}:${taxSig}:${ctx.state.selectedYear}-${ctx.state.selectedMonth}`;
       if (homeSig !== lastHomeSignature || !views.home.firstElementChild) {
         renderHomeScreen(views.home, expenses, settings, spanComp);
         lastHomeSignature = homeSig;

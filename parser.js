@@ -10,7 +10,7 @@
  * - "rent 15000 1st oct"
  */
 
-export const EXPENSE_CATEGORIES = [
+export const DEFAULT_EXPENSE_CATEGORIES = [
   { id: 'food', name: 'Food & Dining', shortName: 'Food', icon: '🍔', hue: '24', color: '#2a78d6', type: 'expense' },
   { id: 'transport', name: 'Transport & Fuel', shortName: 'Transport', icon: '⛽', hue: '210', color: '#eb6834', type: 'expense' },
   { id: 'groceries', name: 'Groceries', shortName: 'Groceries', icon: '🛒', hue: '142', color: '#1baf7a', type: 'expense' },
@@ -22,7 +22,7 @@ export const EXPENSE_CATEGORIES = [
   { id: 'other', name: 'Other Expense', shortName: 'Other', icon: '📌', hue: '220', color: '#898781', type: 'expense' }
 ];
 
-export const INCOME_CATEGORIES = [
+export const DEFAULT_INCOME_CATEGORIES = [
   { id: 'salary', name: 'Salary & Paycheck', shortName: 'Salary', icon: '💰', hue: '152', color: '#10b981', type: 'income' },
   { id: 'freelance', name: 'Freelance & Business', shortName: 'Freelance', icon: '💼', hue: '172', color: '#14b8a6', type: 'income' },
   { id: 'investments', name: 'Investments & Returns', shortName: 'Investments', icon: '📈', hue: '135', color: '#22c55e', type: 'income' },
@@ -31,19 +31,253 @@ export const INCOME_CATEGORIES = [
   { id: 'other_income', name: 'Other Income', shortName: 'Other Income', icon: '💵', hue: '160', color: '#10b981', type: 'income' }
 ];
 
-export const CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
-
-export const PAYMENT_METHODS = [
-  { id: 'upi', name: 'UPI', shortName: 'UPI', icon: '⚡', hue: '198' },
-  { id: 'credit_card', name: 'Credit Card', shortName: 'Credit Card', icon: '💳', hue: '268' },
-  { id: 'cash', name: 'Cash', shortName: 'Cash', icon: '💵', hue: '145' },
-  { id: 'cashback_wallet', name: 'Cashback / Wallet', shortName: 'Cashback', icon: '🎁', hue: '325' },
-  { id: 'debit_card', name: 'Debit Card', shortName: 'Debit Card', icon: '🏧', hue: '36' },
-  { id: 'bank', name: 'Bank Transfer', shortName: 'Bank', icon: '🏦', hue: '215' }
+export const DEFAULT_PAYMENT_METHODS = [
+  { id: 'upi', name: 'UPI', shortName: 'UPI', icon: '⚡', hue: '198', keywords: ['upi', 'gpay', 'google pay', 'phonepe', 'paytm', 'bhim', 'cred upi', 'supermoney', 'famapp'] },
+  { id: 'credit_card', name: 'Credit Card', shortName: 'Credit Card', icon: '💳', hue: '268', keywords: ['credit card', 'cc', 'amex', 'infinia', 'regalia', 'millennia', 'icici cc', 'hdfc cc', 'sbi cc', 'axis cc'] },
+  { id: 'cash', name: 'Cash', shortName: 'Cash', icon: '💵', hue: '145', keywords: ['cash'] },
+  { id: 'cashback_wallet', name: 'Cashback / Wallet', shortName: 'Cashback', icon: '🎁', hue: '325', keywords: ['wallet', 'amazon pay', 'apay', 'paytm wallet', 'mobikwik', 'freecharge', 'pluxee', 'sodexo', 'reward points', 'gift card', 'voucher'] },
+  { id: 'debit_card', name: 'Debit Card', shortName: 'Debit Card', icon: '🏧', hue: '36', keywords: ['debit card', 'dc', 'atm card'] },
+  { id: 'bank', name: 'Bank Transfer', shortName: 'Bank', icon: '🏦', hue: '215', keywords: ['netbanking', 'net banking', 'bank transfer', 'neft', 'imps', 'rtgs', 'cheque', 'auto debit', 'nach'] }
 ];
 
+export const EXPENSE_CATEGORIES = [...DEFAULT_EXPENSE_CATEGORIES];
+export const INCOME_CATEGORIES = [...DEFAULT_INCOME_CATEGORIES];
+export const CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
+export const PAYMENT_METHODS = [...DEFAULT_PAYMENT_METHODS];
+
+const CUSTOM_TAXONOMY_KEY = 'qe_custom_taxonomy_v1';
+
+const COLOR_TO_HUE = {
+  '#2a78d6': '210',
+  '#eb6834': '20',
+  '#1baf7a': '158',
+  '#eda100': '42',
+  '#e87ba4': '335',
+  '#008300': '120',
+  '#4a3aa7': '248',
+  '#0d9488': '174',
+  '#10b981': '160',
+  '#14b8a6': '172',
+  '#22c55e': '142',
+  '#06b6d4': '188',
+  '#ec4899': '330',
+  '#f43f5e': '350',
+  '#8b5cf6': '258',
+  '#6366f1': '239',
+  '#38bdf8': '198',
+  '#898781': '40'
+};
+
+function sanitizeKeywordsList(kwInput) {
+  if (Array.isArray(kwInput)) {
+    return Array.from(
+      new Set(
+        kwInput
+          .map((k) => String(k || '').toLowerCase().trim())
+          .filter((k) => k.length >= 2)
+      )
+    );
+  }
+  if (typeof kwInput === 'string') {
+    return Array.from(
+      new Set(
+        kwInput
+          .split(',')
+          .map((k) => k.toLowerCase().trim())
+          .filter((k) => k.length >= 2)
+      )
+    );
+  }
+  return [];
+}
+
+function normalizeCategoryRecord(c, defaultType = 'expense') {
+  const type = c?.type === 'income' ? 'income' : defaultType;
+  const name = String(c?.name || 'Category').trim();
+  const shortName = String(c?.shortName || name).trim() || name;
+  const id = String(c?.id || name.toLowerCase().replace(/[^a-z0-9]+/g, '_')).trim();
+  const icon = String(c?.icon || (type === 'income' ? '💵' : '📌')).trim() || '📌';
+  const color = String(c?.color || (type === 'income' ? '#10b981' : '#2a78d6')).trim();
+  const hue = String(c?.hue || COLOR_TO_HUE[color.toLowerCase()] || '160');
+  const keywords = sanitizeKeywordsList(
+    c?.keywords !== undefined
+      ? c.keywords
+      : type === 'income'
+        ? DEFAULT_INCOME_KEYWORDS[id] || []
+        : DEFAULT_KEYWORDS[id] || []
+  );
+  return { id, name, shortName, icon, hue, color, type, keywords };
+}
+
+function normalizePaymentRecord(pm) {
+  const name = String(pm?.name || 'Payment').trim();
+  const shortName = String(pm?.shortName || name).trim() || name;
+  const id = String(pm?.id || name.toLowerCase().replace(/[^a-z0-9]+/g, '_')).trim();
+  const icon = String(pm?.icon || '💳').trim() || '💳';
+  const hue = String(pm?.hue || '198');
+  const fallbackDef = DEFAULT_PAYMENT_METHODS.find((d) => d.id === id);
+  const keywords = sanitizeKeywordsList(
+    pm?.keywords !== undefined ? pm.keywords : fallbackDef?.keywords || [shortName.toLowerCase(), name.toLowerCase()]
+  );
+  return { id, name, shortName, icon, hue, keywords };
+}
+
+export function loadCustomTaxonomy() {
+  let stored = null;
+  try {
+    const raw = localStorage.getItem(CUSTOM_TAXONOMY_KEY);
+    if (raw) stored = JSON.parse(raw);
+  } catch {
+    // ignore storage errors
+  }
+
+  const expList =
+    Array.isArray(stored?.expenseCategories) && stored.expenseCategories.length > 0
+      ? stored.expenseCategories.map((c) => normalizeCategoryRecord(c, 'expense'))
+      : DEFAULT_EXPENSE_CATEGORIES.map((c) => normalizeCategoryRecord(c, 'expense'));
+
+  // Always ensure fallback 'other' exists for expenses
+  if (!expList.some((c) => c.id === 'other')) {
+    expList.push(normalizeCategoryRecord(DEFAULT_EXPENSE_CATEGORIES[DEFAULT_EXPENSE_CATEGORIES.length - 1], 'expense'));
+  }
+
+  const incList =
+    Array.isArray(stored?.incomeCategories) && stored.incomeCategories.length > 0
+      ? stored.incomeCategories.map((c) => normalizeCategoryRecord(c, 'income'))
+      : DEFAULT_INCOME_CATEGORIES.map((c) => normalizeCategoryRecord(c, 'income'));
+
+  // Always ensure fallback 'other_income' exists for income
+  if (!incList.some((c) => c.id === 'other_income')) {
+    incList.push(normalizeCategoryRecord(DEFAULT_INCOME_CATEGORIES[DEFAULT_INCOME_CATEGORIES.length - 1], 'income'));
+  }
+
+  const payList =
+    Array.isArray(stored?.paymentMethods) && stored.paymentMethods.length > 0
+      ? stored.paymentMethods.map((p) => normalizePaymentRecord(p))
+      : DEFAULT_PAYMENT_METHODS.map((p) => normalizePaymentRecord(p));
+
+  EXPENSE_CATEGORIES.splice(0, EXPENSE_CATEGORIES.length, ...expList);
+  INCOME_CATEGORIES.splice(0, INCOME_CATEGORIES.length, ...incList);
+  CATEGORIES.splice(0, CATEGORIES.length, ...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES);
+  PAYMENT_METHODS.splice(0, PAYMENT_METHODS.length, ...payList);
+
+  return {
+    expenseCategories: EXPENSE_CATEGORIES,
+    incomeCategories: INCOME_CATEGORIES,
+    paymentMethods: PAYMENT_METHODS,
+    updatedAt: Number(stored?.updatedAt) || 0
+  };
+}
+
+export function getCustomTaxonomySnapshot() {
+  let updatedAt = 0;
+  try {
+    const raw = localStorage.getItem(CUSTOM_TAXONOMY_KEY);
+    if (raw) updatedAt = Number(JSON.parse(raw)?.updatedAt) || 0;
+  } catch {
+    // ignore
+  }
+  return {
+    expenseCategories: EXPENSE_CATEGORIES.map((c) => ({ ...c })),
+    incomeCategories: INCOME_CATEGORIES.map((c) => ({ ...c })),
+    paymentMethods: PAYMENT_METHODS.map((p) => ({ ...p })),
+    updatedAt
+  };
+}
+
+export function saveCustomTaxonomy({ expenseCategories, incomeCategories, paymentMethods, updatedAt } = {}) {
+  const payload = {
+    expenseCategories: (expenseCategories || EXPENSE_CATEGORIES).map((c) => normalizeCategoryRecord(c, 'expense')),
+    incomeCategories: (incomeCategories || INCOME_CATEGORIES).map((c) => normalizeCategoryRecord(c, 'income')),
+    paymentMethods: (paymentMethods || PAYMENT_METHODS).map((p) => normalizePaymentRecord(p)),
+    updatedAt: updatedAt || Date.now()
+  };
+  try {
+    localStorage.setItem(CUSTOM_TAXONOMY_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore storage errors
+  }
+  return loadCustomTaxonomy();
+}
+
+export function resetCustomTaxonomyToDefaults() {
+  try {
+    localStorage.removeItem(CUSTOM_TAXONOMY_KEY);
+  } catch {
+    // ignore
+  }
+  return loadCustomTaxonomy();
+}
+
+export function upsertCategoryItem(catInput) {
+  const type = catInput?.type === 'income' ? 'income' : 'expense';
+  const normalized = normalizeCategoryRecord(catInput, type);
+  const targetArr = type === 'income' ? [...INCOME_CATEGORIES] : [...EXPENSE_CATEGORIES];
+  const idx = targetArr.findIndex((c) => c.id === normalized.id);
+  if (idx >= 0) {
+    targetArr[idx] = { ...targetArr[idx], ...normalized };
+  } else {
+    // Insert right before 'other' / 'other_income' so fallback stays at the end
+    const fallbackId = type === 'income' ? 'other_income' : 'other';
+    const fbIdx = targetArr.findIndex((c) => c.id === fallbackId);
+    if (fbIdx >= 0) {
+      targetArr.splice(fbIdx, 0, normalized);
+    } else {
+      targetArr.push(normalized);
+    }
+  }
+  saveCustomTaxonomy({
+    expenseCategories: type === 'expense' ? targetArr : EXPENSE_CATEGORIES,
+    incomeCategories: type === 'income' ? targetArr : INCOME_CATEGORIES,
+    paymentMethods: PAYMENT_METHODS
+  });
+  return normalized;
+}
+
+export function deleteCategoryItem(categoryId) {
+  if (categoryId === 'other' || categoryId === 'other_income') return false;
+  const nextExp = EXPENSE_CATEGORIES.filter((c) => c.id !== categoryId);
+  const nextInc = INCOME_CATEGORIES.filter((c) => c.id !== categoryId);
+  saveCustomTaxonomy({
+    expenseCategories: nextExp,
+    incomeCategories: nextInc,
+    paymentMethods: PAYMENT_METHODS
+  });
+  return true;
+}
+
+export function upsertPaymentMethodItem(pmInput) {
+  const normalized = normalizePaymentRecord(pmInput);
+  const nextPay = [...PAYMENT_METHODS];
+  const idx = nextPay.findIndex((p) => p.id === normalized.id);
+  if (idx >= 0) {
+    nextPay[idx] = { ...nextPay[idx], ...normalized };
+  } else {
+    nextPay.push(normalized);
+  }
+  saveCustomTaxonomy({
+    expenseCategories: EXPENSE_CATEGORIES,
+    incomeCategories: INCOME_CATEGORIES,
+    paymentMethods: nextPay
+  });
+  return normalized;
+}
+
+export function deletePaymentMethodItem(paymentId) {
+  if (PAYMENT_METHODS.length <= 1) return false;
+  const nextPay = PAYMENT_METHODS.filter((p) => p.id !== paymentId);
+  if (nextPay.length === 0) return false;
+  saveCustomTaxonomy({
+    expenseCategories: EXPENSE_CATEGORIES,
+    incomeCategories: INCOME_CATEGORIES,
+    paymentMethods: nextPay
+  });
+  return true;
+}
+
 export function getPaymentMethodById(id) {
-  return PAYMENT_METHODS.find((m) => m.id === id) || PAYMENT_METHODS[0];
+  const normId = id === 'card' ? 'credit_card' : id === 'wallet' ? 'cashback_wallet' : id === 'debit' ? 'debit_card' : id;
+  return PAYMENT_METHODS.find((m) => m.id === normId || m.id === id) || PAYMENT_METHODS[0] || DEFAULT_PAYMENT_METHODS[0];
 }
 
 export function isIncomeCategory(categoryId) {
@@ -179,6 +413,9 @@ export function learnFromNote(note, categoryId) {
 export function getCategoryById(id) {
   return CATEGORIES.find((c) => c.id === id) || EXPENSE_CATEGORIES[EXPENSE_CATEGORIES.length - 1];
 }
+
+// Initialize custom taxonomy on module load so CATEGORIES & PAYMENT_METHODS reflect saved user edits
+loadCustomTaxonomy();
 
 /**
  * Format Date to YYYY-MM-DD in local time
@@ -329,8 +566,29 @@ function matchDictionaryPrefix(words, dict) {
   return null;
 }
 
+function buildActiveCategoryDictionary(type = 'expense') {
+  const list = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const fallbackDict = type === 'income' ? DEFAULT_INCOME_KEYWORDS : DEFAULT_KEYWORDS;
+  const dict = {};
+  for (const cat of list) {
+    if (cat.id === 'other' || cat.id === 'other_income') continue;
+    const customKws = Array.isArray(cat.keywords) ? cat.keywords : [];
+    const defaultKws = fallbackDict[cat.id] || [];
+    const nameTokens = [cat.shortName, cat.name]
+      .filter(Boolean)
+      .map((s) => String(s).toLowerCase().trim())
+      .filter((s) => s.length >= 3);
+    dict[cat.id] = Array.from(new Set([...customKws, ...defaultKws, ...nameTokens]));
+  }
+  return dict;
+}
+
+function escapeRegexLiteral(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
- * Infer category from text using learned keywords first, then default dictionary.
+ * Infer category from text using learned keywords first, then active (user + default) category dictionary.
  * If forcedType ('expense' | 'income') is provided, restricts category to that type.
  */
 export function inferCategory(text, forcedType = null) {
@@ -344,7 +602,7 @@ export function inferCategory(text, forcedType = null) {
   // 1. Check learned user keywords first (exact token match)
   for (const w of words) {
     const learnedCat = learned[w];
-    if (learnedCat) {
+    if (learnedCat && CATEGORIES.some((c) => c.id === learnedCat)) {
       if (!forcedType) return learnedCat;
       const isInc = isIncomeCategory(learnedCat);
       if ((forcedType === 'income' && isInc) || (forcedType === 'expense' && !isInc)) {
@@ -353,11 +611,14 @@ export function inferCategory(text, forcedType = null) {
     }
   }
 
+  const activeIncomeDict = buildActiveCategoryDictionary('income');
+  const activeExpenseDict = buildActiveCategoryDictionary('expense');
+
   // 2. If forcedType is 'income', search income dictionary only
   if (forcedType === 'income') {
     return (
-      matchDictionaryExact(lower, words, DEFAULT_INCOME_KEYWORDS) ||
-      matchDictionaryPrefix(words, DEFAULT_INCOME_KEYWORDS) ||
+      matchDictionaryExact(lower, words, activeIncomeDict) ||
+      matchDictionaryPrefix(words, activeIncomeDict) ||
       'other_income'
     );
   }
@@ -365,39 +626,72 @@ export function inferCategory(text, forcedType = null) {
   // 3. If forcedType is 'expense', search expense dictionary only
   if (forcedType === 'expense') {
     return (
-      matchDictionaryExact(lower, words, DEFAULT_KEYWORDS) ||
-      matchDictionaryPrefix(words, DEFAULT_KEYWORDS) ||
+      matchDictionaryExact(lower, words, activeExpenseDict) ||
+      matchDictionaryPrefix(words, activeExpenseDict) ||
       'other'
     );
   }
 
   // 4. Auto-detect exact matches first: unambiguous income keywords, then expense keywords
-  const exactIncome = matchDictionaryExact(lower, words, DEFAULT_INCOME_KEYWORDS);
+  const exactIncome = matchDictionaryExact(lower, words, activeIncomeDict);
   if (exactIncome) return exactIncome;
 
-  const exactExpense = matchDictionaryExact(lower, words, DEFAULT_KEYWORDS);
+  const exactExpense = matchDictionaryExact(lower, words, activeExpenseDict);
   if (exactExpense) return exactExpense;
 
   // 5. Fallback to single-word prefix matches
-  const prefixExpense = matchDictionaryPrefix(words, DEFAULT_KEYWORDS);
+  const prefixExpense = matchDictionaryPrefix(words, activeExpenseDict);
   if (prefixExpense) return prefixExpense;
 
-  const prefixIncome = matchDictionaryPrefix(words, DEFAULT_INCOME_KEYWORDS);
+  const prefixIncome = matchDictionaryPrefix(words, activeIncomeDict);
   if (prefixIncome) return prefixIncome;
 
   return 'other';
 }
 
 /**
- * Extract payment method (UPI, Credit Card, Cash, Cashback/Wallet, Debit Card, Bank)
+ * Extract payment method (including custom payment methods & custom keywords)
  * and return { paymentMethod, explicitPayment, forcesExpense, cleanedText }
  */
 export function extractPaymentMethod(text, defaultPayment = 'upi') {
   let working = text || '';
 
+  // 0. Check custom user-added payment methods or custom keywords first
+  for (const pm of PAYMENT_METHODS) {
+    const kws = Array.isArray(pm.keywords) ? pm.keywords : [];
+    const extraCandidates = [pm.shortName?.toLowerCase(), pm.name?.toLowerCase()]
+      .filter((s) => s && s.length >= 2);
+    const allTokens = Array.from(new Set([...kws, ...extraCandidates]))
+      .filter(Boolean)
+      .sort((a, b) => b.length - a.length);
+
+    if (allTokens.length === 0) continue;
+    // Skip built-in default ids here if they haven't been customized so specialized regex order below still runs,
+    // OR match custom payment types and custom keywords directly
+    const isBuiltInId = ['upi', 'credit_card', 'cash', 'cashback_wallet', 'debit_card', 'bank'].includes(pm.id);
+    const defaultPm = DEFAULT_PAYMENT_METHODS.find((d) => d.id === pm.id);
+    const customTokens = isBuiltInId
+      ? allTokens.filter((t) => !(defaultPm?.keywords || []).includes(t))
+      : allTokens;
+
+    if (customTokens.length > 0) {
+      const pattern = customTokens.map((t) => escapeRegexLiteral(t).replace(/\s+/g, '\\s+')).join('|');
+      const customRegex = new RegExp(`\\b(?:(?:via|by|on|from|using|with|in|through|thru)\\s+)?(?:${pattern})\\b`, 'i');
+      if (customRegex.test(working)) {
+        working = working.replace(customRegex, ' ');
+        return {
+          paymentMethod: pm.id,
+          explicitPayment: true,
+          forcesExpense: false,
+          cleanedText: working
+        };
+      }
+    }
+  }
+
   // 1. Explicit "from/via/using cashback" or wallet phrases -> expense paid using Cashback/Wallet
   const cashbackPayRegex = /\b(?:(?:from|via|by|using|with|through|thru)\s+(?:cashback|cb|wallet|amazon\s+pay|apay|paytm\s+wallet|reward\s*points?|points|voucher|gift\s*card|pluxee|sodexo)|(?:cashback\s+wallet|cb\s+wallet|amazon\s+pay\s+balance|apay\s+balance|paytm\s+wallet|mobikwik|freecharge|pluxee|sodexo|reward\s+points?))\b/i;
-  if (cashbackPayRegex.test(working)) {
+  if (cashbackPayRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'cashback_wallet')) {
     working = working.replace(cashbackPayRegex, ' ');
     return {
       paymentMethod: 'cashback_wallet',
@@ -409,7 +703,7 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
 
   // 2. Standalone "wallet" token -> Cashback / Wallet
   const walletRegex = /\b(?:(?:via|by|on|from|using|with|in)\s+)?wallet\b/i;
-  if (walletRegex.test(working)) {
+  if (walletRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'cashback_wallet')) {
     working = working.replace(walletRegex, ' ');
     return {
       paymentMethod: 'cashback_wallet',
@@ -421,7 +715,7 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
 
   // 3. Credit Card (cc, credit card, amex, infinia, regalia, etc.)
   const ccRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:credit\s+card|cc|amex|infinia|regalia|millennia|icici\s+cc|hdfc\s+cc|sbi\s+cc|axis\s+cc)\b/i;
-  if (ccRegex.test(working)) {
+  if (ccRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'credit_card')) {
     working = working.replace(ccRegex, ' ');
     return {
       paymentMethod: 'credit_card',
@@ -433,7 +727,7 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
 
   // 4. Debit Card (dc, debit card, atm card)
   const dcRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:debit\s+card|dc|atm\s+card)\b/i;
-  if (dcRegex.test(working)) {
+  if (dcRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'debit_card')) {
     working = working.replace(dcRegex, ' ');
     return {
       paymentMethod: 'debit_card',
@@ -445,7 +739,7 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
 
   // 5. Cash
   const cashRegex = /\b(?:(?:via|by|in|from|using|with)\s+)?cash\b/i;
-  if (cashRegex.test(working)) {
+  if (cashRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'cash')) {
     working = working.replace(cashRegex, ' ');
     return {
       paymentMethod: 'cash',
@@ -457,7 +751,7 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
 
   // 6. Bank Transfer (neft, imps, rtgs, netbanking, bank transfer, cheque)
   const bankRegex = /\b(?:(?:via|by|from|using|with)\s+)?(?:netbanking|net\s+banking|bank\s+transfer|neft|imps|rtgs|cheque|auto\s*debit|nach)\b/i;
-  if (bankRegex.test(working)) {
+  if (bankRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'bank')) {
     working = working.replace(bankRegex, ' ');
     return {
       paymentMethod: 'bank',
@@ -469,7 +763,7 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
 
   // 7. UPI (upi, gpay, google pay, phonepe, paytm, bhim, cred upi, supermoney, famapp)
   const upiRegex = /\b(?:(?:via|by|on|from|using|with)\s+)?(?:upi|gpay|google\s+pay|phonepe|paytm|bhim|cred\s+upi|supermoney|famapp)\b/i;
-  if (upiRegex.test(working)) {
+  if (upiRegex.test(working) && PAYMENT_METHODS.some((p) => p.id === 'upi')) {
     working = working.replace(upiRegex, ' ');
     return {
       paymentMethod: 'upi',
@@ -480,7 +774,7 @@ export function extractPaymentMethod(text, defaultPayment = 'upi') {
   }
 
   return {
-    paymentMethod: defaultPayment || 'upi',
+    paymentMethod: defaultPayment || PAYMENT_METHODS[0]?.id || 'upi',
     explicitPayment: false,
     forcesExpense: false,
     cleanedText: working
@@ -915,7 +1209,7 @@ export function parseQuestionQuery(input, now = new Date()) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  // 4. Check if working text matches a Category name directly (e.g. "food", "transport", "groceries", "bills", "shopping", "health", "fun", "entertainment", "personal")
+  // 4. Check if working text matches a Category name directly (including custom categories!)
   const catAliases = {
     food: 'food',
     dining: 'food',
@@ -936,6 +1230,16 @@ export function parseQuestionQuery(input, now = new Date()) {
     salary: 'salary',
     income: 'income_all'
   };
+  for (const cat of CATEGORIES) {
+    if (cat.id) catAliases[cat.id.toLowerCase()] = cat.id;
+    if (cat.shortName) catAliases[cat.shortName.toLowerCase()] = cat.id;
+    if (cat.name) {
+      catAliases[cat.name.toLowerCase()] = cat.id;
+      for (const word of cat.name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3)) {
+        if (!catAliases[word]) catAliases[word] = cat.id;
+      }
+    }
+  }
 
   let filterCategory = null;
   let itemQuery = '';

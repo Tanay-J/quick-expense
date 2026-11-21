@@ -14,7 +14,7 @@ import {
   getPaymentMethodById,
   toLocalISODate
 } from './parser.js?v=22';
-import { normalizeEntryType } from './sync.js?v=22';
+import { isRentExpense, normalizeEntryType } from './sync.js?v=22';
 import { computeSameSpanComparison, computeUsuals } from './insights.js?v=22';
 
 export const WIDGET_SNAPSHOT_KEY = 'qe_widget_snapshot_v1';
@@ -243,8 +243,12 @@ export function syncWidgetSnapshot(expenses, settings) {
   const month = now.getMonth();
   const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
 
+  const excludeRent = Boolean(settings?.excludeRentOnHome);
   const monthExpenses = (expenses || []).filter(
-    (e) => e.date?.startsWith(monthPrefix) && normalizeEntryType(e) !== 'income'
+    (e) =>
+      e.date?.startsWith(monthPrefix) &&
+      normalizeEntryType(e) !== 'income' &&
+      (!excludeRent || !isRentExpense(e))
   );
   const monthTotal = Math.round(
     monthExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)

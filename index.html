@@ -8,7 +8,7 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css?v=30">
+  <link rel="stylesheet" href="./styles.css?v=31">
 </head>
 <body data-design="spec" data-view="log" data-theme="dark">
   <!-- Live Design Option Switcher (hidden by default; append ?switcher=1 to URL to compare layouts) -->
@@ -742,6 +742,7 @@
         <div class="dialog-actions">
           <button type="submit" class="primary-btn">Save &amp; Sync Now</button>
           <button type="button" id="force-sync-btn" class="secondary-btn">Force Full Sync / Restore</button>
+          <button type="button" id="sync-open-taxonomy-btn" class="secondary-btn">🍔 Edit Categories &amp; Payment Modes</button>
         </div>
       </form>
 
@@ -820,14 +821,20 @@
 
         <!-- 3B: Visual Category Grid (1-tap selection) + native select fallback -->
         <div class="form-group">
-          <label for="edit-category">Category</label>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <label for="edit-category" style="margin:0;">Category</label>
+            <button type="button" id="edit-open-taxonomy-cat-btn" class="text-btn" style="font-size:12px;">+ Add / Edit Categories</button>
+          </div>
           <div id="edit-category-grid" class="edit-category-grid" role="group" aria-label="Choose category"></div>
           <select id="edit-category" name="category" class="visually-hidden"></select>
         </div>
 
         <!-- 3B: Segmented Payment Mode Bar + native select fallback -->
         <div class="form-group">
-          <label for="edit-payment">Payment Mode</label>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <label for="edit-payment" style="margin:0;">Payment Mode</label>
+            <button type="button" id="edit-open-taxonomy-pay-btn" class="text-btn" style="font-size:12px;">+ Add / Edit Modes</button>
+          </div>
           <div id="edit-payment-pills" class="edit-payment-pills" role="group" aria-label="Choose payment mode"></div>
           <select id="edit-payment" name="paymentMethod" class="visually-hidden"></select>
         </div>
@@ -1072,6 +1079,101 @@
     </div>
   </dialog>
 
+  <!-- Categories & Payment Modes Manager Modal (<dialog>) -->
+  <dialog id="taxonomy-dialog" class="app-dialog cc-clean-dialog" closedby="any" aria-labelledby="taxonomy-dialog-title">
+    <div class="dialog-content cc-clean-sheet">
+      <div class="cc-sheet-handle" aria-hidden="true"></div>
+      <div class="dialog-header cc-sheet-hdr">
+        <h1 id="taxonomy-dialog-title" class="dialog-title">Categories &amp; Payment Modes</h1>
+        <div style="display:inline-flex;align-items:center;gap:6px;">
+          <button type="button" id="tax-reset-defaults-btn" class="cc-btn-xs is-muted" title="Restore default categories and payment modes">Reset</button>
+          <form method="dialog">
+            <button type="submit" class="icon-btn cc-close-btn" aria-label="Close categories dialog">✕</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Segmented Top Tabs: Expense Categories | Income Categories | Payment Modes -->
+      <div class="cc-modal-seg" role="tablist" aria-label="Categories and Payment Modes Tabs">
+        <button type="button" role="tab" id="tax-tab-expense" class="cc-seg-btn active" data-tax-tab="expense" aria-selected="true">
+          🍔 Expenses
+        </button>
+        <button type="button" role="tab" id="tax-tab-income" class="cc-seg-btn" data-tax-tab="income" aria-selected="false">
+          💰 Income
+        </button>
+        <button type="button" role="tab" id="tax-tab-payment" class="cc-seg-btn" data-tax-tab="payment" aria-selected="false">
+          💳 Payment
+        </button>
+      </div>
+
+      <!-- Dynamic List of Categories or Payment Modes -->
+      <div id="taxonomy-items-list" class="cc-flat-list taxonomy-flat-list"></div>
+
+      <!-- Add / Edit Category or Payment Mode Form -->
+      <form id="taxonomy-item-form" class="cc-add-inline-box" action="#" method="POST">
+        <input type="hidden" id="tax-edit-id" value="">
+        <div class="cc-add-inline-head">
+          <span class="cc-add-inline-lbl" id="tax-form-heading">+ Add Expense Category</span>
+          <button type="button" id="tax-cancel-edit-btn" class="cc-btn-xs is-muted" hidden>Cancel Edit</button>
+        </div>
+        <div class="utility-form-grid">
+          <div class="utility-form-row">
+            <input
+              type="text"
+              id="tax-icon-inp"
+              class="cc-inp-sm is-center"
+              value="🍔"
+              maxlength="4"
+              title="Emoji / Icon"
+              aria-label="Emoji Icon"
+              style="width:52px; font-size:17px;"
+              required
+            />
+            <input
+              type="text"
+              id="tax-name-inp"
+              class="cc-inp-sm"
+              placeholder="Full name (e.g. Pets & Vet)"
+              maxlength="36"
+              required
+              style="flex:1.3;"
+            />
+            <input
+              type="text"
+              id="tax-short-inp"
+              class="cc-inp-sm"
+              placeholder="Short pill (e.g. Pets)"
+              maxlength="18"
+              style="flex:0.85;"
+            />
+          </div>
+
+          <!-- Quick Emoji Suggestions -->
+          <div id="tax-emoji-suggestions" class="tax-emoji-bar" aria-label="Quick emoji picker"></div>
+
+          <div class="utility-form-row">
+            <input
+              type="text"
+              id="tax-keywords-inp"
+              class="cc-inp-sm"
+              placeholder="Auto-detect keywords (comma separated, e.g. dog, vet, kibble)"
+              style="flex:1;"
+            />
+            <input
+              type="color"
+              id="tax-color-inp"
+              class="tax-color-picker"
+              value="#2a78d6"
+              title="Category chart color"
+              aria-label="Chart color"
+            />
+            <button type="submit" id="tax-submit-btn" class="cc-btn-save-sm" style="padding: 0 16px;">Save</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
   <!-- 6C: Full-Screen Monthly Wrapped Story Dialog (<dialog>) -->
   <dialog id="story-dialog" class="story-dialog" closedby="any" aria-label="Monthly Wrapped Story">
     <div id="story-card-surface" class="story-card-surface">
@@ -1090,6 +1192,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="./app.js?v=28"></script>
+  <script type="module" src="./app.js?v=31"></script>
 </body>
 </html>
